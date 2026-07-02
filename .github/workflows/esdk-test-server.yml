@@ -1,0 +1,180 @@
+# ============================================================================
+# ESDK TestServer CI (aws-crypto-tools-java Language_Repository)
+# ----------------------------------------------------------------------------
+# LOCATION MATTERS: this file lives FLAT, directly under `.github/workflows/`.
+# GitHub Actions only discovers workflow files that sit directly in
+# `.github/workflows/` — a nested file such as `.github/workflows/esdk/...`
+# would NEVER be triggered. Because this repo may host tooling for more than one
+# product over time, we namespace per product with a filename PREFIX instead of
+# a subdirectory: `esdk-` marks this as the ESDK TestServer workflow. (The spec
+# design sketch showed `.github/workflows/esdk/test-server.yml`; that path is
+# not runnable on GitHub Actions, so the flat product-prefixed name is used.)
+#
+# WHAT THIS DOES (Requirements 8.2, 8.3, 8.4, 8.5, 10.1, 11.1, 11.2):
+#   1. Clone the Commons_Repository FRESH at the head of COMMONS_BRANCH (no
+#      stored pin) and set it up.  <- if this fails, the job halts here and NO
+#      Tests run; the failing step names the setup failure (Requirement 8.5).
+#   2. Build THIS PR's working tree as the LIVE ESDK Java artifact into the
+#      local Maven repo (Requirement 11.2).
+#   3. Run the commons orchestrator with `live:java=<this working tree>`; every
+#      Other language resolves to head-of-main (Requirements 10.1, 11.1).
+#
+# The heavy lifting lives in `esdk/test-server/Makefile`; this workflow only
+# provides the toolchain and invokes the make targets in order, so the CI and
+# local flows stay identical. Its shape mirrors the commons
+# `.github/workflows/esdk-test-server.yml` and the multi-language S3EC reference
+# workflow (clone/setup + build + orchestrate).
+#
+# JDK SPLIT (documented in the Makefile too): the commons harness (smithy-java)
+# needs JDK 21+; the live ESDK Java build targets Java 8 and builds on JDK 17.
+# We set up both and hand their homes to make as HARNESS_JAVA_HOME / ESDK_JAVA_HOME.
+#
+# COMMONS_BRANCH: defaults to `main` per the design (Requirement 8.4). Until the
+# ESDK TestServer is merged to commons main, override it to the feature branch
+# via the workflow_dispatch input (or edit the default below).
+#
+# AWS/KMS (FUTURE): the commons Java-only blob round trip uses an OFFLINE
+# Raw-AES keyring today — no AWS account, no KMS, no network beyond package
+# downloads. When KMS keyrings are exercised, add OIDC auth mirroring S3EC:
+#   permissions: { id-token: write }   # in addition to contents: read
+#   - uses: aws-actions/configure-aws-credentials@v4
+#       with: { role-to-assume: <OIDC role ARN>, aws-region: us-west-2 }
+# ============================================================================
+
+name: ESDK TestServer
+
+on:
+  pull_request:
+    paths:
+      - "esdk/**"
+      - ".github/workflows/esdk-test-server.yml"
+  workflow_dispatch:
+    inputs:
+      commons_branch:
+        description: >-
+          Commons_Repository branch to clone at head. Design default is `main`;
+          use `kessplas/esdk-test-server` until the TestServer merges to main.
+        required: false
+        default: "main"
+        type: string
+  # Allow an aggregate/parent CI workflow to reuse this one.
+  workflow_call:
+    inputs:
+      commons_branch:
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # Resolve the commons branch from the dispatch/call input when present, else
+  # fall back to the design default `main`.
+  COMMONS_BRANCH: ${{ inputs.commons_branch || 'main' }}
+  ESDK_LIVE_VERSION: "3.0.2-LIVE-SNAPSHOT"
+
+jobs:
+  esdk-test-server:
+    # Pure-JVM build; ubuntu is sufficient.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (PR working tree = live ESDK Java source)
+        # No submodules: the ESDK Java build consumes the AWS Cryptographic
+        # Material Providers library as a PUBLISHED artifact (esdk/pom.xml), so
+        # the heavy Dafny/Smithy-Dafny MaterialProviders submodule is not needed
+        # to build the live Java source.
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up JDK 17 (Temurin) for the live ESDK build
+        # First setup-java: exposes JAVA_HOME_17_X64 for the ESDK build (Java 8
+        # target compiles cleanly on 17).
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up JDK 21 (Temurin) for the commons harness
+        # Second setup-java runs last, so it also sets the default JAVA_HOME to
+        # 21; smithy-java requires JDK 21+. Exposes JAVA_HOME_21_X64.
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle + Maven caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: >-
+            ${{ runner.os }}-esdk-ts-${{ hashFiles(
+              'esdk/pom.xml',
+              'esdk/test-server/Makefile'
+            ) }}
+          restore-keys: |
+            ${{ runner.os }}-esdk-ts-
+
+      - name: Install stub for the unpublished test-vectors artifact
+        # esdk/pom.xml declares a TEST-scope, optional dependency
+        # `software.amazon.cryptography:TestAwsCryptographicMaterialProviders`
+        # that is NOT published to Maven Central (it is produced from the
+        # MaterialProviders submodule's Dafny build). Maven resolves test-scope
+        # deps for the whole lifecycle even when tests are skipped, so we install
+        # a tiny stub JAR to satisfy resolution. This only affects the ESDK's own
+        # (skipped) test suite; the LIVE main jar we install is the real build.
+        run: |
+          set -euo pipefail
+          MP_VERSION="1.7.0"
+          tmp="$(mktemp -d)"
+          echo "placeholder for unpublished test-vectors artifact" > "$tmp/README.txt"
+          "$JAVA_HOME_17_X64/bin/jar" cf "$tmp/stub.jar" -C "$tmp" README.txt
+          mvn -q -e org.apache.maven.plugins:maven-install-plugin:3.1.1:install-file \
+            -Dfile="$tmp/stub.jar" \
+            -DgroupId=software.amazon.cryptography \
+            -DartifactId=TestAwsCryptographicMaterialProviders \
+            -Dversion="$MP_VERSION" \
+            -Dpackaging=jar
+
+      - name: Clone + set up commons at head (halts here on failure — Req 8.5)
+        # A failure in THIS step (bad branch, network, missing esdk/test-server,
+        # setup build failure) fails the job before any Tests run and names the
+        # setup failure, satisfying Requirement 8.5.
+        working-directory: esdk/test-server
+        run: |
+          make clone-commons-at-head \
+            COMMONS_BRANCH="${COMMONS_BRANCH}" \
+            HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}"
+
+      - name: Build the PR working tree as the LIVE ESDK Java artifact (Req 11.2)
+        working-directory: esdk/test-server
+        run: |
+          make build-live-esdk \
+            ESDK_JAVA_HOME="${JAVA_HOME_17_X64}" \
+            ESDK_LIVE_VERSION="${ESDK_LIVE_VERSION}"
+
+      - name: Orchestrate live round trip (live=Java working tree, Others @head)
+        working-directory: esdk/test-server
+        run: |
+          make orchestrate-live \
+            HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}" \
+            ESDK_LIVE_VERSION="${ESDK_LIVE_VERSION}"
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esdk-test-server-reports
+          path: |
+            esdk/test-server/.commons-clone/esdk/test-server/servers/java/build/reports/tests
+            esdk/test-server/.commons-clone/esdk/test-server/servers/java/build/test-results
+            esdk/test-server/.commons-clone/esdk/test-server/tests/build/reports/tests
+            esdk/test-server/.commons-clone/esdk/test-server/tests/build/test-results
+            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/reports/tests
+            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/test-results
+          if-no-files-found: ignore
