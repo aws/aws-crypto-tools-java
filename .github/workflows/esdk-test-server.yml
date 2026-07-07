@@ -29,9 +29,27 @@
 # needs JDK 21+; the live ESDK Java build targets Java 8 and builds on JDK 17.
 # We set up both and hand their homes to make as HARNESS_JAVA_HOME / ESDK_JAVA_HOME.
 #
-# COMMONS_BRANCH: defaults to `main` per the design (Requirement 8.4). Until the
-# ESDK TestServer is merged to commons main, override it to the feature branch
-# via the workflow_dispatch input (or edit the default below).
+# COMMONS COORDINATES: the Commons_Repository branch (and name/URL) come from the
+# Commons_Source_Config `esdk/test-server/commons-source.json` — the single
+# source of truth for those coordinates (Requirement 8.2). A resolve step below
+# reads the branch from that JSON with python3 and exports it as COMMONS_BRANCH,
+# EXCEPT when a workflow_dispatch/workflow_call `commons_branch` input is
+# provided, which overrides the JSON. The design default branch is `main`; the
+# JSON currently pins the `kessplas/esdk-test-server` feature branch until the
+# TestServer merges to commons main (then flip it back to `main` in the JSON).
+#
+# PRIVATE COMMONS CLONE AUTH (COMMONS_REPO_PAT secret): the "Clone + set up
+# commons at head" step runs `make clone-commons-at-head`, which internally does
+# `git clone git@github.com:aws/aws-crypto-tools-commons.git ...` (the SSH URL
+# comes from commons-source.json). aws-crypto-tools-commons is a PRIVATE repo,
+# and in GitHub Actions the default GITHUB_TOKEN / checkout token only grants
+# access to THIS repo — so that cross-repo clone fails without extra auth. To
+# fix this, add a repository (or org) secret named COMMONS_REPO_PAT and the
+# "Configure git auth for the private commons repo" step below rewrites the SSH
+# URL to authenticated HTTPS for the duration of the job.
+#   Required token scope: READ access to the contents of aws-crypto-tools-commons
+#   — a fine-grained PAT with `Contents: Read` on that repo, OR a classic PAT
+#   with the `repo` scope.
 #
 # AWS/KMS (FUTURE): the commons Java-only blob round trip uses an OFFLINE
 # Raw-AES keyring today — no AWS account, no KMS, no network beyond package
@@ -52,26 +70,29 @@ on:
     inputs:
       commons_branch:
         description: >-
-          Commons_Repository branch to clone at head. Design default is `main`;
-          use `kessplas/esdk-test-server` until the TestServer merges to main.
+          Commons_Repository branch to clone at head. Leave EMPTY to use the
+          branch from commons-source.json (the single source of truth); set a
+          value here only to override it for this run.
         required: false
-        default: "main"
+        default: ""
         type: string
   # Allow an aggregate/parent CI workflow to reuse this one.
   workflow_call:
     inputs:
       commons_branch:
         required: false
-        default: "main"
+        default: ""
         type: string
 
 permissions:
   contents: read
 
 env:
-  # Resolve the commons branch from the dispatch/call input when present, else
-  # fall back to the design default `main`.
-  COMMONS_BRANCH: ${{ inputs.commons_branch || 'main' }}
+  # The commons branch is NOT hardcoded here: it is resolved from
+  # commons-source.json by the "Resolve commons branch" step below (which honors
+  # a non-empty commons_branch input as an override) and exported to
+  # $GITHUB_ENV. Only the pass-through override input is captured here.
+  COMMONS_BRANCH_INPUT: ${{ inputs.commons_branch }}
   ESDK_LIVE_VERSION: "3.0.2-LIVE-SNAPSHOT"
 
 jobs:
@@ -88,6 +109,33 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: false
+
+      - name: Resolve commons branch from commons-source.json (single source of truth)
+        # Reads the branch from the Commons_Source_Config (Requirement 8.2) with
+        # python3 (always present on ubuntu; no jq needed) and exports it as
+        # COMMONS_BRANCH for the later make steps. A non-empty workflow_dispatch/
+        # workflow_call `commons_branch` input OVERRIDES the JSON value; when the
+        # input is empty (the normal PR case) the JSON value is used. Fails the
+        # job with a clear error if the config is missing or unparseable — it is
+        # the single source of truth, so its absence is a hard error.
+        run: |
+          set -euo pipefail
+          CONFIG="esdk/test-server/commons-source.json"
+          if [ -n "${COMMONS_BRANCH_INPUT}" ]; then
+            branch="${COMMONS_BRANCH_INPUT}"
+            echo "Using commons branch from workflow input (overrides JSON): ${branch}"
+          else
+            if [ ! -f "${CONFIG}" ]; then
+              echo "ERROR: Commons_Source_Config not found at ${CONFIG}; it is the single source of truth for the commons branch." >&2
+              exit 1
+            fi
+            branch="$(python3 -c 'import json,sys; print(json.load(open("'"${CONFIG}"'"))["commonsRepository"]["branch"])')" || {
+              echo "ERROR: failed to parse ${CONFIG}; expected valid JSON with .commonsRepository.branch." >&2
+              exit 1
+            }
+            echo "Using commons branch from ${CONFIG}: ${branch}"
+          fi
+          echo "COMMONS_BRANCH=${branch}" >> "$GITHUB_ENV"
 
       - name: Set up JDK 17 (Temurin) for the live ESDK build
         # First setup-java: exposes JAVA_HOME_17_X64 for the ESDK build (Java 8
@@ -140,6 +188,46 @@ jobs:
             -DartifactId=TestAwsCryptographicMaterialProviders \
             -Dversion="$MP_VERSION" \
             -Dpackaging=jar
+
+      - name: Configure git auth for the private commons repo
+        # WHY: the next step clones the PRIVATE aws-crypto-tools-commons repo
+        # (make clone-commons-at-head -> `git clone git@github.com:aws/...`).
+        # GitHub Actions' default token only reaches THIS repo, so that
+        # cross-repo private clone needs its own credential. We supply a PAT
+        # (COMMONS_REPO_PAT) and rewrite the SSH URL from commons-source.json to
+        # authenticated HTTPS via git's insteadOf, mirroring the S3EC reference
+        # approach. Nothing in commons-source.json or the Makefile changes.
+        #
+        # SECURITY NOTES:
+        #   - The PAT is passed only via the step `env:` below (never inlined in
+        #     the script), and GitHub automatically masks the secret value in
+        #     logs. We do NOT use `set -x`, so the configured URL is not echoed.
+        #   - The token is written only to the ephemeral runner's global git
+        #     config (~/.gitconfig), which is discarded when the job ends.
+        #   - This rewrite is CI-ONLY. Local development is unaffected and keeps
+        #     using the SSH URL as-is (no ~/.gitconfig on your machine is touched
+        #     by CI).
+        #   - Required token scope: read access to the contents of
+        #     aws-crypto-tools-commons (fine-grained PAT with `Contents: Read` on
+        #     that repo, or a classic PAT with the `repo` scope).
+        env:
+          COMMONS_REPO_PAT: ${{ secrets.COMMONS_REPO_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COMMONS_REPO_PAT:-}" ]; then
+            echo "ERROR: the COMMONS_REPO_PAT secret is empty or unset." >&2
+            echo "The private aws-crypto-tools-commons clone in the next step WILL FAIL" >&2
+            echo "without it. Add a repository/org secret named COMMONS_REPO_PAT with" >&2
+            echo "read access to the contents of aws-crypto-tools-commons (fine-grained" >&2
+            echo "PAT with 'Contents: Read', or a classic PAT with the 'repo' scope)." >&2
+            exit 1
+          fi
+          # Rewrite the SSH URL used in commons-source.json to authenticated
+          # HTTPS so `git clone git@github.com:aws/aws-crypto-tools-commons.git`
+          # transparently becomes an authenticated HTTPS clone.
+          git config --global \
+            url."https://x-access-token:${COMMONS_REPO_PAT}@github.com/".insteadOf \
+            "git@github.com:"
 
       - name: Clone + set up commons at head (halts here on failure — Req 8.5)
         # A failure in THIS step (bad branch, network, missing esdk/test-server,

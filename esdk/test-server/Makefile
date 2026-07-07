@@ -22,18 +22,30 @@
 #   make clean                  # remove the commons clone
 #
 # ----------------------------------------------------------------------------
-# CONFIGURABLE COMMONS BRANCH (read this before your first run)
+# COMMONS COORDINATES — SINGLE SOURCE OF TRUTH (read this before your first run)
 # ----------------------------------------------------------------------------
-# The design specifies cloning at the head of the commons DEFAULT branch (main),
-# with NO stored commit pin (Requirement 8.4). COMMONS_BRANCH therefore DEFAULTS
-# to `main`. HOWEVER, until the ESDK TestServer is merged to commons `main`, the
-# TestServer only exists on the feature branch `kessplas/esdk-test-server`. To
-# run today you MUST override the branch:
+# The Commons_Repository coordinates (name, URL, branch to clone) are the
+# Commons_Source_Config and live in ONE place: `commons-source.json` next to
+# this Makefile (Requirement 8.2). Both this Makefile and the CI workflow
+# (.github/workflows/esdk-test-server.yml) READ that file rather than carrying
+# their own hardcoded defaults, so the coordinates never drift between the two.
 #
-#   make run COMMONS_BRANCH=kessplas/esdk-test-server
+# COMMONS_REPO and COMMONS_BRANCH DEFAULT to the values parsed from that JSON
+# (via python3 — no jq dependency), but stay OVERRIDABLE on the command line:
 #
-# Once the TestServer merges to commons main, the default `main` works with no
-# override and this note can be removed.
+#   make run COMMONS_BRANCH=some-branch      # explicit var overrides the JSON
+#
+# The design specifies cloning at the head of the commons DEFAULT branch with
+# NO stored commit pin (Requirement 8.4). The design default for `branch` is
+# `main`. HOWEVER, until the ESDK TestServer is merged to commons `main`, the
+# TestServer only exists on the feature branch `kessplas/esdk-test-server`, so
+# `commons-source.json` currently pins `branch` to that feature branch and the
+# flow works out of the box. Once the TestServer merges to commons main, flip
+# the `branch` value in commons-source.json back to `main`.
+#
+# If commons-source.json is missing or unparseable, this Makefile fails fast
+# with an error naming the file: it is the single source of truth and its
+# absence is a hard error, not a fall-back-to-defaults situation.
 #
 # NOTE: written for the GNU Make 3.81 that ships with macOS (no .ONESHELL), so
 # multi-step recipes run as one script via `bash -c "$$VAR"` or on continued
@@ -50,15 +62,36 @@ MAKEFILE_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 # Live_Source_Code (Requirement 11.2) and what we mvn-install as the live build.
 ESDK_SRC_DIR := $(abspath $(MAKEFILE_DIR)/..)
 
-# --- Commons clone configuration --------------------------------------------
+# --- Commons clone configuration (from the Commons_Source_Config) ------------
+# commons-source.json is the Commons_Source_Config: the single source of truth
+# in this Language_Repository for the Commons_Repository name, URL, and branch
+# (Requirement 8.2). We parse it ONCE, at parse time, with python3 — reliably
+# present on macOS and ubuntu, so no jq dependency. The python script prints the
+# url, branch, and name (one per line); if the file is missing or unparseable it
+# prints nothing to stdout (stderr suppressed), which we turn into a hard error.
+COMMONS_SOURCE_CONFIG := $(MAKEFILE_DIR)/commons-source.json
+_COMMONS_COORDS := $(shell python3 -c 'import json; c=json.load(open("$(COMMONS_SOURCE_CONFIG)"))["commonsRepository"]; print(c["url"]); print(c["branch"]); print(c["name"])' 2>/dev/null)
+
+ifeq ($(strip $(_COMMONS_COORDS)),)
+$(error Cannot read the Commons_Source_Config at $(COMMONS_SOURCE_CONFIG). \
+It is the single source of truth for the Commons_Repository name/URL/branch; \
+ensure the file exists and is valid JSON with a .commonsRepository object \
+containing "url", "branch", and "name" (python3 is required to parse it))
+endif
+
+# Split the three whitespace-separated coordinates (git URLs/branches/names
+# never contain spaces) into the DEFAULT values for the overridable vars.
+COMMONS_REPO_DEFAULT   := $(word 1,$(_COMMONS_COORDS))
+COMMONS_BRANCH_DEFAULT := $(word 2,$(_COMMONS_COORDS))
+COMMONS_NAME           := $(word 3,$(_COMMONS_COORDS))
+
 # The Commons_Repository holding the shared TestServer (model, Tests,
-# Configuration_Set, servers, orchestrator). Overridable so the failure-path
-# integration test can point at a bogus repo, and so local verification can use
-# a file:// path or a fork.
-COMMONS_REPO   ?= git@github.com:aws/aws-crypto-tools-commons.git
-# DEFAULT is the commons default branch per the design (Requirement 8.4). See
-# the big note above: override to kessplas/esdk-test-server until it merges.
-COMMONS_BRANCH ?= main
+# Configuration_Set, servers, orchestrator). The DEFAULTs come from
+# commons-source.json above; both stay overridable on the command line so the
+# failure-path integration test can point at a bogus repo, and so local
+# verification can use a file:// path or a fork (`?=` yields to command-line vars).
+COMMONS_REPO   ?= $(COMMONS_REPO_DEFAULT)
+COMMONS_BRANCH ?= $(COMMONS_BRANCH_DEFAULT)
 # Where the fresh clone lands. Kept under a scratch dir ignored by .gitignore so
 # the clone is never committed back into this Language_Repository.
 CLONE_DIR      ?= $(MAKEFILE_DIR)/.commons-clone
@@ -107,9 +140,15 @@ help: ## Show this help
 		| sort \
 		| awk 'BEGIN{FS=":.*## "}{printf "  %-24s %s\n", $$1, $$2}'
 	@echo ""
+	@echo "Commons coordinates (single source of truth: commons-source.json):"
+	@echo "  COMMONS_SOURCE_CONFIG=$(COMMONS_SOURCE_CONFIG)"
+	@echo "  COMMONS_NAME=$(COMMONS_NAME)   (from commons-source.json)"
+	@echo "  COMMONS_REPO=$(COMMONS_REPO)   (default from commons-source.json; overridable)"
+	@echo "  COMMONS_BRANCH=$(COMMONS_BRANCH)   (default from commons-source.json; overridable)"
+	@echo "      design default is 'main'; currently 'kessplas/esdk-test-server' until the"
+	@echo "      TestServer merges to commons main — then flip branch back to 'main' in the JSON"
+	@echo ""
 	@echo "Key variables:"
-	@echo "  COMMONS_REPO=$(COMMONS_REPO)"
-	@echo "  COMMONS_BRANCH=$(COMMONS_BRANCH)   (design default: main; use kessplas/esdk-test-server until merged)"
 	@echo "  CLONE_DIR=$(CLONE_DIR)"
 	@echo "  ESDK_SRC_DIR=$(ESDK_SRC_DIR)"
 	@echo "  ESDK_LIVE_VERSION=$(ESDK_LIVE_VERSION)"
