@@ -51,12 +51,38 @@
 #   — a fine-grained PAT with `Contents: Read` on that repo, OR a classic PAT
 #   with the `repo` scope.
 #
-# AWS/KMS (FUTURE): the commons Java-only blob round trip uses an OFFLINE
-# Raw-AES keyring today — no AWS account, no KMS, no network beyond package
-# downloads. When KMS keyrings are exercised, add OIDC auth mirroring S3EC:
-#   permissions: { id-token: write }   # in addition to contents: read
-#   - uses: aws-actions/configure-aws-credentials@v4
-#       with: { role-to-assume: <OIDC role ARN>, aws-region: us-west-2 }
+# AWS/KMS (ONLINE, REQUIRED — task 15.7): the KMS keyring scenarios are ONLINE
+# and REQUIRED — they always run against the KMS_Test_Resources (whose ARNs
+# default in KmsRuntimeConfig) and a run does NOT pass unless they run and pass
+# (Requirements 14.8, 14.9). This workflow supplies AWS credentials for the run
+# to pass:
+#   * permissions: { id-token: write } — for the GitHub OIDC token exchange.
+#   * a `configure-aws-credentials@v4` step that assumes KMS_CI_ROLE_ARN, which
+#     DEFAULTS to the shared role (its CDK `roleArn` CfnOutput; trust policy
+#     trusts both aws/aws-crypto-tools-commons and aws/aws-crypto-tools-java) so
+#     NO repo variable is needed. It is continue-on-error and is followed by an
+#     `aws sts get-caller-identity` check that fails GRACEFULLY with an
+#     actionable message when credentials cannot be obtained (e.g. a fork PR).
+#   * GRADLE_OPTS=-Dorg.gradle.daemon=false (job env) so Gradle never reuses a
+#     daemon with a stale, credential-free environment; every Gradle invocation
+#     (and the in-process server JVM it forks) uses the live step environment.
+#   * the KMS_Test_Resources coordinates OPTIONALLY exported as ESDK_TESTSERVER_KMS_*
+#     environment variables on the orchestrate-live step (read by KmsRuntimeConfig);
+#     when unset, KmsRuntimeConfig falls back to the shared default key ARNs. Env
+#     vars are used rather than -Desdk.testserver.kms.* because the KMS Tests run
+#     in a nested JVM the orchestrator launches, which inherits the parent
+#     ENVIRONMENT but not make's system properties.
+#
+# REPO VARIABLES ARE OPTIONAL. By default this workflow targets the shared
+# KMS_Test_Resources: the OIDC role defaults to the CDK stack's `roleArn` and the
+# key ARNs default in KmsRuntimeConfig, so a run needs only OIDC access to that
+# role. To target a DIFFERENT account/role or key set, override under Settings →
+# Secrets and variables → Actions → Variables (all non-secret ARNs, 14.13):
+#   * vars.ESDK_TEST_SERVER_KMS_ROLE_ARN           — OIDC IAM role ARN to assume.
+#   * vars.ESDK_TEST_SERVER_KMS_SYMMETRIC_KEY_ARN  — symmetric KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_MRK_ARN            — multi-region KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_RSA_KEY_ARN        — asymmetric RSA KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_REGION             — AWS region (optional; us-west-2).
 # ============================================================================
 
 name: ESDK TestServer
@@ -86,6 +112,10 @@ on:
 
 permissions:
   contents: read
+  # Required for the GitHub OIDC token exchange used by the gated
+  # configure-aws-credentials step (task 15.7). Harmless when the KMS path is
+  # not configured (no creds step runs).
+  id-token: write
 
 env:
   # The commons branch is NOT hardcoded here: it is resolved from
@@ -94,6 +124,23 @@ env:
   # $GITHUB_ENV. Only the pass-through override input is captured here.
   COMMONS_BRANCH_INPUT: ${{ inputs.commons_branch }}
   ESDK_LIVE_VERSION: "3.0.2-LIVE-SNAPSHOT"
+  # Default AWS region for the whole job so every step (and the server JVM the
+  # orchestrator forks) has a region. Overridable via the KMS region variable.
+  AWS_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+  AWS_DEFAULT_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+  # Disable the Gradle daemon for the whole job. A daemon captures its
+  # environment at start and reuses it, so short-lived OIDC AWS_* credentials
+  # would NOT reach the daemon-forked server/Tests JVMs. Daemon-less, every
+  # Gradle invocation (and the in-process server JVM it forks) uses the live
+  # step environment, which has the credentials.
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+  # The OIDC role to assume for the required KMS scenarios. DEFAULTS to the role
+  # the CDK EsdkTestServerKmsStack created for the shared KMS_Test_Resources (its
+  # `roleArn` CfnOutput), so CI runs against the shared keys with NO repo
+  # variables configured. Override with the repo variable
+  # ESDK_TEST_SERVER_KMS_ROLE_ARN to target a different account/role. This is an
+  # IAM role ARN, not a secret.
+  KMS_CI_ROLE_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_ROLE_ARN || 'arn:aws:iam::370957321024:role/esdk-test-server-ci-kms-role' }}
 
 jobs:
   esdk-test-server:
@@ -246,8 +293,59 @@ jobs:
             ESDK_JAVA_HOME="${JAVA_HOME_17_X64}" \
             ESDK_LIVE_VERSION="${ESDK_LIVE_VERSION}"
 
+      - name: Configure AWS credentials via OIDC
+        # Assumes the KMS OIDC role (KMS_CI_ROLE_ARN, which DEFAULTS to the shared
+        # role — no repo variable required; its trust policy trusts
+        # aws/aws-crypto-tools-java) and exports short-lived AWS_* credentials +
+        # AWS_REGION for the orchestrate-live step (Requirements 14.11, 14.12).
+        # Placed right before the orchestrate step so the credentials are fresh
+        # (they are short-lived) and — with the daemon-less GRADLE_OPTS above —
+        # the in-process server JVM the orchestrator forks inherits them.
+        #
+        # continue-on-error: a failure here (e.g. a fork PR with no id-token) does
+        # NOT abruptly end the job with a generic action error; the next step
+        # reports a clear, actionable message.
+        id: aws-credentials
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.KMS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+
+      - name: Verify AWS credentials are active
+        # The KMS keyring scenarios are REQUIRED and call real AWS KMS, so the run
+        # cannot pass without usable credentials. Confirm they resolve and, if
+        # not, fail GRACEFULLY with an actionable message rather than surfacing a
+        # deep "Unable to load credentials" error from inside the server later.
+        # Prints the assumed role ARN / account (not secrets).
+        run: |
+          if ! aws sts get-caller-identity; then
+            echo "::error::No usable AWS credentials for the required KMS keyring scenarios." >&2
+            echo "The ESDK TestServer KMS scenarios are required and call real AWS KMS, so this" >&2
+            echo "run needs GitHub OIDC credentials for the role:" >&2
+            echo "    ${KMS_CI_ROLE_ARN}" >&2
+            echo "That role is assumable by workflows in the ESDK repositories. Runs without OIDC" >&2
+            echo "access to it (for example a pull request from a fork) cannot exercise the KMS" >&2
+            echo "scenarios and therefore cannot pass. To target a different account/role, set the" >&2
+            echo "ESDK_TEST_SERVER_KMS_ROLE_ARN repository variable (Settings -> Secrets and" >&2
+            echo "variables -> Actions -> Variables)." >&2
+            exit 1
+          fi
+
       - name: Orchestrate live round trip (live=Java working tree, Others @head)
+        # The ESDK_TESTSERVER_KMS_* environment variables carry the
+        # KMS_Test_Resources coordinates to the nested Tests JVM the orchestrator
+        # launches (read by KmsRuntimeConfig, Requirement 14.13). They resolve to
+        # EMPTY when the repo variables are unset, so the KMS gate is not
+        # satisfied and only the offline scenarios run; combined with the
+        # (skipped) creds step above, the offline live-source path is untouched
+        # when KMS is not configured.
         working-directory: esdk/test-server
+        env:
+          ESDK_TESTSERVER_KMS_SYMMETRIC_KEY_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_SYMMETRIC_KEY_ARN }}
+          ESDK_TESTSERVER_KMS_MRK_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_MRK_ARN }}
+          ESDK_TESTSERVER_KMS_RSA_KEY_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_RSA_KEY_ARN }}
+          ESDK_TESTSERVER_KMS_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
         run: |
           make orchestrate-live \
             HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}" \
