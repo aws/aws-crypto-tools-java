@@ -386,14 +386,17 @@ jobs:
         # are preserved whether the run passed or failed. Paths inside
         # .commons-clone/ are the bootstrap clone the orchestrated run
         # executed in; the server paths are this repo's relocated module
-        # (exercised by `make server-test`).
+        # (exercised by `make server-test`). The launch dir is the launch
+        # plans' scratch space (Python venv, build cruft — tens of MB), so
+        # only the per-server *.log files are uploaded, not the directory
+        # wholesale.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: esdk-test-server-reports
           path: |
             esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/resolution-record.json
-            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/launch
+            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/launch/*/*.log
             esdk/test-server/.commons-clone/esdk/test-server/tests/build/reports/tests
             esdk/test-server/.commons-clone/esdk/test-server/tests/build/test-results
             esdk/test-server/server/build/reports/tests
