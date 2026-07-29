@@ -6,5 +6,5 @@
   },
   "product": "esdk",
   "supportedFeatures": ["streaming", "MPL"],
-  "unsupportedFeatures": []
+  "unsupportedFeatures": ["hierarchical"]
 }
