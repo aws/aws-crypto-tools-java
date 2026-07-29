@@ -1,6 +1,7 @@
 package aws.cryptography.esdk.testserver.server.config;
 
 import aws.cryptography.esdk.testserver.server.model.AwsKmsDiscoveryKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsHierarchicalKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
@@ -25,14 +26,19 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyRequest;
+import software.amazon.cryptography.keystore.KeyStore;
+import software.amazon.cryptography.keystore.model.KMSConfiguration;
+import software.amazon.cryptography.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.IKeyring;
 import software.amazon.cryptography.materialproviders.MaterialProviders;
 import software.amazon.cryptography.materialproviders.model.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
@@ -63,11 +69,13 @@ import software.amazon.cryptography.materialproviders.model.PaddingScheme;
  *
  * <p>Scope note: the offline-capable variants used by the offline round-trip
  * tests — Raw AES, Raw RSA, Multi, and the Default / RequiredEncryptionContext
- * CMMs — are fully wired. All five AWS KMS keyring variants are also fully wired
- * (task 15.3): {@code AwsKms} (single symmetric key), {@code AwsKmsMrk} (single
+ * CMMs — are fully wired. All six AWS KMS keyring variants are also fully wired:
+ * {@code AwsKms} (single symmetric key), {@code AwsKmsMrk} (single
  * multi-region key), {@code AwsKmsMultiKeyring} (generator + child keys),
- * {@code AwsKmsRsa} (asymmetric RSA key), and {@code AwsKmsDiscovery} (discovery
- * keyring). Every KMS keyring is <em>constructed</em> without a network call —
+ * {@code AwsKmsRsa} (asymmetric RSA key), {@code AwsKmsDiscovery} (discovery
+ * keyring), and {@code AwsKmsHierarchical} (branch keys in a DynamoDB key store
+ * wrapped by a KMS key). Every KMS keyring is <em>constructed</em> without a
+ * network call —
  * the KMS client is built eagerly but is not invoked — so {@code CreateClient}
  * stays offline; the real AWS KMS calls happen only on {@code Encrypt}/{@code
  * Decrypt} (Requirements 14.1, 14.3, 14.4, 14.14). The single exception is the
@@ -142,6 +150,7 @@ public final class EsdkClientFactory {
         AwsKmsMrkMultiKeyringConfig awsKmsMrkMulti = keyring.getAwsKmsMrkMultiKeyring();
         AwsKmsRsaKeyringConfig awsKmsRsa = keyring.getAwsKmsRsa();
         AwsKmsDiscoveryKeyringConfig awsKmsDiscovery = keyring.getAwsKmsDiscovery();
+        AwsKmsHierarchicalKeyringConfig awsKmsHierarchical = keyring.getAwsKmsHierarchical();
 
         if (rawAes != null) {
             return materialProviders.CreateRawAesKeyring(
@@ -235,6 +244,9 @@ public final class EsdkClientFactory {
         if (awsKmsDiscovery != null) {
             return buildAwsKmsDiscoveryKeyring(awsKmsDiscovery);
         }
+        if (awsKmsHierarchical != null) {
+            return buildAwsKmsHierarchicalKeyring(awsKmsHierarchical);
+        }
         throw new IllegalArgumentException("Keyring had no variant member set");
     }
 
@@ -320,6 +332,32 @@ public final class EsdkClientFactory {
             builder.grantTokens(new ArrayList<>(config.getGrantTokens()));
         }
         return materialProviders.CreateAwsKmsDiscoveryKeyring(builder.build());
+    }
+
+    /**
+     * Build the AWS KMS hierarchical keyring: branch keys live in a DynamoDB key
+     * store and are wrapped by a KMS key. The key store's DynamoDB and KMS clients
+     * are built eagerly without a network call; branch-key retrieval reaches
+     * DynamoDB and KMS only on {@code Encrypt}/{@code Decrypt}.
+     */
+    private IKeyring buildAwsKmsHierarchicalKeyring(AwsKmsHierarchicalKeyringConfig config) {
+        KeyStore keyStore = KeyStore.builder()
+            .KeyStoreConfig(KeyStoreConfig.builder()
+                .ddbTableName(config.getKeyStoreTableName())
+                .logicalKeyStoreName(config.getLogicalKeyStoreName())
+                .kmsConfiguration(KMSConfiguration.builder()
+                    .kmsKeyArn(config.getKmsKeyArn())
+                    .build())
+                .ddbClient(DynamoDbClient.builder().region(Region.of(resolveRegion())).build())
+                .kmsClient(kmsClient())
+                .build())
+            .build();
+        return materialProviders.CreateAwsKmsHierarchicalKeyring(
+            CreateAwsKmsHierarchicalKeyringInput.builder()
+                .keyStore(keyStore)
+                .branchKeyId(config.getBranchKeyId())
+                .ttlSeconds(config.getTtlSeconds())
+                .build());
     }
 
     /**

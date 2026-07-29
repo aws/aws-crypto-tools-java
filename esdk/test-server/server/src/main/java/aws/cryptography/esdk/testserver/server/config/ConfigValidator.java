@@ -103,6 +103,9 @@ public final class ConfigValidator {
         if (keyring.getAwsKmsDiscovery() != null) {
             set++;
         }
+        if (keyring.getAwsKmsHierarchical() != null) {
+            set++;
+        }
         if (keyring.getAwsKmsRsa() != null) {
             set++;
         }
@@ -132,7 +135,7 @@ public final class ConfigValidator {
 
     private static String keyringVariants() {
         return "AwsKms, AwsKmsMrk, AwsKmsMultiKeyring, AwsKmsMrkMultiKeyring, "
-            + "AwsKmsDiscovery, AwsKmsRsa, RawAes, RawRsa, Multi";
+            + "AwsKmsDiscovery, AwsKmsRsa, AwsKmsHierarchical, RawAes, RawRsa, Multi";
     }
 
     private static ESDKClientError error(String shape, int set, String variants) {

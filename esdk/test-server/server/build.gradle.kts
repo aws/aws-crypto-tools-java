@@ -111,6 +111,8 @@ dependencies {
     // to the version the Material Providers BOM (2.26.3) resolves. Construction of
     // a KMS keyring performs no network call; only Encrypt/Decrypt reach AWS KMS.
     implementation("software.amazon.awssdk:kms:$awsSdkKmsVersion")
+    // The hierarchical keyring's branch-key store reads from DynamoDB.
+    implementation("software.amazon.awssdk:dynamodb:$awsSdkKmsVersion")
 
     // --- Test dependencies ---
     // jqwik: the established Java property-based testing library used for the

@@ -102,10 +102,10 @@ else
 fi
 
 # ----------------------------------------------------------------------------
-# Check 3: Java Feature_Declaration lists streaming + MPL as supported
-# (Req 8.12)
+# Check 3: Java Feature_Declaration lists streaming + MPL + hierarchical as
+# supported (Req 8.12)
 # ----------------------------------------------------------------------------
-echo "== Check 3: Java Feature_Declaration supports streaming and MPL (Req 8.12) =="
+echo "== Check 3: Java Feature_Declaration supports streaming, MPL, and hierarchical (Req 8.12) =="
 if [ -f "$CONFIG" ] && feature_errors=$(python3 - "$CONFIG" <<'PY'
 import json, sys
 cfg = json.load(open(sys.argv[1]))
@@ -117,7 +117,7 @@ if not isinstance(supported, list):
 if not isinstance(unsupported, list):
     errors.append("unsupportedFeatures array is missing")
 if not errors:
-    for feature in ("streaming", "MPL"):
+    for feature in ("streaming", "MPL", "hierarchical"):
         if feature not in supported:
             errors.append(f'"{feature}" is not in supportedFeatures')
         if feature in unsupported:
@@ -126,7 +126,7 @@ print("\n".join(errors))
 sys.exit(1 if errors else 0)
 PY
 ); then
-  ok "supportedFeatures lists streaming and MPL; unsupportedFeatures lists neither"
+  ok "supportedFeatures lists streaming, MPL, and hierarchical; unsupportedFeatures lists none of them"
 else
   if [ -n "${feature_errors:-}" ]; then
     bad "Feature_Declaration violation: ${feature_errors//$'\n'/; }"

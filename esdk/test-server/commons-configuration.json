@@ -2,9 +2,9 @@
   "commonsRepository": {
     "name": "aws-crypto-tools-commons",
     "url": "git@github.com:aws/aws-crypto-tools-commons.git",
-    "branch": "kessplas/esdk-test-server"
+    "branch": "kessplas/esdk-test-server-rust-config"
   },
   "product": "esdk",
-  "supportedFeatures": ["streaming", "MPL"],
-  "unsupportedFeatures": ["hierarchical"]
+  "supportedFeatures": ["streaming", "MPL", "hierarchical"],
+  "unsupportedFeatures": []
 }
