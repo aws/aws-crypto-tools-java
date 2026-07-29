@@ -390,10 +390,17 @@ jobs:
         # plans' scratch space (Python venv, build cruft — tens of MB), so
         # only the per-server *.log files are uploaded, not the directory
         # wholesale.
+        #
+        # include-hidden-files is REQUIRED: `.commons-clone` is dot-prefixed,
+        # and upload-artifact v4 (since v4.4) silently drops hidden files and
+        # directories by default — without the flag, everything under
+        # .commons-clone (the orchestrated Tests reports and the
+        # Resolution_Record) is omitted from the artifact.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: esdk-test-server-reports
+          include-hidden-files: true
           path: |
             esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/resolution-record.json
             esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/launch/*/*.log
