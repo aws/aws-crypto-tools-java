@@ -3,6 +3,7 @@ package aws.cryptography.esdk.testserver.server.config;
 import aws.cryptography.esdk.testserver.server.model.AesWrappingAlg;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsRsaKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.CachingCmmConfig;
 import aws.cryptography.esdk.testserver.server.model.CryptographicMaterialsManager;
@@ -35,7 +36,7 @@ final class ConfigTestFactory {
      * and of size two-or-more — each easy to construct minimally.
      */
     static final List<String> KEYRING_VARIANTS =
-        List.of("awsKms", "awsKmsMrk", "awsKmsRsa", "rawAes", "rawRsa", "multi");
+        List.of("awsKms", "awsKmsMrk", "awsKmsMrkMulti", "awsKmsRsa", "rawAes", "rawRsa", "multi");
 
     /** The three CMM variants. */
     static final List<String> CMM_VARIANTS =
@@ -50,6 +51,8 @@ final class ConfigTestFactory {
                     AwsKmsKeyringConfig.builder().kmsKeyId("kms-key").build());
                 case "awsKmsMrk" -> builder.awsKmsMrk(
                     AwsKmsMrkKeyringConfig.builder().kmsKeyId("mrk-key").build());
+                case "awsKmsMrkMulti" -> builder.awsKmsMrkMultiKeyring(
+                    AwsKmsMrkMultiKeyringConfig.builder().generator("mrk-key").build());
                 case "awsKmsRsa" -> builder.awsKmsRsa(
                     AwsKmsRsaKeyringConfig.builder().kmsKeyId("rsa-key").build());
                 case "rawAes" -> builder.rawAes(rawAes());

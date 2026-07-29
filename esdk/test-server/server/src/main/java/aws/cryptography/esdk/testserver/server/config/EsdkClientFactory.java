@@ -3,6 +3,7 @@ package aws.cryptography.esdk.testserver.server.config;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsDiscoveryKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsRsaKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.CachingCmmConfig;
@@ -34,6 +35,7 @@ import software.amazon.cryptography.materialproviders.model.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsRsaKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
@@ -137,6 +139,7 @@ public final class EsdkClientFactory {
         AwsKmsKeyringConfig awsKms = keyring.getAwsKms();
         AwsKmsMrkKeyringConfig awsKmsMrk = keyring.getAwsKmsMrk();
         AwsKmsMultiKeyringConfig awsKmsMulti = keyring.getAwsKmsMultiKeyring();
+        AwsKmsMrkMultiKeyringConfig awsKmsMrkMulti = keyring.getAwsKmsMrkMultiKeyring();
         AwsKmsRsaKeyringConfig awsKmsRsa = keyring.getAwsKmsRsa();
         AwsKmsDiscoveryKeyringConfig awsKmsDiscovery = keyring.getAwsKmsDiscovery();
 
@@ -208,6 +211,23 @@ public final class EsdkClientFactory {
                 builder.grantTokens(new ArrayList<>(awsKmsMulti.getGrantTokens()));
             }
             return materialProviders.CreateAwsKmsMultiKeyring(builder.build());
+        }
+        if (awsKmsMrkMulti != null) {
+            // MRK-aware multi-keyring: an optional MRK generator + child MRK key
+            // ids. Mirrors the non-MRK multi-keyring wiring; the MRK-aware form
+            // matches multi-region keys across regions on decrypt.
+            CreateAwsKmsMrkMultiKeyringInput.Builder builder =
+                CreateAwsKmsMrkMultiKeyringInput.builder();
+            if (awsKmsMrkMulti.getGenerator() != null) {
+                builder.generator(awsKmsMrkMulti.getGenerator());
+            }
+            if (awsKmsMrkMulti.hasKmsKeyIds()) {
+                builder.kmsKeyIds(new ArrayList<>(awsKmsMrkMulti.getKmsKeyIds()));
+            }
+            if (awsKmsMrkMulti.hasGrantTokens() && !awsKmsMrkMulti.getGrantTokens().isEmpty()) {
+                builder.grantTokens(new ArrayList<>(awsKmsMrkMulti.getGrantTokens()));
+            }
+            return materialProviders.CreateAwsKmsMrkMultiKeyring(builder.build());
         }
         if (awsKmsRsa != null) {
             return buildAwsKmsRsaKeyring(awsKmsRsa);

@@ -97,6 +97,9 @@ public final class ConfigValidator {
         if (keyring.getAwsKmsMultiKeyring() != null) {
             set++;
         }
+        if (keyring.getAwsKmsMrkMultiKeyring() != null) {
+            set++;
+        }
         if (keyring.getAwsKmsDiscovery() != null) {
             set++;
         }
@@ -128,8 +131,8 @@ public final class ConfigValidator {
     }
 
     private static String keyringVariants() {
-        return "AwsKms, AwsKmsMrk, AwsKmsMultiKeyring, AwsKmsDiscovery, AwsKmsRsa, "
-            + "RawAes, RawRsa, Multi";
+        return "AwsKms, AwsKmsMrk, AwsKmsMultiKeyring, AwsKmsMrkMultiKeyring, "
+            + "AwsKmsDiscovery, AwsKmsRsa, RawAes, RawRsa, Multi";
     }
 
     private static ESDKClientError error(String shape, int set, String variants) {
