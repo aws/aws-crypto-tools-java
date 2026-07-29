@@ -380,32 +380,91 @@ jobs:
             HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}" \
             COMMONS_BRANCH="${COMMONS_BRANCH_INPUT}"
 
+      - name: Stage results for upload
+        # Copies every report into a NON-HIDDEN `ci-results/` staging tree
+        # before upload. The orchestrated run's reports live under the
+        # dot-prefixed `.commons-clone/` bootstrap clone; those paths survive
+        # the artifact upload, but when a user downloads and extracts the zip
+        # locally, Finder and shell globs silently drop the dot-prefixed
+        # directory — so the orchestrated results "disappear". Staging into a
+        # visible tree makes the extracted artifact directly browsable.
+        #
+        # Every copy is guarded (`[ -d ... ]` / `[ -f ... ]`) so a run that
+        # failed before a given step — and therefore never produced that
+        # report — doesn't fail this step (the staging equivalent of the old
+        # `if-no-files-found: ignore` semantics). The launch dir is the launch
+        # plans' scratch space (Python venv, build cruft — tens of MB), so
+        # only the per-server *.log files are staged, not the directory
+        # wholesale.
+        #
+        # Resulting artifact layout:
+        #   ci-results/
+        #     orchestrated/
+        #       resolution-record.json   — the Resolution_Record (Req 5.3)
+        #       server-logs/             — per-Language_Server launch logs
+        #       tests-report/            — orchestrated Tests HTML report
+        #       tests-results-xml/       — orchestrated Tests JUnit XML
+        #     server-module/
+        #       reports/                 — `make server-test` HTML report
+        #       test-results-xml/        — `make server-test` JUnit XML
+        if: always()
+        run: |
+          set -euo pipefail
+          CLONE_TS="esdk/test-server/.commons-clone/esdk/test-server"
+
+          mkdir -p ci-results/orchestrated ci-results/server-module
+
+          if [ -f "$CLONE_TS/orchestrator/build/resolution-record.json" ]; then
+            cp "$CLONE_TS/orchestrator/build/resolution-record.json" \
+              ci-results/orchestrated/resolution-record.json
+          fi
+
+          if [ -d "$CLONE_TS/orchestrator/build/launch" ]; then
+            # Keep the per-server subdirectory so same-named logs from
+            # different servers cannot collide.
+            find "$CLONE_TS/orchestrator/build/launch" \
+              -mindepth 2 -maxdepth 2 -name '*.log' | while read -r log; do
+              server_dir="$(basename "$(dirname "$log")")"
+              mkdir -p "ci-results/orchestrated/server-logs/$server_dir"
+              cp "$log" "ci-results/orchestrated/server-logs/$server_dir/"
+            done
+          fi
+
+          if [ -d "$CLONE_TS/tests/build/reports/tests" ]; then
+            cp -R "$CLONE_TS/tests/build/reports/tests" \
+              ci-results/orchestrated/tests-report
+          fi
+
+          if [ -d "$CLONE_TS/tests/build/test-results" ]; then
+            cp -R "$CLONE_TS/tests/build/test-results" \
+              ci-results/orchestrated/tests-results-xml
+            rm -rf ci-results/orchestrated/tests-results-xml/*/binary
+          fi
+
+          if [ -d "esdk/test-server/server/build/reports/tests" ]; then
+            cp -R "esdk/test-server/server/build/reports/tests" \
+              ci-results/server-module/reports
+          fi
+
+          if [ -d "esdk/test-server/server/build/test-results" ]; then
+            cp -R "esdk/test-server/server/build/test-results" \
+              ci-results/server-module/test-results-xml
+            rm -rf ci-results/server-module/test-results-xml/*/binary
+          fi
+
       - name: Upload test reports + Resolution_Record
         # `if: always()`: diagnostics upload, not a subsequent test step —
         # the artifacts (including resolution-record.json, Requirement 5.3)
-        # are preserved whether the run passed or failed. Paths inside
-        # .commons-clone/ are the bootstrap clone the orchestrated run
-        # executed in; the server paths are this repo's relocated module
-        # (exercised by `make server-test`). The launch dir is the launch
-        # plans' scratch space (Python venv, build cruft — tens of MB), so
-        # only the per-server *.log files are uploaded, not the directory
-        # wholesale.
-        #
-        # include-hidden-files is REQUIRED: `.commons-clone` is dot-prefixed,
-        # and upload-artifact v4 (since v4.4) silently drops hidden files and
-        # directories by default — without the flag, everything under
-        # .commons-clone (the orchestrated Tests reports and the
-        # Resolution_Record) is omitted from the artifact.
+        # are preserved whether the run passed or failed. The staging step
+        # above exists because the orchestrated reports originate under the
+        # dot-prefixed `.commons-clone/` bootstrap clone: those paths survive
+        # the upload itself, but Finder and shell globs silently drop the
+        # hidden directory when users extract the artifact locally — so
+        # everything is first copied into the non-hidden `ci-results/` tree
+        # and that single directory is uploaded.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: esdk-test-server-reports
-          include-hidden-files: true
-          path: |
-            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/resolution-record.json
-            esdk/test-server/.commons-clone/esdk/test-server/orchestrator/build/launch/*/*.log
-            esdk/test-server/.commons-clone/esdk/test-server/tests/build/reports/tests
-            esdk/test-server/.commons-clone/esdk/test-server/tests/build/test-results
-            esdk/test-server/server/build/reports/tests
-            esdk/test-server/server/build/test-results
+          path: ci-results
           if-no-files-found: ignore
