@@ -1,0 +1,473 @@
+# ============================================================================
+# ESDK TestServer CI (aws-crypto-tools-java Language_Repository)
+# ----------------------------------------------------------------------------
+# LOCATION MATTERS: this file lives FLAT, directly under `.github/workflows/`.
+# GitHub Actions only discovers workflow files that sit directly in
+# `.github/workflows/` — a nested file such as `.github/workflows/esdk/...`
+# would NEVER be triggered. Because this repo may host tooling for more than one
+# product over time, we namespace per product with a filename PREFIX instead of
+# a subdirectory: `esdk-` marks this as the ESDK TestServer workflow.
+#
+# WHAT THIS DOES — a Language_Repository_Run (Requirements 5.3, 6.2, 6.4, 6.5,
+# 6.6, 6.7, 6.8 of the test-server-factoring spec):
+#   1. Cheap hermetic gates: the bootstrap failure-path integration tests and
+#      the structural smoke check (`make smoke-check` + `make it`) — filesystem
+#      + python3 only, no network, no AWS.
+#   2. The relocated Java Language_Server's OWN unit/property tests
+#      (`make server-test`) against the commons-hosted Smithy model (the
+#      default MODEL_DIR self-clones commons via the same bootstrap).
+#   3. The single orchestrated entry point (`make test-server`): the bootstrap
+#      parses commons-configuration.json, clones commons at the configured
+#      branch head, and delegates the complete Language_Repository_Run to the
+#      orchestrator core in the clone. The core uses THIS PR's working tree as
+#      both the live ESDK Java library and the Java Language_Server
+#      (Requirement 6.2), stamps + installs the live library itself
+#      (JavaLaunchPlan), launches every configured Language_Server as a
+#      subprocess, runs the Tests matrix, and reports one fail-open result.
+#
+# Step-failure short-circuiting supplies Requirement 6.4: a failed step (in
+# particular a failed orchestrated run — the orchestrator exits non-zero on
+# any failed result, and the Makefile propagates it) fails the job and no
+# subsequent build/setup/test steps execute. The report upload runs under
+# `if: always()` because it is diagnostics, not a subsequent test step.
+#
+# The heavy lifting lives in `esdk/test-server/Makefile` (the thin bootstrap of
+# the bootstrap-then-delegate design); this workflow only provides the
+# toolchain and invokes the make targets in order, so CI and local flows stay
+# identical.
+#
+# COMMONS COORDINATES: the Commons_Repository name/URL/branch are the
+# Commons_Configuration_Entry and live in ONE place —
+# `esdk/test-server/commons-configuration.json` (Requirement 4.4). The
+# Makefile parses it itself (and halts BEFORE any clone, naming the file, when
+# it is missing/unparseable — Requirement 4.9), so this workflow does NOT read
+# it. A non-empty workflow_dispatch/workflow_call `commons_branch` input is
+# passed through as COMMONS_BRANCH=<override>, the invocation-time commons
+# branch override of Requirement 4.8 (recorded in the Resolution_Record as
+# reason `invocation-override`). Until the TestServer merges to commons main,
+# the JSON pins the `kessplas/esdk-test-server` feature branch.
+#
+# JDK SPLIT: the commons harness (smithy-java client/server + orchestrator)
+# needs JDK 21+; the live ESDK Java build targets Java 8 and builds on a
+# JDK 17-class toolchain. Both are set up below. The Makefile's own
+# HARNESS_JAVA_HOME auto-resolution is macOS-oriented (/usr/libexec/java_home
+# + a Homebrew fallback), so on this ubuntu runner we pass
+# HARNESS_JAVA_HOME="$JAVA_HOME_21_X64" explicitly to every make target that
+# needs it. NOTE on the ESDK build JDK: the orchestrator's JavaLaunchPlan
+# resolves the Maven JDK as explicit-config → macOS java_home → ambient
+# environment; no explicit config is wired through the CLI and the macOS tool
+# does not exist on ubuntu, so the live ESDK `mvn install` runs under the
+# inherited harness JAVA_HOME (21). The ESDK build compiles its Java 8 target
+# via --release on modern JDKs; JDK 17 is still provisioned here for the
+# test-vectors stub install (its `jar` tool) and as the documented
+# 17-class toolchain should explicit wiring be added later.
+#
+# PRIVATE COMMONS CLONE AUTH (COMMONS_REPO_PAT secret): `make server-test` and
+# `make test-server` internally run `git clone git@github.com:aws/
+# aws-crypto-tools-commons.git ...` (the SSH URL comes from
+# commons-configuration.json). aws-crypto-tools-commons is a PRIVATE repo, and
+# in GitHub Actions the default GITHUB_TOKEN / checkout token only grants
+# access to THIS repo — so that cross-repo clone fails without extra auth. The
+# "Configure git auth" step below rewrites the SSH URL to authenticated HTTPS
+# for the duration of the job via git insteadOf, using the COMMONS_REPO_PAT
+# secret with READ-ONLY scope (Requirement 6.6): a fine-grained PAT with
+# `Contents: Read` on aws-crypto-tools-commons, or a classic PAT with `repo`.
+#
+# AWS/KMS (ONLINE, REQUIRED): the KMS_Scenarios are REQUIRED and call real AWS
+# KMS, so the orchestrated run cannot pass without usable credentials
+# (Requirement 6.5). This workflow:
+#   * declares permissions: { id-token: write } for the GitHub OIDC exchange;
+#   * assumes KMS_CI_ROLE_ARN via configure-aws-credentials (defaults to the
+#     shared role from the CDK EsdkTestServerKmsStack — no repo variable
+#     needed; its trust policy trusts both ESDK repositories);
+#   * VERIFIES the credentials with `aws sts get-caller-identity` and fails
+#     the workflow BEFORE the orchestrated run when they are unobtainable
+#     (for example a fork PR with no id-token) — Requirement 6.8;
+#   * keeps GRADLE_OPTS=-Dorg.gradle.daemon=false for the whole job so no
+#     Gradle daemon captures a stale, credential-free environment: every
+#     Gradle invocation — and every server/Tests JVM the orchestrator forks —
+#     inherits the live step environment with the short-lived AWS_* creds.
+#
+# REPO VARIABLES ARE OPTIONAL. By default this workflow targets the shared
+# KMS_Test_Resources: the OIDC role defaults to the CDK stack's `roleArn` and
+# the key ARNs default in KmsRuntimeConfig. To target a DIFFERENT account/role
+# or key set, override under Settings → Secrets and variables → Actions →
+# Variables (all non-secret ARNs):
+#   * vars.ESDK_TEST_SERVER_KMS_ROLE_ARN           — OIDC IAM role ARN to assume.
+#   * vars.ESDK_TEST_SERVER_KMS_SYMMETRIC_KEY_ARN  — symmetric KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_MRK_ARN            — multi-region KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_MRK2_ARN           — second multi-region KMS key ARN
+#                                                    (AwsKmsMrkMultiKeyring child).
+#   * vars.ESDK_TEST_SERVER_KMS_RSA_KEY_ARN        — asymmetric RSA KMS key ARN.
+#   * vars.ESDK_TEST_SERVER_KMS_REGION             — AWS region (optional; us-west-2).
+#
+# RESOLUTION_RECORD (Requirement 5.3): the orchestrator emits the
+# Resolution_Record to stdout before the first Test and before the result —
+# pass or fail — so this workflow's log always contains it. The JSON copy is
+# written inside the bootstrap clone at
+#   .commons-clone/esdk/test-server/orchestrator/build/resolution-record.json
+# (ResolutionRecord.DEFAULT_JSON_OUTPUT resolved against the clone's
+# esdk/test-server root) and is uploaded as an artifact with `if: always()`.
+# ============================================================================
+
+name: ESDK TestServer
+
+on:
+  pull_request:
+    paths:
+      # Covers the ESDK Java library source, the relocated Java
+      # Language_Server (esdk/test-server/server/), the
+      # commons-configuration.json (Commons_Configuration_Entry, product,
+      # Java Feature_Declaration, Configuration_Overrides), and the bootstrap
+      # Makefile + tests — Requirement 6.7.
+      - "esdk/**"
+      - ".github/workflows/esdk-test-server.yml"
+  workflow_dispatch:
+    inputs:
+      commons_branch:
+        description: >-
+          Commons_Repository branch to clone at head (the invocation-time
+          override of Requirement 4.8). Leave EMPTY to use the branch from
+          commons-configuration.json (the single source of truth).
+        required: false
+        default: ""
+        type: string
+  # Allow an aggregate/parent CI workflow to reuse this one.
+  workflow_call:
+    inputs:
+      commons_branch:
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  # Required for the GitHub OIDC token exchange used by the
+  # configure-aws-credentials step below.
+  id-token: write
+
+env:
+  # The invocation-time commons branch override (Requirement 4.8), passed
+  # through to `make ... COMMONS_BRANCH=...`. Empty (the normal PR case) means
+  # "use the branch configured in commons-configuration.json" — the Makefile
+  # treats an empty COMMONS_BRANCH exactly like an unset one.
+  COMMONS_BRANCH_INPUT: ${{ inputs.commons_branch }}
+  # Default AWS region for the whole job so every step (and every JVM the
+  # orchestrator forks) has a region. Overridable via the KMS region variable.
+  AWS_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+  AWS_DEFAULT_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+  # Disable the Gradle daemon for the whole job. A daemon captures its
+  # environment at start and reuses it, so short-lived OIDC AWS_* credentials
+  # would NOT reach the daemon-forked server/Tests JVMs. Daemon-less, every
+  # Gradle invocation (and every JVM it forks) uses the live step environment,
+  # which has the credentials.
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+  # The OIDC role to assume for the required KMS_Scenarios. DEFAULTS to the
+  # role the CDK EsdkTestServerKmsStack created for the shared
+  # KMS_Test_Resources (its `roleArn` CfnOutput), so CI runs against the
+  # shared keys with NO repo variables configured. Override with the repo
+  # variable ESDK_TEST_SERVER_KMS_ROLE_ARN to target a different account/role.
+  # This is an IAM role ARN, not a secret.
+  KMS_CI_ROLE_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_ROLE_ARN || 'arn:aws:iam::370957321024:role/esdk-test-server-ci-kms-role' }}
+
+jobs:
+  esdk-test-server:
+    # JVM + python3 + git; ubuntu is sufficient.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (PR working tree = live ESDK Java library + Java Language_Server)
+        # No submodules: the ESDK Java build consumes the AWS Cryptographic
+        # Material Providers library as a PUBLISHED artifact (esdk/pom.xml), so
+        # the heavy Dafny/Smithy-Dafny MaterialProviders submodule is not
+        # needed. The orchestrated Language_Repository_Run uses this working
+        # tree as BOTH the Java library source and the Java Language_Server
+        # implementation (Requirement 6.2).
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Set up JDK 17 (Temurin) for the ESDK toolchain
+        # First setup-java: exposes JAVA_HOME_17_X64 — used by the
+        # test-vectors stub install below, and the documented 17-class
+        # toolchain for the live ESDK build (see the JDK SPLIT note at the
+        # top of this file).
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up JDK 21 (Temurin) for the commons harness
+        # Second setup-java runs last, so it also sets the default JAVA_HOME
+        # to 21; smithy-java requires JDK 21+. Exposes JAVA_HOME_21_X64,
+        # which is passed to make as HARNESS_JAVA_HOME (the Makefile's own
+        # resolution is macOS-oriented and cannot resolve a JDK on ubuntu).
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Cache Gradle + Maven caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.m2/repository
+          key: >-
+            ${{ runner.os }}-esdk-ts-${{ hashFiles(
+              'esdk/pom.xml',
+              'esdk/test-server/Makefile',
+              'esdk/test-server/server/build.gradle.kts'
+            ) }}
+          restore-keys: |
+            ${{ runner.os }}-esdk-ts-
+
+      - name: Install stub for the unpublished test-vectors artifact
+        # esdk/pom.xml declares a TEST-scope, optional dependency
+        # `software.amazon.cryptography:TestAwsCryptographicMaterialProviders`
+        # that is NOT published to Maven Central (it is produced from the
+        # MaterialProviders submodule's Dafny build). Maven resolves
+        # test-scope deps for the whole lifecycle even when tests are skipped,
+        # and the orchestrator's JavaLaunchPlan runs `mvn install` (tests
+        # skipped) on this working tree during the orchestrated run — so we
+        # install a tiny stub JAR to satisfy resolution. This only affects the
+        # ESDK's own (skipped) test suite; the LIVE main jar the orchestrator
+        # installs is the real build.
+        run: |
+          set -euo pipefail
+          MP_VERSION="1.7.0"
+          tmp="$(mktemp -d)"
+          echo "placeholder for unpublished test-vectors artifact" > "$tmp/README.txt"
+          "$JAVA_HOME_17_X64/bin/jar" cf "$tmp/stub.jar" -C "$tmp" README.txt
+          mvn -q -e org.apache.maven.plugins:maven-install-plugin:3.1.1:install-file \
+            -Dfile="$tmp/stub.jar" \
+            -DgroupId=software.amazon.cryptography \
+            -DartifactId=TestAwsCryptographicMaterialProviders \
+            -Dversion="$MP_VERSION" \
+            -Dpackaging=jar
+
+      - name: Configure git auth for the private commons repo (read-only PAT)
+        # WHY: `make server-test` (default MODEL_DIR) and `make test-server`
+        # clone the PRIVATE aws-crypto-tools-commons repo via the SSH URL in
+        # commons-configuration.json. GitHub Actions' default token only
+        # reaches THIS repo, so that cross-repo private clone needs its own
+        # credential. We supply a READ-ONLY PAT (COMMONS_REPO_PAT,
+        # Requirement 6.6) and rewrite the SSH URL to authenticated HTTPS via
+        # git's insteadOf. Nothing in commons-configuration.json or the
+        # Makefile changes.
+        #
+        # SECURITY NOTES:
+        #   - The PAT is passed only via the step `env:` below (never inlined
+        #     in the script), and GitHub automatically masks the secret value
+        #     in logs. We do NOT use `set -x`, so the configured URL is not
+        #     echoed.
+        #   - The token is written only to the ephemeral runner's global git
+        #     config (~/.gitconfig), which is discarded when the job ends.
+        #   - This rewrite is CI-ONLY. Local development is unaffected and
+        #     keeps using the SSH URL as-is.
+        #   - Required token scope: READ access to the contents of
+        #     aws-crypto-tools-commons (fine-grained PAT with `Contents:
+        #     Read` on that repo, or a classic PAT with the `repo` scope).
+        env:
+          COMMONS_REPO_PAT: ${{ secrets.COMMONS_REPO_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COMMONS_REPO_PAT:-}" ]; then
+            echo "ERROR: the COMMONS_REPO_PAT secret is empty or unset." >&2
+            echo "The private aws-crypto-tools-commons clones in the make steps below WILL" >&2
+            echo "FAIL without it. Add a repository/org secret named COMMONS_REPO_PAT with" >&2
+            echo "read access to the contents of aws-crypto-tools-commons (fine-grained" >&2
+            echo "PAT with 'Contents: Read', or a classic PAT with the 'repo' scope)." >&2
+            exit 1
+          fi
+          # Rewrite the SSH URL used in commons-configuration.json to
+          # authenticated HTTPS so `git clone git@github.com:aws/...`
+          # transparently becomes an authenticated HTTPS clone.
+          git config --global \
+            url."https://x-access-token:${COMMONS_REPO_PAT}@github.com/".insteadOf \
+            "git@github.com:"
+
+      - name: Configure AWS credentials via OIDC
+        # Assumes the KMS OIDC role (KMS_CI_ROLE_ARN; its trust policy trusts
+        # aws/aws-crypto-tools-java) and exports short-lived AWS_* credentials
+        # + AWS_REGION for the orchestrated run (Requirement 6.5). With the
+        # daemon-less GRADLE_OPTS above, every server/Tests JVM the
+        # orchestrator forks inherits them.
+        #
+        # continue-on-error: a failure here (e.g. a fork PR with no id-token)
+        # does NOT abruptly end the job with a generic action error; the next
+        # step verifies the credentials and fails with an actionable message,
+        # gating the orchestrated run (Requirement 6.8).
+        id: aws-credentials
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.KMS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+
+      - name: Verify AWS credentials are active (gates the orchestrated run)
+        # The KMS_Scenarios are REQUIRED and call real AWS KMS, so the run
+        # cannot pass without usable credentials. Confirm they resolve and,
+        # if not, fail the workflow HERE — before the orchestrated run
+        # (Requirement 6.8) — with an actionable message rather than a deep
+        # "Unable to load credentials" error from inside a server later.
+        # Prints the assumed role ARN / account (not secrets).
+        run: |
+          if ! aws sts get-caller-identity; then
+            echo "::error::No usable AWS credentials for the required KMS_Scenarios." >&2
+            echo "The ESDK TestServer KMS scenarios are required and call real AWS KMS, so this" >&2
+            echo "run needs GitHub OIDC credentials for the role:" >&2
+            echo "    ${KMS_CI_ROLE_ARN}" >&2
+            echo "That role is assumable by workflows in the ESDK repositories. Runs without OIDC" >&2
+            echo "access to it (for example a pull request from a fork) cannot exercise the KMS" >&2
+            echo "scenarios and therefore cannot pass. To target a different account/role, set the" >&2
+            echo "ESDK_TEST_SERVER_KMS_ROLE_ARN repository variable (Settings -> Secrets and" >&2
+            echo "variables -> Actions -> Variables)." >&2
+            exit 1
+          fi
+
+      - name: Hermetic gates (bootstrap failure-path ITs + structural smoke check)
+        # Cheap, hermetic (filesystem + python3 + local git fixtures; no
+        # network, no AWS, no JVM): `smoke-check` asserts the shipped
+        # factoring facts (complete Commons_Configuration_Entry, product
+        # "esdk", the Java Feature_Declaration, no Tests definition in this
+        # repo); `it` runs the bootstrap failure-path integration tests
+        # (missing/corrupt commons-configuration.json halts before any clone;
+        # bogus URL/branch halts naming the coordinates) plus the smoke check.
+        working-directory: esdk/test-server
+        run: |
+          make smoke-check
+          make it
+
+      - name: Java Language_Server unit/property tests
+        # The relocated server module's OWN jqwik/unit tests (no AWS
+        # credentials, no other Language_Server). The default MODEL_DIR
+        # self-clones commons (the server build requires the commons-hosted
+        # Smithy model via -PmodelDir; this repo carries no model copy —
+        # Requirement 1.7). The clone this step creates in .commons-clone/ is
+        # rebuilt by `make test-server` in the next step.
+        working-directory: esdk/test-server
+        run: |
+          make server-test \
+            HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}" \
+            COMMONS_BRANCH="${COMMONS_BRANCH_INPUT}"
+
+      - name: Orchestrated Language_Repository_Run (make test-server)
+        # THE single orchestrated entry point (Requirements 2.7, 6.2): parse
+        # the Commons_Configuration_Entry, clone commons at the branch head,
+        # delegate to the orchestrator core in the clone. This PR's working
+        # tree is the live Java library AND Java server; every Other language
+        # resolves from the commons clone's Configuration_Set. The
+        # orchestrator emits the Resolution_Record to stdout — visible in
+        # this step's log, pass or fail (Requirement 5.3) — and exits
+        # non-zero on any failed result, which fails this step and
+        # short-circuits the job (Requirement 6.4).
+        #
+        # The ESDK_TESTSERVER_KMS_* environment variables carry the
+        # KMS_Test_Resources coordinates to the nested Tests JVM the
+        # orchestrator launches (read by KmsRuntimeConfig). They resolve to
+        # EMPTY when the repo variables are unset, in which case
+        # KmsRuntimeConfig falls back to the shared default key ARNs. Env
+        # vars are used rather than -D system properties because the Tests
+        # run in a nested JVM that inherits the parent ENVIRONMENT only.
+        working-directory: esdk/test-server
+        env:
+          ESDK_TESTSERVER_KMS_SYMMETRIC_KEY_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_SYMMETRIC_KEY_ARN }}
+          ESDK_TESTSERVER_KMS_MRK_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_MRK_ARN }}
+          ESDK_TESTSERVER_KMS_MRK2_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_MRK2_ARN }}
+          ESDK_TESTSERVER_KMS_RSA_KEY_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_RSA_KEY_ARN }}
+          ESDK_TESTSERVER_KMS_REGION: ${{ vars.ESDK_TEST_SERVER_KMS_REGION || 'us-west-2' }}
+        run: |
+          make test-server \
+            HARNESS_JAVA_HOME="${JAVA_HOME_21_X64}" \
+            COMMONS_BRANCH="${COMMONS_BRANCH_INPUT}"
+
+      - name: Stage results for upload
+        # Copies every report into a NON-HIDDEN `ci-results/` staging tree
+        # before upload. The orchestrated run's reports live under the
+        # dot-prefixed `.commons-clone/` bootstrap clone; those paths survive
+        # the artifact upload, but when a user downloads and extracts the zip
+        # locally, Finder and shell globs silently drop the dot-prefixed
+        # directory — so the orchestrated results "disappear". Staging into a
+        # visible tree makes the extracted artifact directly browsable.
+        #
+        # Every copy is guarded (`[ -d ... ]` / `[ -f ... ]`) so a run that
+        # failed before a given step — and therefore never produced that
+        # report — doesn't fail this step (the staging equivalent of the old
+        # `if-no-files-found: ignore` semantics). The launch dir is the launch
+        # plans' scratch space (Python venv, build cruft — tens of MB), so
+        # only the per-server *.log files are staged, not the directory
+        # wholesale.
+        #
+        # Resulting artifact layout:
+        #   ci-results/
+        #     orchestrated/
+        #       resolution-record.json   — the Resolution_Record (Req 5.3)
+        #       server-logs/             — per-Language_Server launch logs
+        #       tests-report/            — orchestrated Tests HTML report
+        #       tests-results-xml/       — orchestrated Tests JUnit XML
+        #     server-module/
+        #       reports/                 — `make server-test` HTML report
+        #       test-results-xml/        — `make server-test` JUnit XML
+        if: always()
+        run: |
+          set -euo pipefail
+          CLONE_TS="esdk/test-server/.commons-clone/esdk/test-server"
+
+          mkdir -p ci-results/orchestrated ci-results/server-module
+
+          if [ -f "$CLONE_TS/orchestrator/build/resolution-record.json" ]; then
+            cp "$CLONE_TS/orchestrator/build/resolution-record.json" \
+              ci-results/orchestrated/resolution-record.json
+          fi
+
+          if [ -d "$CLONE_TS/orchestrator/build/launch" ]; then
+            # Keep the per-server subdirectory so same-named logs from
+            # different servers cannot collide.
+            find "$CLONE_TS/orchestrator/build/launch" \
+              -mindepth 2 -maxdepth 2 -name '*.log' | while read -r log; do
+              server_dir="$(basename "$(dirname "$log")")"
+              mkdir -p "ci-results/orchestrated/server-logs/$server_dir"
+              cp "$log" "ci-results/orchestrated/server-logs/$server_dir/"
+            done
+          fi
+
+          if [ -d "$CLONE_TS/tests/build/reports/tests" ]; then
+            cp -R "$CLONE_TS/tests/build/reports/tests" \
+              ci-results/orchestrated/tests-report
+          fi
+
+          if [ -d "$CLONE_TS/tests/build/test-results" ]; then
+            cp -R "$CLONE_TS/tests/build/test-results" \
+              ci-results/orchestrated/tests-results-xml
+            rm -rf ci-results/orchestrated/tests-results-xml/*/binary
+          fi
+
+          if [ -d "esdk/test-server/server/build/reports/tests" ]; then
+            cp -R "esdk/test-server/server/build/reports/tests" \
+              ci-results/server-module/reports
+          fi
+
+          if [ -d "esdk/test-server/server/build/test-results" ]; then
+            cp -R "esdk/test-server/server/build/test-results" \
+              ci-results/server-module/test-results-xml
+            rm -rf ci-results/server-module/test-results-xml/*/binary
+          fi
+
+      - name: Upload test reports + Resolution_Record
+        # `if: always()`: diagnostics upload, not a subsequent test step —
+        # the artifacts (including resolution-record.json, Requirement 5.3)
+        # are preserved whether the run passed or failed. The staging step
+        # above exists because the orchestrated reports originate under the
+        # dot-prefixed `.commons-clone/` bootstrap clone: those paths survive
+        # the upload itself, but Finder and shell globs silently drop the
+        # hidden directory when users extract the artifact locally — so
+        # everything is first copied into the non-hidden `ci-results/` tree
+        # and that single directory is uploaded.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esdk-test-server-reports
+          path: ci-results
+          if-no-files-found: ignore
