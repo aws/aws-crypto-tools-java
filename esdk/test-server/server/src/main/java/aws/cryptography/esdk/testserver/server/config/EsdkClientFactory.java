@@ -192,7 +192,7 @@ public final class EsdkClientFactory {
             // network call happens until Encrypt/Decrypt (Requirement 14.1, 14.14).
             CreateAwsKmsKeyringInput.Builder builder = CreateAwsKmsKeyringInput.builder()
                 .kmsKeyId(awsKms.getKmsKeyId())
-                .kmsClient(kmsClient());
+                .kmsClient(kmsClientForKey(awsKms.getKmsKeyId()));
             if (awsKms.hasGrantTokens() && !awsKms.getGrantTokens().isEmpty()) {
                 builder.grantTokens(new ArrayList<>(awsKms.getGrantTokens()));
             }
@@ -202,7 +202,7 @@ public final class EsdkClientFactory {
             // Single multi-region key -> the single-key MRK-aware KMS keyring.
             CreateAwsKmsMrkKeyringInput.Builder builder = CreateAwsKmsMrkKeyringInput.builder()
                 .kmsKeyId(awsKmsMrk.getKmsKeyId())
-                .kmsClient(kmsClient());
+                .kmsClient(kmsClientForKey(awsKmsMrk.getKmsKeyId()));
             if (awsKmsMrk.hasGrantTokens() && !awsKmsMrk.getGrantTokens().isEmpty()) {
                 builder.grantTokens(new ArrayList<>(awsKmsMrk.getGrantTokens()));
             }
@@ -263,7 +263,7 @@ public final class EsdkClientFactory {
      * present). Either way, no encrypt/decrypt happens at construction.
      */
     private IKeyring buildAwsKmsRsaKeyring(AwsKmsRsaKeyringConfig config) {
-        KmsClient kmsClient = kmsClient();
+        KmsClient kmsClient = kmsClientForKey(config.getKmsKeyId());
         ByteBuffer publicKey = config.getPublicKey();
         if (publicKey == null) {
             // Fetch the RSA public key once from KMS (network call at construction).
@@ -374,6 +374,27 @@ public final class EsdkClientFactory {
         // AWS_REGION / aws.region still takes precedence; us-west-2 (where the
         // KMS_Test_Resources live) is the fallback.
         return KmsClient.builder().region(Region.of(resolveRegion())).build();
+    }
+
+    /**
+     * A KMS client in the key's own region. KMS rejects an ARN whose region
+     * differs from the client's region ("Invalid arn &lt;region&gt;"), so a
+     * us-east-1 key needs a us-east-1 client even when the ambient region is
+     * us-west-2. Falls back to {@link #resolveRegion()} for a bare key id or
+     * alias that carries no region.
+     */
+    private static KmsClient kmsClientForKey(String kmsKeyId) {
+        return KmsClient.builder().region(Region.of(regionForKey(kmsKeyId))).build();
+    }
+
+    private static String regionForKey(String kmsKeyId) {
+        if (kmsKeyId != null && kmsKeyId.startsWith("arn:")) {
+            String[] parts = kmsKeyId.split(":");
+            if (parts.length > 3 && !isBlank(parts[3])) {
+                return parts[3];
+            }
+        }
+        return resolveRegion();
     }
 
     /**
