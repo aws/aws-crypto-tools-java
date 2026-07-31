@@ -4,6 +4,7 @@ import aws.cryptography.esdk.testserver.server.model.AwsKmsDiscoveryKeyringConfi
 import aws.cryptography.esdk.testserver.server.model.AwsKmsHierarchicalKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkDiscoveryKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsRsaKeyringConfig;
@@ -41,6 +42,7 @@ import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscover
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsRsaKeyringInput;
@@ -150,6 +152,7 @@ public final class EsdkClientFactory {
         AwsKmsMrkMultiKeyringConfig awsKmsMrkMulti = keyring.getAwsKmsMrkMultiKeyring();
         AwsKmsRsaKeyringConfig awsKmsRsa = keyring.getAwsKmsRsa();
         AwsKmsDiscoveryKeyringConfig awsKmsDiscovery = keyring.getAwsKmsDiscovery();
+        AwsKmsMrkDiscoveryKeyringConfig awsKmsMrkDiscovery = keyring.getAwsKmsMrkDiscovery();
         AwsKmsHierarchicalKeyringConfig awsKmsHierarchical = keyring.getAwsKmsHierarchical();
 
         if (rawAes != null) {
@@ -244,6 +247,9 @@ public final class EsdkClientFactory {
         if (awsKmsDiscovery != null) {
             return buildAwsKmsDiscoveryKeyring(awsKmsDiscovery);
         }
+        if (awsKmsMrkDiscovery != null) {
+            return buildAwsKmsMrkDiscoveryKeyring(awsKmsMrkDiscovery);
+        }
         if (awsKmsHierarchical != null) {
             return buildAwsKmsHierarchicalKeyring(awsKmsHierarchical);
         }
@@ -332,6 +338,31 @@ public final class EsdkClientFactory {
             builder.grantTokens(new ArrayList<>(config.getGrantTokens()));
         }
         return materialProviders.CreateAwsKmsDiscoveryKeyring(builder.build());
+    }
+
+    /**
+     * Build the AWS KMS MRK-aware discovery keyring: a decrypt-only discovery
+     * keyring normalized to {@code region} (built with a KMS client in that
+     * region), so it can decrypt a multi-region key written in another region.
+     */
+    private IKeyring buildAwsKmsMrkDiscoveryKeyring(AwsKmsMrkDiscoveryKeyringConfig config) {
+        CreateAwsKmsMrkDiscoveryKeyringInput.Builder builder =
+            CreateAwsKmsMrkDiscoveryKeyringInput.builder()
+                .kmsClient(KmsClient.builder().region(Region.of(config.getRegion())).build())
+                .region(config.getRegion());
+        aws.cryptography.esdk.testserver.server.model.DiscoveryFilter modeledFilter =
+            config.getDiscoveryFilter();
+        if (modeledFilter != null) {
+            builder.discoveryFilter(
+                software.amazon.cryptography.materialproviders.model.DiscoveryFilter.builder()
+                    .partition(modeledFilter.getPartition())
+                    .accountIds(new ArrayList<>(modeledFilter.getAccountIds()))
+                    .build());
+        }
+        if (config.hasGrantTokens() && !config.getGrantTokens().isEmpty()) {
+            builder.grantTokens(new ArrayList<>(config.getGrantTokens()));
+        }
+        return materialProviders.CreateAwsKmsMrkDiscoveryKeyring(builder.build());
     }
 
     /**
