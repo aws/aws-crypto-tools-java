@@ -1,8 +1,10 @@
 package aws.cryptography.esdk.testserver.server.config;
 
 import aws.cryptography.esdk.testserver.server.model.AwsKmsDiscoveryKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsHierarchicalKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkDiscoveryKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMultiKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsRsaKeyringConfig;
@@ -25,16 +27,22 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyRequest;
+import software.amazon.cryptography.keystore.KeyStore;
+import software.amazon.cryptography.keystore.model.KMSConfiguration;
+import software.amazon.cryptography.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.IKeyring;
 import software.amazon.cryptography.materialproviders.MaterialProviders;
 import software.amazon.cryptography.materialproviders.model.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsRsaKeyringInput;
@@ -63,11 +71,13 @@ import software.amazon.cryptography.materialproviders.model.PaddingScheme;
  *
  * <p>Scope note: the offline-capable variants used by the offline round-trip
  * tests — Raw AES, Raw RSA, Multi, and the Default / RequiredEncryptionContext
- * CMMs — are fully wired. All five AWS KMS keyring variants are also fully wired
- * (task 15.3): {@code AwsKms} (single symmetric key), {@code AwsKmsMrk} (single
+ * CMMs — are fully wired. All six AWS KMS keyring variants are also fully wired:
+ * {@code AwsKms} (single symmetric key), {@code AwsKmsMrk} (single
  * multi-region key), {@code AwsKmsMultiKeyring} (generator + child keys),
- * {@code AwsKmsRsa} (asymmetric RSA key), and {@code AwsKmsDiscovery} (discovery
- * keyring). Every KMS keyring is <em>constructed</em> without a network call —
+ * {@code AwsKmsRsa} (asymmetric RSA key), {@code AwsKmsDiscovery} (discovery
+ * keyring), and {@code AwsKmsHierarchical} (branch keys in a DynamoDB key store
+ * wrapped by a KMS key). Every KMS keyring is <em>constructed</em> without a
+ * network call —
  * the KMS client is built eagerly but is not invoked — so {@code CreateClient}
  * stays offline; the real AWS KMS calls happen only on {@code Encrypt}/{@code
  * Decrypt} (Requirements 14.1, 14.3, 14.4, 14.14). The single exception is the
@@ -142,6 +152,8 @@ public final class EsdkClientFactory {
         AwsKmsMrkMultiKeyringConfig awsKmsMrkMulti = keyring.getAwsKmsMrkMultiKeyring();
         AwsKmsRsaKeyringConfig awsKmsRsa = keyring.getAwsKmsRsa();
         AwsKmsDiscoveryKeyringConfig awsKmsDiscovery = keyring.getAwsKmsDiscovery();
+        AwsKmsMrkDiscoveryKeyringConfig awsKmsMrkDiscovery = keyring.getAwsKmsMrkDiscovery();
+        AwsKmsHierarchicalKeyringConfig awsKmsHierarchical = keyring.getAwsKmsHierarchical();
 
         if (rawAes != null) {
             return materialProviders.CreateRawAesKeyring(
@@ -183,7 +195,7 @@ public final class EsdkClientFactory {
             // network call happens until Encrypt/Decrypt (Requirement 14.1, 14.14).
             CreateAwsKmsKeyringInput.Builder builder = CreateAwsKmsKeyringInput.builder()
                 .kmsKeyId(awsKms.getKmsKeyId())
-                .kmsClient(kmsClient());
+                .kmsClient(kmsClientForKey(awsKms.getKmsKeyId()));
             if (awsKms.hasGrantTokens() && !awsKms.getGrantTokens().isEmpty()) {
                 builder.grantTokens(new ArrayList<>(awsKms.getGrantTokens()));
             }
@@ -193,7 +205,7 @@ public final class EsdkClientFactory {
             // Single multi-region key -> the single-key MRK-aware KMS keyring.
             CreateAwsKmsMrkKeyringInput.Builder builder = CreateAwsKmsMrkKeyringInput.builder()
                 .kmsKeyId(awsKmsMrk.getKmsKeyId())
-                .kmsClient(kmsClient());
+                .kmsClient(kmsClientForKey(awsKmsMrk.getKmsKeyId()));
             if (awsKmsMrk.hasGrantTokens() && !awsKmsMrk.getGrantTokens().isEmpty()) {
                 builder.grantTokens(new ArrayList<>(awsKmsMrk.getGrantTokens()));
             }
@@ -235,6 +247,12 @@ public final class EsdkClientFactory {
         if (awsKmsDiscovery != null) {
             return buildAwsKmsDiscoveryKeyring(awsKmsDiscovery);
         }
+        if (awsKmsMrkDiscovery != null) {
+            return buildAwsKmsMrkDiscoveryKeyring(awsKmsMrkDiscovery);
+        }
+        if (awsKmsHierarchical != null) {
+            return buildAwsKmsHierarchicalKeyring(awsKmsHierarchical);
+        }
         throw new IllegalArgumentException("Keyring had no variant member set");
     }
 
@@ -251,7 +269,7 @@ public final class EsdkClientFactory {
      * present). Either way, no encrypt/decrypt happens at construction.
      */
     private IKeyring buildAwsKmsRsaKeyring(AwsKmsRsaKeyringConfig config) {
-        KmsClient kmsClient = kmsClient();
+        KmsClient kmsClient = kmsClientForKey(config.getKmsKeyId());
         ByteBuffer publicKey = config.getPublicKey();
         if (publicKey == null) {
             // Fetch the RSA public key once from KMS (network call at construction).
@@ -323,6 +341,57 @@ public final class EsdkClientFactory {
     }
 
     /**
+     * Build the AWS KMS MRK-aware discovery keyring: a decrypt-only discovery
+     * keyring normalized to {@code region} (built with a KMS client in that
+     * region), so it can decrypt a multi-region key written in another region.
+     */
+    private IKeyring buildAwsKmsMrkDiscoveryKeyring(AwsKmsMrkDiscoveryKeyringConfig config) {
+        CreateAwsKmsMrkDiscoveryKeyringInput.Builder builder =
+            CreateAwsKmsMrkDiscoveryKeyringInput.builder()
+                .kmsClient(KmsClient.builder().region(Region.of(config.getRegion())).build())
+                .region(config.getRegion());
+        aws.cryptography.esdk.testserver.server.model.DiscoveryFilter modeledFilter =
+            config.getDiscoveryFilter();
+        if (modeledFilter != null) {
+            builder.discoveryFilter(
+                software.amazon.cryptography.materialproviders.model.DiscoveryFilter.builder()
+                    .partition(modeledFilter.getPartition())
+                    .accountIds(new ArrayList<>(modeledFilter.getAccountIds()))
+                    .build());
+        }
+        if (config.hasGrantTokens() && !config.getGrantTokens().isEmpty()) {
+            builder.grantTokens(new ArrayList<>(config.getGrantTokens()));
+        }
+        return materialProviders.CreateAwsKmsMrkDiscoveryKeyring(builder.build());
+    }
+
+    /**
+     * Build the AWS KMS hierarchical keyring: branch keys live in a DynamoDB key
+     * store and are wrapped by a KMS key. The key store's DynamoDB and KMS clients
+     * are built eagerly without a network call; branch-key retrieval reaches
+     * DynamoDB and KMS only on {@code Encrypt}/{@code Decrypt}.
+     */
+    private IKeyring buildAwsKmsHierarchicalKeyring(AwsKmsHierarchicalKeyringConfig config) {
+        KeyStore keyStore = KeyStore.builder()
+            .KeyStoreConfig(KeyStoreConfig.builder()
+                .ddbTableName(config.getKeyStoreTableName())
+                .logicalKeyStoreName(config.getLogicalKeyStoreName())
+                .kmsConfiguration(KMSConfiguration.builder()
+                    .kmsKeyArn(config.getKmsKeyArn())
+                    .build())
+                .ddbClient(DynamoDbClient.builder().region(Region.of(resolveRegion())).build())
+                .kmsClient(kmsClient())
+                .build())
+            .build();
+        return materialProviders.CreateAwsKmsHierarchicalKeyring(
+            CreateAwsKmsHierarchicalKeyringInput.builder()
+                .keyStore(keyStore)
+                .branchKeyId(config.getBranchKeyId())
+                .ttlSeconds(config.getTtlSeconds())
+                .build());
+    }
+
+    /**
      * Construct an AWS KMS client. Building the client performs no network call;
      * the region is resolved from the ambient AWS region provider chain (the
      * {@code AWS_REGION} / configured region the online KMS Tests supply). Key-ARN
@@ -336,6 +405,27 @@ public final class EsdkClientFactory {
         // AWS_REGION / aws.region still takes precedence; us-west-2 (where the
         // KMS_Test_Resources live) is the fallback.
         return KmsClient.builder().region(Region.of(resolveRegion())).build();
+    }
+
+    /**
+     * A KMS client in the key's own region. KMS rejects an ARN whose region
+     * differs from the client's region ("Invalid arn &lt;region&gt;"), so a
+     * us-east-1 key needs a us-east-1 client even when the ambient region is
+     * us-west-2. Falls back to {@link #resolveRegion()} for a bare key id or
+     * alias that carries no region.
+     */
+    private static KmsClient kmsClientForKey(String kmsKeyId) {
+        return KmsClient.builder().region(Region.of(regionForKey(kmsKeyId))).build();
+    }
+
+    private static String regionForKey(String kmsKeyId) {
+        if (kmsKeyId != null && kmsKeyId.startsWith("arn:")) {
+            String[] parts = kmsKeyId.split(":");
+            if (parts.length > 3 && !isBlank(parts[3])) {
+                return parts[3];
+            }
+        }
+        return resolveRegion();
     }
 
     /**

@@ -3,6 +3,7 @@ package aws.cryptography.esdk.testserver.server.error;
 import aws.cryptography.esdk.testserver.server.model.ESDKClientError;
 import aws.cryptography.esdk.testserver.server.model.ESDKTestServerException;
 import aws.cryptography.esdk.testserver.server.model.GenericServerError;
+import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 
 /**
  * Maps any {@link Throwable} raised while handling an operation onto exactly one
@@ -48,11 +49,11 @@ public final class ErrorClassifier {
             return modeled;
         }
 
-        // (5.6, P8) ESDK-origin failures forward the ESDK message unmodified.
+        // (5.6, P8) ESDK-origin failures forward the ESDK message unmodified,
+        // plus any nested CollectionOfErrors causes so per-key failures are visible.
         if (failure instanceof EsdkClientException esdk) {
-            String message = esdk.esdkMessage();
             return ESDKClientError.builder()
-                .message(message == null ? "" : message)
+                .message(esdkMessageWithCauses(esdk))
                 .build();
         }
 
@@ -71,5 +72,32 @@ public final class ErrorClassifier {
         String type = failure.getClass().getName();
         String message = failure.getMessage();
         return (message == null || message.isEmpty()) ? type : type + ": " + message;
+    }
+
+    /**
+     * The ESDK message, plus — when the failure carries an MPL
+     * {@link CollectionOfErrors} in its cause chain — the nested list of
+     * encountered exceptions, so the underlying per-key causes (e.g. why each
+     * configured key could not decrypt) are visible instead of only the
+     * top-level "... available via `list`".
+     */
+    private static String esdkMessageWithCauses(EsdkClientException esdk) {
+        String message = esdk.esdkMessage();
+        String base = message == null ? "" : message;
+        for (Throwable cause = esdk; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CollectionOfErrors collection && !collection.list().isEmpty()) {
+                StringBuilder encountered = new StringBuilder();
+                for (RuntimeException nested : collection.list()) {
+                    if (encountered.length() > 0) {
+                        encountered.append("; ");
+                    }
+                    encountered.append(nested.getMessage() == null
+                        ? nested.getClass().getSimpleName()
+                        : nested.getMessage());
+                }
+                return base + " [encountered: " + encountered + "]";
+            }
+        }
+        return base;
     }
 }

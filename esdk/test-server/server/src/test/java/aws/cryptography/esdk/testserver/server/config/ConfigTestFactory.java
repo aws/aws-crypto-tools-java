@@ -1,6 +1,7 @@
 package aws.cryptography.esdk.testserver.server.config;
 
 import aws.cryptography.esdk.testserver.server.model.AesWrappingAlg;
+import aws.cryptography.esdk.testserver.server.model.AwsKmsHierarchicalKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkKeyringConfig;
 import aws.cryptography.esdk.testserver.server.model.AwsKmsMrkMultiKeyringConfig;
@@ -36,7 +37,8 @@ final class ConfigTestFactory {
      * and of size two-or-more — each easy to construct minimally.
      */
     static final List<String> KEYRING_VARIANTS =
-        List.of("awsKms", "awsKmsMrk", "awsKmsMrkMulti", "awsKmsRsa", "rawAes", "rawRsa", "multi");
+        List.of("awsKms", "awsKmsMrk", "awsKmsMrkMulti", "awsKmsRsa", "awsKmsHierarchical",
+            "rawAes", "rawRsa", "multi");
 
     /** The three CMM variants. */
     static final List<String> CMM_VARIANTS =
@@ -55,6 +57,14 @@ final class ConfigTestFactory {
                     AwsKmsMrkMultiKeyringConfig.builder().generator("mrk-key").build());
                 case "awsKmsRsa" -> builder.awsKmsRsa(
                     AwsKmsRsaKeyringConfig.builder().kmsKeyId("rsa-key").build());
+                case "awsKmsHierarchical" -> builder.awsKmsHierarchical(
+                    AwsKmsHierarchicalKeyringConfig.builder()
+                        .branchKeyId("branch-key")
+                        .keyStoreTableName("KeyStoreDdbTable")
+                        .logicalKeyStoreName("KeyStoreDdbTable")
+                        .kmsKeyArn("arn:aws:kms:us-west-2:111122223333:key/example")
+                        .ttlSeconds(600)
+                        .build());
                 case "rawAes" -> builder.rawAes(rawAes());
                 case "rawRsa" -> builder.rawRsa(rawRsa());
                 case "multi" -> builder.multi(

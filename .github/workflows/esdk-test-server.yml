@@ -169,6 +169,11 @@ env:
   # variable ESDK_TEST_SERVER_KMS_ROLE_ARN to target a different account/role.
   # This is an IAM role ARN, not a secret.
   KMS_CI_ROLE_ARN: ${{ vars.ESDK_TEST_SERVER_KMS_ROLE_ARN || 'arn:aws:iam::370957321024:role/esdk-test-server-ci-kms-role' }}
+  # sccache is the Rust compiler cache for the materialized Rust Language_Server
+  # build; content-hashed, so it survives the orchestrated run's fresh mid-run clone.
+  RUSTC_WRAPPER: sccache
+  SCCACHE_DIR: ${{ github.workspace }}/.sccache
+  SCCACHE_IDLE_TIMEOUT: "0"
 
 jobs:
   esdk-test-server:
@@ -206,6 +211,76 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Set up Python 3.11 (PythonLaunchPlan venv)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js 22 (JavaScript Language_Server build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Go (Go Language_Server + the Rust servers' aws-lc-sys native builds)
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Set up the Rust toolchain (Rust Language_Server build)
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          cargo --version
+
+      - name: Set up sccache (Rust compiler cache)
+        run: |
+          set -euo pipefail
+          SCCACHE_VERSION="v0.8.2"
+          base="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl"
+          url="https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${base}.tar.gz"
+          tmp="$(mktemp -d)"
+          curl -sSL "$url" -o "$tmp/sccache.tar.gz"
+          tar -xzf "$tmp/sccache.tar.gz" -C "$tmp"
+          sudo install -m 0755 "$tmp/${base}/sccache" /usr/local/bin/sccache
+          sccache --version
+
+      - name: Restore the Rust cargo downloads + sccache compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ github.workspace }}/.sccache
+          key: ${{ runner.os }}-cargo-esdk-test-server-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-esdk-test-server-
+
+      - name: Set up .NET (.NET Language_Server build)
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Install Dafny 4.9.0 (.NET library transpile)
+        run: |
+          set -euo pipefail
+          dotnet tool install --global dafny --version 4.9.0
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          dafny --version
+
+      - name: Build aws-c-common (C Language_Server cmake requires it)
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/awslabs/aws-c-common "$RUNNER_TEMP/aws-c-common"
+          cmake -S "$RUNNER_TEMP/aws-c-common" -B "$RUNNER_TEMP/aws-c-common-build" \
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/.aws-c-common-install" \
+            -DBUILD_TESTING=OFF
+          cmake --build "$RUNNER_TEMP/aws-c-common-build" --target install -- -j
+          echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/.aws-c-common-install" >> "$GITHUB_ENV"
 
       - name: Cache Gradle + Maven caches
         uses: actions/cache@v4
@@ -454,6 +529,16 @@ jobs:
               ci-results/server-module/test-results-xml
             rm -rf ci-results/server-module/test-results-xml/*/binary
           fi
+
+      - name: Save the Rust cargo downloads + sccache compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ github.workspace }}/.sccache
+          key: ${{ runner.os }}-cargo-esdk-test-server-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload test reports + Resolution_Record
         # `if: always()`: diagnostics upload, not a subsequent test step —
