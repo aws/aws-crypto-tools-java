@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "aws-crypto-tools-java as a DB-ESDK Language_Repository: names the commons",
+    "repository + branch this Language_Server pairs with, and declares the",
+    "supported/unsupported half of every catalog Feature (Requirements 8.2,",
+    "8.4-8.11).",
+    "",
+    "The declared product must equal the Configuration_Set's product",
+    "(Requirement 8.11) — dbesdk here, not esdk (that repo hosts the ESDK",
+    "Java server under esdk/test-server/ and its own commons-configuration).",
+    "",
+    "MVP: only 'raw-aes' is in the catalog and it is supported. Additional",
+    "Features (aws-kms*, hierarchical, raw-rsa, multi, caching, required-",
+    "encryption-context) get added here in lockstep with the Configuration_Set",
+    "when the corresponding Tests land."
+  ],
+  "commonsRepository": {
+    "name": "aws-crypto-tools-commons",
+    "url": "git@github.com:aws/aws-crypto-tools-commons.git",
+    "branch": "huaye/dbesdk-test-server"
+  },
+  "product": "dbesdk",
+  "supportedFeatures": [
+    "raw-aes",
+    "aws-kms"
+  ],
+  "unsupportedFeatures": []
+}
