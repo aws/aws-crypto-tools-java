@@ -27,8 +27,8 @@ public interface DbesdkClient {
      *
      * @param plaintextItem the plaintext attribute map.
      * @return the encrypted attribute map (ENCRYPT_AND_SIGN attributes become
-     *     binary; SIGN_ONLY and DO_NOTHING attributes retain their original
-     *     values).
+     *     binary; SIGN_ONLY, SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT, and
+     *     DO_NOTHING attributes retain their original values).
      * @throws DbesdkClientException if the DBE library fails.
      */
     Map<String, AttributeValue> encryptItem(Map<String, AttributeValue> plaintextItem)
