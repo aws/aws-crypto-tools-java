@@ -134,8 +134,11 @@ public final class ItemEncryptorFactory {
         return new RealItemEncryptorClient(itemEncryptor);
     }
 
-    /** Maps the modeled {@code Map<String, CryptoAction>} onto the DBE enum. */
-    private static Map<String, CryptoAction> toCryptoActions(
+    /**
+     * Maps the modeled {@code Map<String, CryptoAction>} onto the DBE enum.
+     * Public so the transforms client factory reuses one action mapping.
+     */
+    public static Map<String, CryptoAction> toCryptoActions(
             Map<String, aws.cryptography.dbesdk.testserver.server.model.CryptoAction> modeled) {
         Map<String, CryptoAction> out = new HashMap<>(modeled.size());
         for (Map.Entry<String, aws.cryptography.dbesdk.testserver.server.model.CryptoAction> e
@@ -145,7 +148,12 @@ public final class ItemEncryptorFactory {
         return out;
     }
 
-    private ICryptographicMaterialsManager buildCmm(CryptographicMaterialsManager cmm) {
+    /**
+     * Build a Material Providers CMM from the modeled config. Public so the
+     * transforms client factory can reuse the exact same recursive
+     * keyring/CMM construction as the item encryptor.
+     */
+    public ICryptographicMaterialsManager buildCmm(CryptographicMaterialsManager cmm) {
         DefaultCmmConfig defaultCmm = cmm.getDefault();
         RequiredEncryptionContextCmmConfig requiredEc = cmm.getRequiredEncryptionContext();
         CachingCmmConfig caching = cmm.getCaching();
@@ -174,7 +182,12 @@ public final class ItemEncryptorFactory {
             "CryptographicMaterialsManager had no variant member set");
     }
 
-    private IKeyring buildKeyring(Keyring keyring) {
+    /**
+     * Build a Material Providers keyring from the modeled config. Public so the
+     * transforms client factory can reuse the exact same recursive keyring
+     * construction as the item encryptor.
+     */
+    public IKeyring buildKeyring(Keyring keyring) {
         RawAesKeyringConfig rawAes = keyring.getRawAes();
         RawRsaKeyringConfig rawRsa = keyring.getRawRsa();
         MultiKeyringConfig multi = keyring.getMulti();

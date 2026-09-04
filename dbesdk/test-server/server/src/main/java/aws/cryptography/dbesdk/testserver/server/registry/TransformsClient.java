@@ -1,0 +1,49 @@
+package aws.cryptography.dbesdk.testserver.server.registry;
+
+import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+
+/**
+ * A single configured DBE DDB-SDK transforms client stored in the
+ * {@link TransformsClientRegistry}. On the Java server this wraps a real
+ * {@link software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms}
+ * (see {@code RealTransformsClient}).
+ *
+ * <p>Unlike the {@link DbesdkClient} item encryptor, which operates on an
+ * already-materialized item map, the transforms client operates on real AWS SDK
+ * DynamoDB request/response objects — the interceptor hooks a DDB call would
+ * pass through. This sub-round wires the encrypt-before {@code PutItemInput}
+ * transform and the decrypt-after {@code GetItemOutput} transform; the remaining
+ * DDB operations are added in later sub-rounds.
+ *
+ * <p>Both methods declare {@link DbesdkClientException}: implementations catch
+ * exceptions thrown by the underlying DBE library and rethrow them wrapped, so
+ * the operation wrapper forwards them as {@code DBESDKClientError} with the DBE
+ * message unmodified.
+ */
+public interface TransformsClient {
+
+    /**
+     * Transform a DynamoDB PutItem input, encrypting the item per the table's
+     * Crypto Actions.
+     *
+     * @param sdkInput the PutItem request to transform.
+     * @return the transformed PutItem request whose item is now encrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    PutItemRequest putItemInputTransform(PutItemRequest sdkInput) throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB GetItem output, decrypting the returned item.
+     *
+     * @param originalInput the GetItem request that produced {@code sdkOutput}.
+     * @param sdkOutput the GetItem response to transform.
+     * @return the transformed GetItem response whose item (when present) is
+     *     decrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    GetItemResponse getItemOutputTransform(GetItemRequest originalInput, GetItemResponse sdkOutput)
+        throws DbesdkClientException;
+}

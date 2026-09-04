@@ -2,8 +2,10 @@ package aws.cryptography.dbesdk.testserver.server.handler;
 
 import aws.cryptography.dbesdk.testserver.server.config.ConfigValidator;
 import aws.cryptography.dbesdk.testserver.server.config.ItemEncryptorFactory;
+import aws.cryptography.dbesdk.testserver.server.config.TransformsClientFactory;
 import aws.cryptography.dbesdk.testserver.server.error.OperationWrapper;
 import aws.cryptography.dbesdk.testserver.server.registry.ClientRegistry;
+import aws.cryptography.dbesdk.testserver.server.registry.TransformsClientRegistry;
 import aws.cryptography.dbesdk.testserver.server.service.DBESDKTestServer;
 
 /**
@@ -20,9 +22,13 @@ import aws.cryptography.dbesdk.testserver.server.service.DBESDKTestServer;
 public final class DbesdkTestServerHandlers {
 
     private final ClientRegistry registry;
+    private final TransformsClientRegistry transformsRegistry;
     private final CreateClientHandler createClient;
     private final EncryptItemHandler encryptItem;
     private final DecryptItemHandler decryptItem;
+    private final CreateTransformsClientHandler createTransformsClient;
+    private final PutItemInputTransformHandler putItemInputTransform;
+    private final GetItemOutputTransformHandler getItemOutputTransform;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -30,15 +36,24 @@ public final class DbesdkTestServerHandlers {
 
     public DbesdkTestServerHandlers(ClientRegistry registry) {
         this.registry = registry;
+        this.transformsRegistry = new TransformsClientRegistry();
         OperationWrapper wrapper = new OperationWrapper();
         ConfigValidator validator = new ConfigValidator();
         ItemEncryptorFactory factory = new ItemEncryptorFactory();
+        TransformsClientFactory transformsFactory = new TransformsClientFactory(factory);
         ClientIdGuard guard = new ClientIdGuard(registry);
+        TransformsClientGuard transformsGuard = new TransformsClientGuard(transformsRegistry);
         DdbItemCodec itemCodec = new DdbItemCodec();
 
         this.createClient = new CreateClientHandler(registry, validator, factory, wrapper);
         this.encryptItem = new EncryptItemHandler(guard, wrapper, itemCodec);
         this.decryptItem = new DecryptItemHandler(guard, wrapper, itemCodec);
+        this.createTransformsClient =
+            new CreateTransformsClientHandler(transformsRegistry, validator, transformsFactory, wrapper);
+        this.putItemInputTransform =
+            new PutItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.getItemOutputTransform =
+            new GetItemOutputTransformHandler(transformsGuard, wrapper, itemCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -58,12 +73,27 @@ public final class DbesdkTestServerHandlers {
         return decryptItem;
     }
 
+    public CreateTransformsClientHandler createTransformsClientHandler() {
+        return createTransformsClient;
+    }
+
+    public PutItemInputTransformHandler putItemInputTransformHandler() {
+        return putItemInputTransform;
+    }
+
+    public GetItemOutputTransformHandler getItemOutputTransformHandler() {
+        return getItemOutputTransform;
+    }
+
     /** Build the generated service wired to these handlers. */
     public DBESDKTestServer service() {
         return DBESDKTestServer.builder()
             .addCreateClientOperation(createClient)
+            .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
             .addEncryptItemOperation(encryptItem)
+            .addGetItemOutputTransformOperation(getItemOutputTransform)
+            .addPutItemInputTransformOperation(putItemInputTransform)
             .build();
     }
 }
