@@ -1,10 +1,16 @@
 package aws.cryptography.dbesdk.testserver.server.registry;
 
 import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
+import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 
 /**
@@ -69,5 +75,40 @@ public interface TransformsClient {
      * @throws DbesdkClientException if the DBE library fails.
      */
     TransactWriteItemsRequest transactWriteItemsInputTransform(TransactWriteItemsRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB Scan output, decrypting every returned item.
+     *
+     * @param originalInput the Scan request that produced {@code sdkOutput}.
+     * @param sdkOutput the Scan response to transform.
+     * @return the transformed response whose items are decrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    ScanResponse scanOutputTransform(ScanRequest originalInput, ScanResponse sdkOutput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB Query output, decrypting every returned item.
+     *
+     * @param originalInput the Query request that produced {@code sdkOutput}.
+     * @param sdkOutput the Query response to transform.
+     * @return the transformed response whose items are decrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    QueryResponse queryOutputTransform(QueryRequest originalInput, QueryResponse sdkOutput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB BatchGetItem output, decrypting every returned item
+     * across all tables.
+     *
+     * @param originalInput the BatchGetItem request that produced {@code sdkOutput}.
+     * @param sdkOutput the BatchGetItem response to transform.
+     * @return the transformed response whose items are decrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    BatchGetItemResponse batchGetItemOutputTransform(
+            BatchGetItemRequest originalInput, BatchGetItemResponse sdkOutput)
         throws DbesdkClientException;
 }

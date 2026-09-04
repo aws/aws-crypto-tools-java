@@ -31,6 +31,9 @@ public final class DbesdkTestServerHandlers {
     private final GetItemOutputTransformHandler getItemOutputTransform;
     private final BatchWriteItemInputTransformHandler batchWriteItemInputTransform;
     private final TransactWriteItemsInputTransformHandler transactWriteItemsInputTransform;
+    private final ScanOutputTransformHandler scanOutputTransform;
+    private final QueryOutputTransformHandler queryOutputTransform;
+    private final BatchGetItemOutputTransformHandler batchGetItemOutputTransform;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -60,6 +63,12 @@ public final class DbesdkTestServerHandlers {
             new BatchWriteItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.transactWriteItemsInputTransform =
             new TransactWriteItemsInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.scanOutputTransform =
+            new ScanOutputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.queryOutputTransform =
+            new QueryOutputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.batchGetItemOutputTransform =
+            new BatchGetItemOutputTransformHandler(transformsGuard, wrapper, itemCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -102,6 +111,7 @@ public final class DbesdkTestServerHandlers {
     /** Build the generated service wired to these handlers. */
     public DBESDKTestServer service() {
         return DBESDKTestServer.builder()
+            .addBatchGetItemOutputTransformOperation(batchGetItemOutputTransform)
             .addBatchWriteItemInputTransformOperation(batchWriteItemInputTransform)
             .addCreateClientOperation(createClient)
             .addCreateTransformsClientOperation(createTransformsClient)
@@ -109,6 +119,8 @@ public final class DbesdkTestServerHandlers {
             .addEncryptItemOperation(encryptItem)
             .addGetItemOutputTransformOperation(getItemOutputTransform)
             .addPutItemInputTransformOperation(putItemInputTransform)
+            .addQueryOutputTransformOperation(queryOutputTransform)
+            .addScanOutputTransformOperation(scanOutputTransform)
             .addTransactWriteItemsInputTransformOperation(transactWriteItemsInputTransform)
             .build();
     }
