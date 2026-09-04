@@ -1,9 +1,12 @@
 package aws.cryptography.dbesdk.testserver.server.registry;
 
 import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
+import software.amazon.awssdk.services.dynamodb.model.BatchExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -13,8 +16,11 @@ import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchExecuteStatementInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchGetItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchWriteItemInputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteStatementInputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteTransactionInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.GetItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.PutItemInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.QueryOutputTransformInput;
@@ -131,6 +137,44 @@ public final class RealTransformsClient implements TransformsClient {
                     .sdkOutput(sdkOutput)
                     .build()
             ).transformedOutput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public ExecuteStatementRequest executeStatementInputTransform(ExecuteStatementRequest sdkInput)
+        throws DbesdkClientException {
+        try {
+            return transforms.ExecuteStatementInputTransform(
+                ExecuteStatementInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public BatchExecuteStatementRequest batchExecuteStatementInputTransform(
+            BatchExecuteStatementRequest sdkInput)
+        throws DbesdkClientException {
+        try {
+            return transforms.BatchExecuteStatementInputTransform(
+                BatchExecuteStatementInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public ExecuteTransactionRequest executeTransactionInputTransform(
+            ExecuteTransactionRequest sdkInput)
+        throws DbesdkClientException {
+        try {
+            return transforms.ExecuteTransactionInputTransform(
+                ExecuteTransactionInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
         } catch (Exception dbeFailure) {
             throw new DbesdkClientException(dbeFailure);
         }

@@ -34,6 +34,9 @@ public final class DbesdkTestServerHandlers {
     private final ScanOutputTransformHandler scanOutputTransform;
     private final QueryOutputTransformHandler queryOutputTransform;
     private final BatchGetItemOutputTransformHandler batchGetItemOutputTransform;
+    private final ExecuteStatementInputTransformHandler executeStatementInputTransform;
+    private final BatchExecuteStatementInputTransformHandler batchExecuteStatementInputTransform;
+    private final ExecuteTransactionInputTransformHandler executeTransactionInputTransform;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -69,6 +72,12 @@ public final class DbesdkTestServerHandlers {
             new QueryOutputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.batchGetItemOutputTransform =
             new BatchGetItemOutputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.executeStatementInputTransform =
+            new ExecuteStatementInputTransformHandler(transformsGuard, wrapper);
+        this.batchExecuteStatementInputTransform =
+            new BatchExecuteStatementInputTransformHandler(transformsGuard, wrapper);
+        this.executeTransactionInputTransform =
+            new ExecuteTransactionInputTransformHandler(transformsGuard, wrapper);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -111,12 +120,15 @@ public final class DbesdkTestServerHandlers {
     /** Build the generated service wired to these handlers. */
     public DBESDKTestServer service() {
         return DBESDKTestServer.builder()
+            .addBatchExecuteStatementInputTransformOperation(batchExecuteStatementInputTransform)
             .addBatchGetItemOutputTransformOperation(batchGetItemOutputTransform)
             .addBatchWriteItemInputTransformOperation(batchWriteItemInputTransform)
             .addCreateClientOperation(createClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
             .addEncryptItemOperation(encryptItem)
+            .addExecuteStatementInputTransformOperation(executeStatementInputTransform)
+            .addExecuteTransactionInputTransformOperation(executeTransactionInputTransform)
             .addGetItemOutputTransformOperation(getItemOutputTransform)
             .addPutItemInputTransformOperation(putItemInputTransform)
             .addQueryOutputTransformOperation(queryOutputTransform)

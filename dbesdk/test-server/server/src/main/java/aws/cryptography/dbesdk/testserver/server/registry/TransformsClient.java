@@ -1,9 +1,12 @@
 package aws.cryptography.dbesdk.testserver.server.registry;
 
 import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
+import software.amazon.awssdk.services.dynamodb.model.BatchExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -110,5 +113,35 @@ public interface TransformsClient {
      */
     BatchGetItemResponse batchGetItemOutputTransform(
             BatchGetItemRequest originalInput, BatchGetItemResponse sdkOutput)
+        throws DbesdkClientException;
+
+    /**
+     * Validate a PartiQL ExecuteStatement input. Throws when the statement
+     * targets an encrypted table; otherwise returns the input unchanged.
+     *
+     * @throws DbesdkClientException if the DBE library rejects the statement.
+     */
+    ExecuteStatementRequest executeStatementInputTransform(ExecuteStatementRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Validate a PartiQL BatchExecuteStatement input. Throws when any statement
+     * targets an encrypted table; otherwise returns the input unchanged.
+     *
+     * @throws DbesdkClientException if the DBE library rejects a statement.
+     */
+    BatchExecuteStatementRequest batchExecuteStatementInputTransform(
+            BatchExecuteStatementRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Validate a PartiQL ExecuteTransaction input. Throws when any transact
+     * statement targets an encrypted table; otherwise returns the input
+     * unchanged.
+     *
+     * @throws DbesdkClientException if the DBE library rejects a statement.
+     */
+    ExecuteTransactionRequest executeTransactionInputTransform(
+            ExecuteTransactionRequest sdkInput)
         throws DbesdkClientException;
 }
