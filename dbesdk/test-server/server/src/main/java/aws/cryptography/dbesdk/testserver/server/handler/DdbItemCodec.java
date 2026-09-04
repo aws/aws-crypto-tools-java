@@ -2,7 +2,9 @@ package aws.cryptography.dbesdk.testserver.server.handler;
 
 import aws.cryptography.dbesdk.testserver.server.model.AttributeValue;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 
@@ -11,14 +13,14 @@ import software.amazon.awssdk.core.SdkBytes;
  *
  * <ul>
  *   <li>The Smithy-modeled {@link AttributeValue} the wire carries (tagged
- *       union via optional members: S / N / B / BOOL / NULL).</li>
+ *       union via optional members: S / N / B / BOOL / NULL / SS / NS / BS /
+ *       L / M).</li>
  *   <li>The AWS SDK v2 {@link software.amazon.awssdk.services.dynamodb.model.AttributeValue}
  *       DBE's {@code DynamoDbItemEncryptor} consumes and returns.</li>
  * </ul>
  *
- * <p>MVP scope: the five scalars only. Lists, maps, and typed sets (SS/NS/BS)
- * are a mechanical extension — leaving them out keeps the codec small until
- * a test needs them.
+ * <p>L (list) and M (map) are recursive: their elements are themselves
+ * AttributeValues, so the codec recurses to translate arbitrarily nested items.
  */
 public final class DdbItemCodec {
 
@@ -51,36 +53,52 @@ public final class DdbItemCodec {
         // Exactly one variant is expected to be set. If none are, that's a
         // caller bug — surface it rather than emit an empty AttributeValue.
         if (av.getS() != null) {
-            return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder()
-                .s(av.getS())
-                .build();
+            return ddb().s(av.getS()).build();
         }
         if (av.getN() != null) {
-            return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder()
-                .n(av.getN())
-                .build();
+            return ddb().n(av.getN()).build();
         }
         if (av.getB() != null) {
-            ByteBuffer buf = av.getB();
-            byte[] copy = new byte[buf.remaining()];
-            buf.duplicate().get(copy);
-            return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder()
-                .b(SdkBytes.fromByteArray(copy))
-                .build();
+            return ddb().b(toSdkBytes(av.getB())).build();
         }
         if (av.isBool() != null) {
-            return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder()
-                .bool(av.isBool())
-                .build();
+            return ddb().bool(av.isBool()).build();
         }
         if (av.isNull() != null) {
-            return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder()
-                .nul(av.isNull())
-                .build();
+            return ddb().nul(av.isNull()).build();
+        }
+        if (av.hasSs()) {
+            return ddb().ss(av.getSs()).build();
+        }
+        if (av.hasNs()) {
+            return ddb().ns(av.getNs()).build();
+        }
+        if (av.hasBs()) {
+            List<SdkBytes> bs = new ArrayList<>(av.getBs().size());
+            for (ByteBuffer buf : av.getBs()) {
+                bs.add(toSdkBytes(buf));
+            }
+            return ddb().bs(bs).build();
+        }
+        if (av.hasL()) {
+            List<software.amazon.awssdk.services.dynamodb.model.AttributeValue> list =
+                new ArrayList<>(av.getL().size());
+            for (AttributeValue element : av.getL()) {
+                list.add(toDdbAttribute(name, element));
+            }
+            return ddb().l(list).build();
+        }
+        if (av.hasM()) {
+            Map<String, software.amazon.awssdk.services.dynamodb.model.AttributeValue> mm =
+                new LinkedHashMap<>(av.getM().size());
+            for (Map.Entry<String, AttributeValue> e : av.getM().entrySet()) {
+                mm.put(e.getKey(), toDdbAttribute(e.getKey(), e.getValue()));
+            }
+            return ddb().m(mm).build();
         }
         throw new IllegalArgumentException(
             "Attribute '" + name + "' has no variant member set "
-                + "(expected one of S, N, B, BOOL, NULL)");
+                + "(expected one of S, N, B, BOOL, NULL, SS, NS, BS, L, M)");
     }
 
     private static AttributeValue toModelAttribute(
@@ -101,8 +119,46 @@ public final class DdbItemCodec {
         if (ddb.nul() != null) {
             return AttributeValue.builder().nullMember(ddb.nul()).build();
         }
+        if (ddb.hasSs()) {
+            return AttributeValue.builder().ss(ddb.ss()).build();
+        }
+        if (ddb.hasNs()) {
+            return AttributeValue.builder().ns(ddb.ns()).build();
+        }
+        if (ddb.hasBs()) {
+            List<ByteBuffer> bs = new ArrayList<>(ddb.bs().size());
+            for (SdkBytes sb : ddb.bs()) {
+                bs.add(ByteBuffer.wrap(sb.asByteArray()));
+            }
+            return AttributeValue.builder().bs(bs).build();
+        }
+        if (ddb.hasL()) {
+            List<AttributeValue> list = new ArrayList<>(ddb.l().size());
+            for (software.amazon.awssdk.services.dynamodb.model.AttributeValue element : ddb.l()) {
+                list.add(toModelAttribute(name, element));
+            }
+            return AttributeValue.builder().l(list).build();
+        }
+        if (ddb.hasM()) {
+            Map<String, AttributeValue> mm = new LinkedHashMap<>(ddb.m().size());
+            for (Map.Entry<String, software.amazon.awssdk.services.dynamodb.model.AttributeValue> e
+                    : ddb.m().entrySet()) {
+                mm.put(e.getKey(), toModelAttribute(e.getKey(), e.getValue()));
+            }
+            return AttributeValue.builder().m(mm).build();
+        }
         throw new IllegalStateException(
             "DBE returned attribute '" + name + "' with an unsupported kind "
-                + "(this MVP supports S, N, B, BOOL, NULL)");
+                + "(supported: S, N, B, BOOL, NULL, SS, NS, BS, L, M)");
+    }
+
+    private static software.amazon.awssdk.services.dynamodb.model.AttributeValue.Builder ddb() {
+        return software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder();
+    }
+
+    private static SdkBytes toSdkBytes(ByteBuffer buf) {
+        byte[] copy = new byte[buf.remaining()];
+        buf.duplicate().get(copy);
+        return SdkBytes.fromByteArray(copy);
     }
 }
