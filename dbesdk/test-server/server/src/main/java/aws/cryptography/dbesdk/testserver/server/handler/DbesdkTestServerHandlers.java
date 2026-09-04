@@ -29,6 +29,8 @@ public final class DbesdkTestServerHandlers {
     private final CreateTransformsClientHandler createTransformsClient;
     private final PutItemInputTransformHandler putItemInputTransform;
     private final GetItemOutputTransformHandler getItemOutputTransform;
+    private final BatchWriteItemInputTransformHandler batchWriteItemInputTransform;
+    private final TransactWriteItemsInputTransformHandler transactWriteItemsInputTransform;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -54,6 +56,10 @@ public final class DbesdkTestServerHandlers {
             new PutItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.getItemOutputTransform =
             new GetItemOutputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.batchWriteItemInputTransform =
+            new BatchWriteItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.transactWriteItemsInputTransform =
+            new TransactWriteItemsInputTransformHandler(transformsGuard, wrapper, itemCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -85,15 +91,25 @@ public final class DbesdkTestServerHandlers {
         return getItemOutputTransform;
     }
 
+    public BatchWriteItemInputTransformHandler batchWriteItemInputTransformHandler() {
+        return batchWriteItemInputTransform;
+    }
+
+    public TransactWriteItemsInputTransformHandler transactWriteItemsInputTransformHandler() {
+        return transactWriteItemsInputTransform;
+    }
+
     /** Build the generated service wired to these handlers. */
     public DBESDKTestServer service() {
         return DBESDKTestServer.builder()
+            .addBatchWriteItemInputTransformOperation(batchWriteItemInputTransform)
             .addCreateClientOperation(createClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
             .addEncryptItemOperation(encryptItem)
             .addGetItemOutputTransformOperation(getItemOutputTransform)
             .addPutItemInputTransformOperation(putItemInputTransform)
+            .addTransactWriteItemsInputTransformOperation(transactWriteItemsInputTransform)
             .build();
     }
 }

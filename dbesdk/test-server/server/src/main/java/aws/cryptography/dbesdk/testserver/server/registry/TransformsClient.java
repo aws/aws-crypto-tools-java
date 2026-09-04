@@ -1,9 +1,11 @@
 package aws.cryptography.dbesdk.testserver.server.registry;
 
 import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 
 /**
  * A single configured DBE DDB-SDK transforms client stored in the
@@ -45,5 +47,27 @@ public interface TransformsClient {
      * @throws DbesdkClientException if the DBE library fails.
      */
     GetItemResponse getItemOutputTransform(GetItemRequest originalInput, GetItemResponse sdkOutput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB BatchWriteItem input, encrypting the item of every
+     * PutRequest and passing DeleteRequests through unchanged.
+     *
+     * @param sdkInput the BatchWriteItem request to transform.
+     * @return the transformed request whose PutRequest items are encrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    BatchWriteItemRequest batchWriteItemInputTransform(BatchWriteItemRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB TransactWriteItems input, encrypting the item of
+     * every Put action.
+     *
+     * @param sdkInput the TransactWriteItems request to transform.
+     * @return the transformed request whose Put items are encrypted.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    TransactWriteItemsRequest transactWriteItemsInputTransform(TransactWriteItemsRequest sdkInput)
         throws DbesdkClientException;
 }
