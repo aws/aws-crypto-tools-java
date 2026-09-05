@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.dynamodb.model.BatchExecuteStatementReque
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -67,6 +68,21 @@ public interface TransformsClient {
      * @throws DbesdkClientException if the DBE library fails.
      */
     BatchWriteItemRequest batchWriteItemInputTransform(BatchWriteItemRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB BatchWriteItem output, restoring each unprocessed
+     * PutRequest item to its original plaintext value (matched against
+     * {@code originalInput} by primary key). A response with no UnprocessedItems
+     * is returned unchanged.
+     *
+     * @param originalInput the original (plaintext) BatchWriteItem request.
+     * @param sdkOutput the BatchWriteItem response to transform.
+     * @return the transformed response whose UnprocessedItems are plaintext.
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    BatchWriteItemResponse batchWriteItemOutputTransform(
+            BatchWriteItemRequest originalInput, BatchWriteItemResponse sdkOutput)
         throws DbesdkClientException;
 
     /**

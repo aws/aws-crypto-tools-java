@@ -30,6 +30,7 @@ public final class DbesdkTestServerHandlers {
     private final PutItemInputTransformHandler putItemInputTransform;
     private final GetItemOutputTransformHandler getItemOutputTransform;
     private final BatchWriteItemInputTransformHandler batchWriteItemInputTransform;
+    private final BatchWriteItemOutputTransformHandler batchWriteItemOutputTransform;
     private final TransactWriteItemsInputTransformHandler transactWriteItemsInputTransform;
     private final ScanOutputTransformHandler scanOutputTransform;
     private final QueryOutputTransformHandler queryOutputTransform;
@@ -52,6 +53,7 @@ public final class DbesdkTestServerHandlers {
         ClientIdGuard guard = new ClientIdGuard(registry);
         TransformsClientGuard transformsGuard = new TransformsClientGuard(transformsRegistry);
         DdbItemCodec itemCodec = new DdbItemCodec();
+        WriteRequestCodec writeRequestCodec = new WriteRequestCodec(itemCodec);
 
         this.createClient = new CreateClientHandler(registry, validator, factory, wrapper);
         this.encryptItem = new EncryptItemHandler(guard, wrapper, itemCodec);
@@ -63,7 +65,9 @@ public final class DbesdkTestServerHandlers {
         this.getItemOutputTransform =
             new GetItemOutputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.batchWriteItemInputTransform =
-            new BatchWriteItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
+            new BatchWriteItemInputTransformHandler(transformsGuard, wrapper, writeRequestCodec);
+        this.batchWriteItemOutputTransform =
+            new BatchWriteItemOutputTransformHandler(transformsGuard, wrapper, writeRequestCodec);
         this.transactWriteItemsInputTransform =
             new TransactWriteItemsInputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.scanOutputTransform =
@@ -123,6 +127,7 @@ public final class DbesdkTestServerHandlers {
             .addBatchExecuteStatementInputTransformOperation(batchExecuteStatementInputTransform)
             .addBatchGetItemOutputTransformOperation(batchGetItemOutputTransform)
             .addBatchWriteItemInputTransformOperation(batchWriteItemInputTransform)
+            .addBatchWriteItemOutputTransformOperation(batchWriteItemOutputTransform)
             .addCreateClientOperation(createClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)

@@ -5,6 +5,7 @@ import software.amazon.awssdk.services.dynamodb.model.BatchExecuteStatementReque
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -19,6 +20,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDb
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchExecuteStatementInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchGetItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchWriteItemInputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchWriteItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteStatementInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteTransactionInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.GetItemOutputTransformInput;
@@ -133,6 +135,22 @@ public final class RealTransformsClient implements TransformsClient {
         try {
             return transforms.BatchGetItemOutputTransform(
                 BatchGetItemOutputTransformInput.builder()
+                    .originalInput(originalInput)
+                    .sdkOutput(sdkOutput)
+                    .build()
+            ).transformedOutput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public BatchWriteItemResponse batchWriteItemOutputTransform(
+            BatchWriteItemRequest originalInput, BatchWriteItemResponse sdkOutput)
+        throws DbesdkClientException {
+        try {
+            return transforms.BatchWriteItemOutputTransform(
+                BatchWriteItemOutputTransformInput.builder()
                     .originalInput(originalInput)
                     .sdkOutput(sdkOutput)
                     .build()
