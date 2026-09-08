@@ -12,9 +12,16 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.DynamoDbTable
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.BeaconVersion;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.CompoundBeacon;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Constructor;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.ConstructorPart;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.EncryptedPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SearchConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SignedPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SingleKeyStore;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.StandardBeacon;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualField;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualPart;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.keystore.model.KeyStoreConfig;
@@ -150,12 +157,27 @@ public final class TransformsClientFactory {
                 List<StandardBeacon> beacons = new ArrayList<>();
                 for (aws.cryptography.dbesdk.testserver.server.model.StandardBeacon b
                         : v.getStandardBeacons()) {
-                    beacons.add(StandardBeacon.builder()
+                    StandardBeacon.Builder sb = StandardBeacon.builder()
                         .name(b.getName())
-                        .length(b.getLength())
-                        .build());
+                        .length(b.getLength());
+                    if (b.getLoc() != null) {
+                        sb.loc(b.getLoc());
+                    }
+                    beacons.add(sb.build());
                 }
                 bv.standardBeacons(beacons);
+            }
+            if (v.getVirtualFields() != null && !v.getVirtualFields().isEmpty()) {
+                bv.virtualFields(mapVirtualFields(v.getVirtualFields()));
+            }
+            if (v.getEncryptedParts() != null && !v.getEncryptedParts().isEmpty()) {
+                bv.encryptedParts(mapEncryptedParts(v.getEncryptedParts()));
+            }
+            if (v.getSignedParts() != null && !v.getSignedParts().isEmpty()) {
+                bv.signedParts(mapSignedParts(v.getSignedParts()));
+            }
+            if (v.getCompoundBeacons() != null && !v.getCompoundBeacons().isEmpty()) {
+                bv.compoundBeacons(mapCompoundBeacons(v.getCompoundBeacons()));
             }
             versions.add(bv.build());
         }
@@ -163,5 +185,74 @@ public final class TransformsClientFactory {
             .versions(versions)
             .writeVersion(search.getWriteVersion() != null ? search.getWriteVersion() : 1)
             .build();
+    }
+
+    private static List<VirtualField> mapVirtualFields(
+            List<aws.cryptography.dbesdk.testserver.server.model.VirtualField> wire) {
+        List<VirtualField> out = new ArrayList<>();
+        for (aws.cryptography.dbesdk.testserver.server.model.VirtualField f : wire) {
+            List<VirtualPart> parts = new ArrayList<>();
+            for (aws.cryptography.dbesdk.testserver.server.model.VirtualPart p : f.getParts()) {
+                parts.add(VirtualPart.builder().loc(p.getLoc()).build());
+            }
+            out.add(VirtualField.builder().name(f.getName()).parts(parts).build());
+        }
+        return out;
+    }
+
+    private static List<EncryptedPart> mapEncryptedParts(
+            List<aws.cryptography.dbesdk.testserver.server.model.EncryptedPart> wire) {
+        List<EncryptedPart> out = new ArrayList<>();
+        for (aws.cryptography.dbesdk.testserver.server.model.EncryptedPart p : wire) {
+            out.add(EncryptedPart.builder().name(p.getName()).prefix(p.getPrefix()).build());
+        }
+        return out;
+    }
+
+    private static List<SignedPart> mapSignedParts(
+            List<aws.cryptography.dbesdk.testserver.server.model.SignedPart> wire) {
+        List<SignedPart> out = new ArrayList<>();
+        for (aws.cryptography.dbesdk.testserver.server.model.SignedPart p : wire) {
+            SignedPart.Builder sp = SignedPart.builder().name(p.getName()).prefix(p.getPrefix());
+            if (p.getLoc() != null) {
+                sp.loc(p.getLoc());
+            }
+            out.add(sp.build());
+        }
+        return out;
+    }
+
+    private static List<CompoundBeacon> mapCompoundBeacons(
+            List<aws.cryptography.dbesdk.testserver.server.model.CompoundBeacon> wire) {
+        List<CompoundBeacon> out = new ArrayList<>();
+        for (aws.cryptography.dbesdk.testserver.server.model.CompoundBeacon c : wire) {
+            CompoundBeacon.Builder cb = CompoundBeacon.builder()
+                .name(c.getName())
+                .split(c.getSplit());
+            if (c.getEncrypted() != null && !c.getEncrypted().isEmpty()) {
+                cb.encrypted(mapEncryptedParts(c.getEncrypted()));
+            }
+            if (c.getSigned() != null && !c.getSigned().isEmpty()) {
+                cb.signed(mapSignedParts(c.getSigned()));
+            }
+            if (c.getConstructors() != null && !c.getConstructors().isEmpty()) {
+                List<Constructor> constructors = new ArrayList<>();
+                for (aws.cryptography.dbesdk.testserver.server.model.Constructor ctor
+                        : c.getConstructors()) {
+                    List<ConstructorPart> parts = new ArrayList<>();
+                    for (aws.cryptography.dbesdk.testserver.server.model.ConstructorPart part
+                            : ctor.getParts()) {
+                        parts.add(ConstructorPart.builder()
+                            .name(part.getName())
+                            .required(part.isRequired())
+                            .build());
+                    }
+                    constructors.add(Constructor.builder().parts(parts).build());
+                }
+                cb.constructors(constructors);
+            }
+            out.add(cb.build());
+        }
+        return out;
     }
 }
