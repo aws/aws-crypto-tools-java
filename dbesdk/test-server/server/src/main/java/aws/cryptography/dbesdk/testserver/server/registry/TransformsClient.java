@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -16,6 +17,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 /**
  * A single configured DBE DDB-SDK transforms client stored in the
@@ -176,4 +178,22 @@ public interface TransformsClient {
      * @throws DbesdkClientException if the DBE library fails.
      */
     QueryRequest queryInputTransform(QueryRequest sdkInput) throws DbesdkClientException;
+
+    /**
+     * Validate a DynamoDB UpdateItem input. Throws when the UpdateExpression
+     * references a signed attribute; otherwise returns the input unchanged.
+     *
+     * @throws DbesdkClientException if the DBE library rejects the update.
+     */
+    UpdateItemRequest updateItemInputTransform(UpdateItemRequest sdkInput)
+        throws DbesdkClientException;
+
+    /**
+     * Validate a DynamoDB DeleteItem input. Throws when the ConditionExpression
+     * references an encrypted attribute; otherwise returns the input unchanged.
+     *
+     * @throws DbesdkClientException if the DBE library rejects the delete.
+     */
+    DeleteItemRequest deleteItemInputTransform(DeleteItemRequest sdkInput)
+        throws DbesdkClientException;
 }

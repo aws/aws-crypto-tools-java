@@ -37,6 +37,8 @@ public final class DbesdkTestServerHandlers {
     private final BatchGetItemOutputTransformHandler batchGetItemOutputTransform;
     private final ScanInputTransformHandler scanInputTransform;
     private final QueryInputTransformHandler queryInputTransform;
+    private final UpdateItemInputTransformHandler updateItemInputTransform;
+    private final DeleteItemInputTransformHandler deleteItemInputTransform;
     private final ExecuteStatementInputTransformHandler executeStatementInputTransform;
     private final BatchExecuteStatementInputTransformHandler batchExecuteStatementInputTransform;
     private final ExecuteTransactionInputTransformHandler executeTransactionInputTransform;
@@ -88,6 +90,10 @@ public final class DbesdkTestServerHandlers {
             new ScanInputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.queryInputTransform =
             new QueryInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.updateItemInputTransform =
+            new UpdateItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.deleteItemInputTransform =
+            new DeleteItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -137,6 +143,7 @@ public final class DbesdkTestServerHandlers {
             .addCreateClientOperation(createClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
+            .addDeleteItemInputTransformOperation(deleteItemInputTransform)
             .addEncryptItemOperation(encryptItem)
             .addExecuteStatementInputTransformOperation(executeStatementInputTransform)
             .addExecuteTransactionInputTransformOperation(executeTransactionInputTransform)
@@ -147,6 +154,7 @@ public final class DbesdkTestServerHandlers {
             .addScanInputTransformOperation(scanInputTransform)
             .addScanOutputTransformOperation(scanOutputTransform)
             .addTransactWriteItemsInputTransformOperation(transactWriteItemsInputTransform)
+            .addUpdateItemInputTransformOperation(updateItemInputTransform)
             .build();
     }
 }

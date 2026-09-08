@@ -6,6 +6,7 @@ import software.amazon.awssdk.services.dynamodb.model.BatchGetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchGetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
 import software.amazon.awssdk.services.dynamodb.model.ExecuteTransactionRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
@@ -16,11 +17,13 @@ import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
+import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchExecuteStatementInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchGetItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchWriteItemInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.BatchWriteItemOutputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.DeleteItemInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteStatementInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteTransactionInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.GetItemOutputTransformInput;
@@ -30,6 +33,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.Qu
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ScanInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ScanOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.TransactWriteItemsInputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.UpdateItemInputTransformInput;
 
 /**
  * A configured {@link TransformsClient} backed by the real
@@ -216,6 +220,30 @@ public final class RealTransformsClient implements TransformsClient {
         try {
             return transforms.QueryInputTransform(
                 QueryInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public UpdateItemRequest updateItemInputTransform(UpdateItemRequest sdkInput)
+        throws DbesdkClientException {
+        try {
+            return transforms.UpdateItemInputTransform(
+                UpdateItemInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public DeleteItemRequest deleteItemInputTransform(DeleteItemRequest sdkInput)
+        throws DbesdkClientException {
+        try {
+            return transforms.DeleteItemInputTransform(
+                DeleteItemInputTransformInput.builder().sdkInput(sdkInput).build()
             ).transformedInput();
         } catch (Exception dbeFailure) {
             throw new DbesdkClientException(dbeFailure);
