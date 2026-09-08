@@ -4,6 +4,7 @@ import aws.cryptography.dbesdk.testserver.server.model.DBEClientConfig;
 import aws.cryptography.dbesdk.testserver.server.registry.RealTransformsClient;
 import aws.cryptography.dbesdk.testserver.server.registry.TransformsClient;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.DynamoDbTableEncryptionConfig;
@@ -43,12 +44,33 @@ public final class TransformsClientFactory {
     }
 
     /**
-     * Build a transforms client bound to {@code tableName}.
+     * Build a transforms client bound to one or more tables. The
+     * {@code tables} map is (physical table name → its crypto config); each
+     * entry becomes an independent {@link DynamoDbTableEncryptionConfig} in the
+     * {@link DynamoDbTablesEncryptionConfig}, so per-table settings (notably
+     * {@code algorithmSuiteId}) do not leak across tables.
      *
      * @throws RuntimeException if a real client cannot be constructed; the caller
      *     maps this to a {@code GenericServerError}.
      */
-    public TransformsClient create(DBEClientConfig config, String tableName) {
+    public TransformsClient create(Map<String, DBEClientConfig> tables) {
+        Map<String, DynamoDbTableEncryptionConfig> tableConfigs = new LinkedHashMap<>();
+        for (Map.Entry<String, DBEClientConfig> entry : tables.entrySet()) {
+            tableConfigs.put(entry.getKey(), buildTableConfig(entry.getValue()));
+        }
+
+        DynamoDbTablesEncryptionConfig tablesConfig = DynamoDbTablesEncryptionConfig.builder()
+            .tableEncryptionConfigs(tableConfigs)
+            .build();
+
+        DynamoDbEncryptionTransforms transforms = DynamoDbEncryptionTransforms.builder()
+            .DynamoDbTablesEncryptionConfig(tablesConfig)
+            .build();
+        return new RealTransformsClient(transforms);
+    }
+
+    /** Build one table's {@link DynamoDbTableEncryptionConfig} from its config. */
+    private DynamoDbTableEncryptionConfig buildTableConfig(DBEClientConfig config) {
         DynamoDbTableEncryptionConfig.Builder table = DynamoDbTableEncryptionConfig.builder()
             .logicalTableName(config.getLogicalTableName())
             .partitionKeyName(config.getPartitionKeyName())
@@ -82,14 +104,7 @@ public final class TransformsClientFactory {
             table.search(buildSearchConfig(config.getSearch()));
         }
 
-        DynamoDbTablesEncryptionConfig tablesConfig = DynamoDbTablesEncryptionConfig.builder()
-            .tableEncryptionConfigs(Map.of(tableName, table.build()))
-            .build();
-
-        DynamoDbEncryptionTransforms transforms = DynamoDbEncryptionTransforms.builder()
-            .DynamoDbTablesEncryptionConfig(tablesConfig)
-            .build();
-        return new RealTransformsClient(transforms);
+        return table.build();
     }
 
     /**
