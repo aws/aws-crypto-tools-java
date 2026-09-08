@@ -160,4 +160,20 @@ public interface TransformsClient {
     ExecuteTransactionRequest executeTransactionInputTransform(
             ExecuteTransactionRequest sdkInput)
         throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB Scan input, rewriting FilterExpression references to
+     * beaconed attributes into their beacons.
+     *
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    ScanRequest scanInputTransform(ScanRequest sdkInput) throws DbesdkClientException;
+
+    /**
+     * Transform a DynamoDB Query input, rewriting KeyCondition/Filter expression
+     * references to beaconed attributes into their beacons.
+     *
+     * @throws DbesdkClientException if the DBE library fails.
+     */
+    QueryRequest queryInputTransform(QueryRequest sdkInput) throws DbesdkClientException;
 }

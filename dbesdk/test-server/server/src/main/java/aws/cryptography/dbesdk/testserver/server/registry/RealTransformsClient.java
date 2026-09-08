@@ -25,7 +25,9 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.Ex
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ExecuteTransactionInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.GetItemOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.PutItemInputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.QueryInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.QueryOutputTransformInput;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ScanInputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.ScanOutputTransformInput;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.model.TransactWriteItemsInputTransformInput;
 
@@ -192,6 +194,28 @@ public final class RealTransformsClient implements TransformsClient {
         try {
             return transforms.ExecuteTransactionInputTransform(
                 ExecuteTransactionInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public ScanRequest scanInputTransform(ScanRequest sdkInput) throws DbesdkClientException {
+        try {
+            return transforms.ScanInputTransform(
+                ScanInputTransformInput.builder().sdkInput(sdkInput).build()
+            ).transformedInput();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
+    }
+
+    @Override
+    public QueryRequest queryInputTransform(QueryRequest sdkInput) throws DbesdkClientException {
+        try {
+            return transforms.QueryInputTransform(
+                QueryInputTransformInput.builder().sdkInput(sdkInput).build()
             ).transformedInput();
         } catch (Exception dbeFailure) {
             throw new DbesdkClientException(dbeFailure);

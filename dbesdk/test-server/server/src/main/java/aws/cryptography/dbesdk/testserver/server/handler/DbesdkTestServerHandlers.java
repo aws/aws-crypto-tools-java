@@ -35,6 +35,8 @@ public final class DbesdkTestServerHandlers {
     private final ScanOutputTransformHandler scanOutputTransform;
     private final QueryOutputTransformHandler queryOutputTransform;
     private final BatchGetItemOutputTransformHandler batchGetItemOutputTransform;
+    private final ScanInputTransformHandler scanInputTransform;
+    private final QueryInputTransformHandler queryInputTransform;
     private final ExecuteStatementInputTransformHandler executeStatementInputTransform;
     private final BatchExecuteStatementInputTransformHandler batchExecuteStatementInputTransform;
     private final ExecuteTransactionInputTransformHandler executeTransactionInputTransform;
@@ -82,6 +84,10 @@ public final class DbesdkTestServerHandlers {
             new BatchExecuteStatementInputTransformHandler(transformsGuard, wrapper);
         this.executeTransactionInputTransform =
             new ExecuteTransactionInputTransformHandler(transformsGuard, wrapper);
+        this.scanInputTransform =
+            new ScanInputTransformHandler(transformsGuard, wrapper, itemCodec);
+        this.queryInputTransform =
+            new QueryInputTransformHandler(transformsGuard, wrapper, itemCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -136,7 +142,9 @@ public final class DbesdkTestServerHandlers {
             .addExecuteTransactionInputTransformOperation(executeTransactionInputTransform)
             .addGetItemOutputTransformOperation(getItemOutputTransform)
             .addPutItemInputTransformOperation(putItemInputTransform)
+            .addQueryInputTransformOperation(queryInputTransform)
             .addQueryOutputTransformOperation(queryOutputTransform)
+            .addScanInputTransformOperation(scanInputTransform)
             .addScanOutputTransformOperation(scanOutputTransform)
             .addTransactWriteItemsInputTransformOperation(transactWriteItemsInputTransform)
             .build();
