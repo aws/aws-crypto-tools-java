@@ -24,5 +24,7 @@
     "raw-aes",
     "aws-kms"
   ],
-  "unsupportedFeatures": []
+  "unsupportedFeatures": [
+    "beacon-partitions"
+  ]
 }
