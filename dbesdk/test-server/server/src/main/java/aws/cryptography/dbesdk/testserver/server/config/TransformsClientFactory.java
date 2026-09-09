@@ -24,8 +24,11 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualTransform;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Upper;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Lower;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Insert;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetPrefix;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSuffix;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSubstring;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.keystore.model.KeyStoreConfig;
@@ -214,12 +217,24 @@ public final class TransformsClientFactory {
         for (aws.cryptography.dbesdk.testserver.server.model.VirtualTransform t : wire) {
             if (t.getUpper() != null) {
                 out.add(VirtualTransform.builder().upper(Upper.builder().build()).build());
+            } else if (t.getLower() != null) {
+                out.add(VirtualTransform.builder().lower(Lower.builder().build()).build());
+            } else if (t.getInsert() != null) {
+                out.add(VirtualTransform.builder()
+                    .insert(Insert.builder().literal(t.getInsert().getLiteral()).build()).build());
             } else if (t.getPrefix() != null) {
                 out.add(VirtualTransform.builder()
                     .prefix(GetPrefix.builder().length(t.getPrefix().getLength()).build()).build());
             } else if (t.getSuffix() != null) {
                 out.add(VirtualTransform.builder()
                     .suffix(GetSuffix.builder().length(t.getSuffix().getLength()).build()).build());
+            } else if (t.getSubstring() != null) {
+                out.add(VirtualTransform.builder()
+                    .substring(GetSubstring.builder()
+                        .low(t.getSubstring().getLow())
+                        .high(t.getSubstring().getHigh())
+                        .build())
+                    .build());
             } else {
                 throw new IllegalArgumentException("VirtualTransform had no member set");
             }
