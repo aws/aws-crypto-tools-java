@@ -6,7 +6,8 @@
   ],
   "supportedFeatures": [
     "raw-aes",
-    "aws-kms"
+    "aws-kms",
+    "structured-encryption"
   ],
   "unsupportedFeatures": [
     "beacon-partitions"

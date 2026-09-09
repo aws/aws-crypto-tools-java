@@ -2,9 +2,11 @@ package aws.cryptography.dbesdk.testserver.server.handler;
 
 import aws.cryptography.dbesdk.testserver.server.config.ConfigValidator;
 import aws.cryptography.dbesdk.testserver.server.config.ItemEncryptorFactory;
+import aws.cryptography.dbesdk.testserver.server.config.StructuredClientFactory;
 import aws.cryptography.dbesdk.testserver.server.config.TransformsClientFactory;
 import aws.cryptography.dbesdk.testserver.server.error.OperationWrapper;
 import aws.cryptography.dbesdk.testserver.server.registry.ClientRegistry;
+import aws.cryptography.dbesdk.testserver.server.registry.StructuredClientRegistry;
 import aws.cryptography.dbesdk.testserver.server.registry.TransformsClientRegistry;
 import aws.cryptography.dbesdk.testserver.server.service.DBESDKTestServer;
 
@@ -42,6 +44,9 @@ public final class DbesdkTestServerHandlers {
     private final ExecuteStatementInputTransformHandler executeStatementInputTransform;
     private final BatchExecuteStatementInputTransformHandler batchExecuteStatementInputTransform;
     private final ExecuteTransactionInputTransformHandler executeTransactionInputTransform;
+    private final CreateStructuredClientHandler createStructuredClient;
+    private final EncryptStructureHandler encryptStructure;
+    private final DecryptStructureHandler decryptStructure;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -94,6 +99,17 @@ public final class DbesdkTestServerHandlers {
             new UpdateItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
         this.deleteItemInputTransform =
             new DeleteItemInputTransformHandler(transformsGuard, wrapper, itemCodec);
+
+        StructuredClientRegistry structuredRegistry = new StructuredClientRegistry();
+        StructuredClientFactory structuredFactory = new StructuredClientFactory(factory);
+        StructuredClientGuard structuredGuard = new StructuredClientGuard(structuredRegistry);
+        StructuredDataCodec structuredCodec = new StructuredDataCodec();
+        this.createStructuredClient = new CreateStructuredClientHandler(
+            structuredRegistry, validator, structuredFactory, wrapper);
+        this.encryptStructure =
+            new EncryptStructureHandler(structuredGuard, wrapper, structuredCodec);
+        this.decryptStructure =
+            new DecryptStructureHandler(structuredGuard, wrapper, structuredCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -141,10 +157,13 @@ public final class DbesdkTestServerHandlers {
             .addBatchWriteItemInputTransformOperation(batchWriteItemInputTransform)
             .addBatchWriteItemOutputTransformOperation(batchWriteItemOutputTransform)
             .addCreateClientOperation(createClient)
+            .addCreateStructuredClientOperation(createStructuredClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
+            .addDecryptStructureOperation(decryptStructure)
             .addDeleteItemInputTransformOperation(deleteItemInputTransform)
             .addEncryptItemOperation(encryptItem)
+            .addEncryptStructureOperation(encryptStructure)
             .addExecuteStatementInputTransformOperation(executeStatementInputTransform)
             .addExecuteTransactionInputTransformOperation(executeTransactionInputTransform)
             .addGetItemOutputTransformOperation(getItemOutputTransform)
