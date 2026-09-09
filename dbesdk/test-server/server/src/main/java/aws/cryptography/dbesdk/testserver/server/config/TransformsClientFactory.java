@@ -29,6 +29,8 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Insert;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetPrefix;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSuffix;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSubstring;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSegment;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSegments;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.keystore.model.KeyStoreConfig;
@@ -233,6 +235,21 @@ public final class TransformsClientFactory {
                     .substring(GetSubstring.builder()
                         .low(t.getSubstring().getLow())
                         .high(t.getSubstring().getHigh())
+                        .build())
+                    .build());
+            } else if (t.getSegment() != null) {
+                out.add(VirtualTransform.builder()
+                    .segment(GetSegment.builder()
+                        .split(t.getSegment().getSplit())
+                        .index(t.getSegment().getIndex())
+                        .build())
+                    .build());
+            } else if (t.getSegments() != null) {
+                out.add(VirtualTransform.builder()
+                    .segments(GetSegments.builder()
+                        .split(t.getSegments().getSplit())
+                        .low(t.getSegments().getLow())
+                        .high(t.getSegments().getHigh())
                         .build())
                     .build());
             } else {
