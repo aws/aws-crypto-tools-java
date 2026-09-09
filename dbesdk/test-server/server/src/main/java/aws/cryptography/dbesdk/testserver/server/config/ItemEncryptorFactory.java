@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.model.DynamoDbItemEncryptorConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.PlaintextOverride;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoAction;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
@@ -119,6 +120,10 @@ public final class ItemEncryptorFactory {
         if (config.getAlgorithmSuiteId() != null) {
             dbeConfig.algorithmSuiteId(
                 DBEAlgorithmSuiteId.valueOf(config.getAlgorithmSuiteId().getValue()));
+        }
+        if (config.getPlaintextOverride() != null) {
+            dbeConfig.plaintextOverride(
+                PlaintextOverride.valueOf(config.getPlaintextOverride().getValue()));
         }
 
         // Exactly one of keyring / cmm is set (validated upstream).
