@@ -1,9 +1,15 @@
 package aws.cryptography.dbesdk.testserver.server.config;
 
 import aws.cryptography.dbesdk.testserver.server.model.DBEClientConfig;
+import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
 import aws.cryptography.dbesdk.testserver.server.registry.RealStructuredClient;
 import aws.cryptography.dbesdk.testserver.server.registry.StructuredClient;
+import java.nio.ByteBuffer;
+import java.util.List;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.StructuredEncryption;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.AuthItem;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoItem;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.ResolveAuthActionsInput;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredEncryptionConfig;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.MaterialProviders;
@@ -46,5 +52,26 @@ public final class StructuredClientFactory {
             cmm = keyrings.buildCmm(config.getCmm());
         }
         return new RealStructuredClient(structured, cmm);
+    }
+
+    /**
+     * Resolve the Crypto Action for each terminal of an Auth List from the
+     * serialized header bytes. This is a pure function of the header's Crypto
+     * Legend and needs no CMM, so it runs directly on the shared
+     * {@link StructuredEncryption} client rather than a registered client. A DBE
+     * failure is wrapped as {@link DbesdkClientException}.
+     */
+    public List<CryptoItem> resolveAuthActions(
+            String tableName, List<AuthItem> authActions, ByteBuffer headerBytes)
+        throws DbesdkClientException {
+        try {
+            return structured.ResolveAuthActions(ResolveAuthActionsInput.builder()
+                .tableName(tableName)
+                .authActions(authActions)
+                .headerBytes(headerBytes)
+                .build()).cryptoActions();
+        } catch (Exception dbeFailure) {
+            throw new DbesdkClientException(dbeFailure);
+        }
     }
 }

@@ -47,6 +47,9 @@ public final class DbesdkTestServerHandlers {
     private final CreateStructuredClientHandler createStructuredClient;
     private final EncryptStructureHandler encryptStructure;
     private final DecryptStructureHandler decryptStructure;
+    private final EncryptPathStructureHandler encryptPathStructure;
+    private final DecryptPathStructureHandler decryptPathStructure;
+    private final ResolveAuthActionsHandler resolveAuthActions;
 
     public DbesdkTestServerHandlers() {
         this(new ClientRegistry());
@@ -110,6 +113,12 @@ public final class DbesdkTestServerHandlers {
             new EncryptStructureHandler(structuredGuard, wrapper, structuredCodec);
         this.decryptStructure =
             new DecryptStructureHandler(structuredGuard, wrapper, structuredCodec);
+        this.encryptPathStructure =
+            new EncryptPathStructureHandler(structuredGuard, wrapper, structuredCodec);
+        this.decryptPathStructure =
+            new DecryptPathStructureHandler(structuredGuard, wrapper, structuredCodec);
+        this.resolveAuthActions =
+            new ResolveAuthActionsHandler(structuredFactory, wrapper, structuredCodec);
     }
 
     /** @return the shared registry (for inspection in tests). */
@@ -160,9 +169,11 @@ public final class DbesdkTestServerHandlers {
             .addCreateStructuredClientOperation(createStructuredClient)
             .addCreateTransformsClientOperation(createTransformsClient)
             .addDecryptItemOperation(decryptItem)
+            .addDecryptPathStructureOperation(decryptPathStructure)
             .addDecryptStructureOperation(decryptStructure)
             .addDeleteItemInputTransformOperation(deleteItemInputTransform)
             .addEncryptItemOperation(encryptItem)
+            .addEncryptPathStructureOperation(encryptPathStructure)
             .addEncryptStructureOperation(encryptStructure)
             .addExecuteStatementInputTransformOperation(executeStatementInputTransform)
             .addExecuteTransactionInputTransformOperation(executeTransactionInputTransform)
@@ -170,6 +181,7 @@ public final class DbesdkTestServerHandlers {
             .addPutItemInputTransformOperation(putItemInputTransform)
             .addQueryInputTransformOperation(queryInputTransform)
             .addQueryOutputTransformOperation(queryOutputTransform)
+            .addResolveAuthActionsOperation(resolveAuthActions)
             .addScanInputTransformOperation(scanInputTransform)
             .addScanOutputTransformOperation(scanOutputTransform)
             .addTransactWriteItemsInputTransformOperation(transactWriteItemsInputTransform)

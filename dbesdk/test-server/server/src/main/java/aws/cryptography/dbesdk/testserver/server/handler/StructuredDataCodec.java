@@ -1,9 +1,15 @@
 package aws.cryptography.dbesdk.testserver.server.handler;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.AuthItem;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.AuthenticateAction;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoAction;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoItem;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.PathSegment;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructureSegment;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredDataTerminal;
 
 /**
@@ -53,5 +59,85 @@ public final class StructuredDataCodec {
         Map<String, AuthenticateAction> out = new LinkedHashMap<>();
         wire.forEach((name, action) -> out.put(name, AuthenticateAction.valueOf(action.getValue())));
         return out;
+    }
+
+    // -- Path-based (list) forms ------------------------------------------------
+
+    /** Wire Crypto List → DBE Crypto List. */
+    public List<CryptoItem> toDbeCryptoList(
+            List<aws.cryptography.dbesdk.testserver.server.model.PathCryptoItem> wire) {
+        List<CryptoItem> out = new ArrayList<>(wire.size());
+        for (var item : wire) {
+            out.add(CryptoItem.builder()
+                .key(toDbePath(item.getPath()))
+                .data(toDbeTerminal(item.getData()))
+                .action(CryptoAction.valueOf(item.getAction().getValue()))
+                .build());
+        }
+        return out;
+    }
+
+    /** Wire Auth List → DBE Auth List. */
+    public List<AuthItem> toDbeAuthList(
+            List<aws.cryptography.dbesdk.testserver.server.model.PathAuthItem> wire) {
+        List<AuthItem> out = new ArrayList<>(wire.size());
+        for (var item : wire) {
+            out.add(AuthItem.builder()
+                .key(toDbePath(item.getPath()))
+                .data(toDbeTerminal(item.getData()))
+                .action(AuthenticateAction.valueOf(item.getAction().getValue()))
+                .build());
+        }
+        return out;
+    }
+
+    /** DBE Crypto List → wire Crypto List. */
+    public List<aws.cryptography.dbesdk.testserver.server.model.PathCryptoItem> toWireCryptoList(
+            List<CryptoItem> dbe) {
+        List<aws.cryptography.dbesdk.testserver.server.model.PathCryptoItem> out =
+            new ArrayList<>(dbe.size());
+        for (CryptoItem item : dbe) {
+            out.add(aws.cryptography.dbesdk.testserver.server.model.PathCryptoItem.builder()
+                .path(fromDbePath(item.key()))
+                .data(toWireTerminal(item.data()))
+                .action(aws.cryptography.dbesdk.testserver.server.model.CryptoAction.from(
+                    item.action().name()))
+                .build());
+        }
+        return out;
+    }
+
+    private static List<PathSegment> toDbePath(List<String> wire) {
+        List<PathSegment> out = new ArrayList<>(wire.size());
+        for (String segment : wire) {
+            out.add(PathSegment.builder()
+                .member(StructureSegment.builder().key(segment).build())
+                .build());
+        }
+        return out;
+    }
+
+    private static List<String> fromDbePath(List<PathSegment> dbe) {
+        List<String> out = new ArrayList<>(dbe.size());
+        for (PathSegment segment : dbe) {
+            out.add(segment.member().key());
+        }
+        return out;
+    }
+
+    private static StructuredDataTerminal toDbeTerminal(
+            aws.cryptography.dbesdk.testserver.server.model.StructuredDataTerminal wire) {
+        return StructuredDataTerminal.builder()
+            .value(wire.getValue())
+            .typeId(wire.getTypeId())
+            .build();
+    }
+
+    private static aws.cryptography.dbesdk.testserver.server.model.StructuredDataTerminal toWireTerminal(
+            StructuredDataTerminal dbe) {
+        return aws.cryptography.dbesdk.testserver.server.model.StructuredDataTerminal.builder()
+            .value(dbe.value())
+            .typeId(dbe.typeId())
+            .build();
     }
 }
