@@ -20,6 +20,10 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SearchConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SignedPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SingleKeyStore;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.StandardBeacon;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.BeaconStyle;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.PartOnly;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.AsSet;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Shared;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualTransform;
@@ -172,6 +176,9 @@ public final class TransformsClientFactory {
                     if (b.getLoc() != null) {
                         sb.loc(b.getLoc());
                     }
+                    if (b.getStyle() != null) {
+                        sb.style(mapBeaconStyle(b.getStyle()));
+                    }
                     beacons.add(sb.build());
                 }
                 bv.standardBeacons(beacons);
@@ -194,6 +201,19 @@ public final class TransformsClientFactory {
             .versions(versions)
             .writeVersion(search.getWriteVersion() != null ? search.getWriteVersion() : 1)
             .build();
+    }
+
+    private static BeaconStyle mapBeaconStyle(
+            aws.cryptography.dbesdk.testserver.server.model.BeaconStyle wire) {
+        if (wire.getPartOnly() != null) {
+            return BeaconStyle.builder().partOnly(PartOnly.builder().build()).build();
+        } else if (wire.getAsSet() != null) {
+            return BeaconStyle.builder().asSet(AsSet.builder().build()).build();
+        } else if (wire.getShared() != null) {
+            return BeaconStyle.builder()
+                .shared(Shared.builder().other(wire.getShared().getOther()).build()).build();
+        }
+        throw new IllegalArgumentException("BeaconStyle had no member set");
     }
 
     private static List<VirtualField> mapVirtualFields(
