@@ -24,6 +24,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.BeaconStyle;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.PartOnly;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.AsSet;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Shared;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SharedSet;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualTransform;
@@ -212,6 +213,9 @@ public final class TransformsClientFactory {
         } else if (wire.getShared() != null) {
             return BeaconStyle.builder()
                 .shared(Shared.builder().other(wire.getShared().getOther()).build()).build();
+        } else if (wire.getSharedSet() != null) {
+            return BeaconStyle.builder()
+                .sharedSet(SharedSet.builder().other(wire.getSharedSet().getOther()).build()).build();
         }
         throw new IllegalArgumentException("BeaconStyle had no member set");
     }
