@@ -22,6 +22,10 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.SingleKeyStor
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.StandardBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualPart;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.VirtualTransform;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.Upper;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetPrefix;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.GetSuffix;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.keystore.model.KeyStoreConfig;
@@ -193,9 +197,32 @@ public final class TransformsClientFactory {
         for (aws.cryptography.dbesdk.testserver.server.model.VirtualField f : wire) {
             List<VirtualPart> parts = new ArrayList<>();
             for (aws.cryptography.dbesdk.testserver.server.model.VirtualPart p : f.getParts()) {
-                parts.add(VirtualPart.builder().loc(p.getLoc()).build());
+                VirtualPart.Builder pb = VirtualPart.builder().loc(p.getLoc());
+                if (p.getTrans() != null && !p.getTrans().isEmpty()) {
+                    pb.trans(mapVirtualTransforms(p.getTrans()));
+                }
+                parts.add(pb.build());
             }
             out.add(VirtualField.builder().name(f.getName()).parts(parts).build());
+        }
+        return out;
+    }
+
+    private static List<VirtualTransform> mapVirtualTransforms(
+            List<aws.cryptography.dbesdk.testserver.server.model.VirtualTransform> wire) {
+        List<VirtualTransform> out = new ArrayList<>();
+        for (aws.cryptography.dbesdk.testserver.server.model.VirtualTransform t : wire) {
+            if (t.getUpper() != null) {
+                out.add(VirtualTransform.builder().upper(Upper.builder().build()).build());
+            } else if (t.getPrefix() != null) {
+                out.add(VirtualTransform.builder()
+                    .prefix(GetPrefix.builder().length(t.getPrefix().getLength()).build()).build());
+            } else if (t.getSuffix() != null) {
+                out.add(VirtualTransform.builder()
+                    .suffix(GetSuffix.builder().length(t.getSuffix().getLength()).build()).build());
+            } else {
+                throw new IllegalArgumentException("VirtualTransform had no member set");
+            }
         }
         return out;
     }
