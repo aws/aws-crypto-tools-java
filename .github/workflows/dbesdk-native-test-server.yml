@@ -1,0 +1,81 @@
+# CI for the native (non-Dafny) DB-ESDK Java test server. Builds the server
+# module and runs its unit tests (the jqwik property tests + the registry
+# concurrency integration test) on every change under
+# dbesdk/test-server/server. This is the fast, credential-free gate: it does
+# NOT run the cross-language conformance suite. That suite lives in
+# aws-crypto-tools-commons (.github/workflows/dbesdk-test-server.yml): its
+# orchestrator launches this server via the `java-native` entry in
+# config/server-config.json and needs live AWS credentials, so it is a
+# separate, heavier run.
+#
+# The server carries no copy of the Smithy model; it consumes the single
+# source-of-truth model from aws-crypto-tools-commons, so that repo is checked
+# out here solely to supply the REQUIRED -PmodelDir Gradle property.
+
+name: DB-ESDK Native Java Test Server
+
+on:
+  pull_request:
+    paths:
+      - "dbesdk/test-server/server/**"
+      - ".github/workflows/dbesdk-native-test-server.yml"
+  push:
+    branches:
+      - main
+      - dbesdk-native-java-unverified
+    paths:
+      - "dbesdk/test-server/server/**"
+      - ".github/workflows/dbesdk-native-test-server.yml"
+  workflow_dispatch:
+    inputs:
+      commons_ref:
+        description: >-
+          aws-crypto-tools-commons ref holding the Smithy model
+          (dbesdk/test-server/model). Leave empty to use the default below.
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  # The commons ref carrying the DB-ESDK test-server Smithy model. The model is
+  # not yet on commons `main`; pin the feature branch until it merges, then flip
+  # this default to `main`. Overridable via the workflow_dispatch input.
+  COMMONS_REF_DEFAULT: huaye/dbesdk-test-server-common
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout aws-crypto-tools-java
+        uses: actions/checkout@v4
+
+      - name: Checkout aws-crypto-tools-commons (Smithy model source)
+        uses: actions/checkout@v4
+        with:
+          repository: aws/aws-crypto-tools-commons
+          ref: ${{ inputs.commons_ref || env.COMMONS_REF_DEFAULT }}
+          path: .commons
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build + unit test the native test server
+        working-directory: dbesdk/test-server/server
+        run: ./gradlew build -PmodelDir="${{ github.workspace }}/.commons/dbesdk/test-server/model"
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dbesdk-native-test-server-reports
+          path: |
+            dbesdk/test-server/server/build/reports/tests
+            dbesdk/test-server/server/build/test-results
+          if-no-files-found: ignore

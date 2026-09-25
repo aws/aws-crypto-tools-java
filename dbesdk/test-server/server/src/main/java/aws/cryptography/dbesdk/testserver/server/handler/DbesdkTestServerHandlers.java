@@ -182,26 +182,6 @@ public final class DbesdkTestServerHandlers {
         return decryptItem;
     }
 
-    public CreateTransformsClientHandler createTransformsClientHandler() {
-        return createTransformsClient;
-    }
-
-    public PutItemInputTransformHandler putItemInputTransformHandler() {
-        return putItemInputTransform;
-    }
-
-    public GetItemOutputTransformHandler getItemOutputTransformHandler() {
-        return getItemOutputTransform;
-    }
-
-    public BatchWriteItemInputTransformHandler batchWriteItemInputTransformHandler() {
-        return batchWriteItemInputTransform;
-    }
-
-    public TransactWriteItemsInputTransformHandler transactWriteItemsInputTransformHandler() {
-        return transactWriteItemsInputTransform;
-    }
-
     /**
      * Throws for an operation with no handler yet. The message names the
      * operation so a caller sees exactly which one is unimplemented.

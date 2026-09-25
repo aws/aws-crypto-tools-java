@@ -1,8 +1,8 @@
 package aws.cryptography.dbesdk.testserver.server.error;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import aws.cryptography.dbesdk.testserver.server.model.DBESDKClientError;
@@ -23,7 +23,7 @@ class OperationWrapperPropertyTest {
     private final OperationWrapper wrapper = new OperationWrapper();
 
     /** The kind of outcome a handler body produces. */
-    private enum Outcome { SUCCESS, THROW_GENERIC, THROW_ESDK_MODELED, THROW_ESDK_WRAPPED, THROW_NON_MODELED }
+    private enum Outcome { SUCCESS, THROW_GENERIC, THROW_DBESDK_MODELED, THROW_DBESDK_WRAPPED, THROW_NON_MODELED }
 
     // Feature: dbesdk-test-server, Property 9: Every operation returns a modeled outcome with a non-empty message
     @Property(tries = 200, generation = GenerationMode.RANDOMIZED)
@@ -44,14 +44,14 @@ class OperationWrapperPropertyTest {
                 assertEquals(message, error.getMessage(), "modeled message must be preserved");
                 assertNonEmptyMessage(error.getMessage());
             }
-            case THROW_ESDK_MODELED -> {
+            case THROW_DBESDK_MODELED -> {
                 DBESDKClientError error = assertThrowsExactly(DBESDKClientError.class,
                     () -> wrapper.invoke("Op", body));
                 assertEquals(message, error.getMessage(), "modeled message must be preserved");
                 assertNonEmptyMessage(error.getMessage());
             }
-            case THROW_ESDK_WRAPPED -> {
-                // (5.6) ESDK-origin failures become DBESDKClientError, message unmodified.
+            case THROW_DBESDK_WRAPPED -> {
+                // (5.6) DB-ESDK-origin failures become DBESDKClientError, message unmodified.
                 DBESDKClientError error = assertThrowsExactly(DBESDKClientError.class,
                     () -> wrapper.invoke("Op", body));
                 assertEquals(message, error.getMessage(),
@@ -64,7 +64,8 @@ class OperationWrapperPropertyTest {
                 GenericServerError error = assertThrowsExactly(GenericServerError.class,
                     () -> wrapper.invoke("Op", body));
                 assertNonEmptyMessage(error.getMessage());
-                assertFalse(error.getMessage().isEmpty(), "message must include a description");
+                assertTrue(error.getMessage().contains(message),
+                    "framework-error message must include the originating description");
             }
             default -> fail("unhandled outcome");
         }
@@ -76,10 +77,10 @@ class OperationWrapperPropertyTest {
             case THROW_GENERIC -> () -> {
                 throw GenericServerError.builder().message(message).build();
             };
-            case THROW_ESDK_MODELED -> () -> {
+            case THROW_DBESDK_MODELED -> () -> {
                 throw DBESDKClientError.builder().message(message).build();
             };
-            case THROW_ESDK_WRAPPED -> () -> {
+            case THROW_DBESDK_WRAPPED -> () -> {
                 throw new DbesdkClientException(new RuntimeException(message));
             };
             case THROW_NON_MODELED -> () -> {
@@ -94,25 +95,6 @@ class OperationWrapperPropertyTest {
         }
     }
 
-    @FunctionalInterface
-    private interface ThrowingCall {
-        void run();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Throwable> T assertThrowsExactly(Class<T> type, ThrowingCall call) {
-        try {
-            call.run();
-        } catch (Throwable thrown) {
-            if (type.isInstance(thrown)) {
-                return (T) thrown;
-            }
-            throw new AssertionError("expected " + type.getSimpleName() + " but got "
-                + thrown.getClass().getName(), thrown);
-        }
-        throw new AssertionError("expected " + type.getSimpleName() + " but nothing was thrown");
-    }
-
     @Provide
     Arbitrary<Outcome> outcomes() {
         return Arbitraries.of(Outcome.class);
@@ -121,7 +103,7 @@ class OperationWrapperPropertyTest {
     @Provide
     Arbitrary<String> messages() {
         // Non-empty messages: modeled-error message members are required and
-        // non-empty, and ESDK exceptions carry a description.
+        // non-empty, and DB-ESDK exceptions carry a description.
         return Arbitraries.strings().ofMinLength(1).ofMaxLength(120);
     }
 }

@@ -19,7 +19,7 @@ import software.amazon.smithy.java.server.Server;
  * that the in-process test harness and the future orchestrator/launcher use, so
  * running here exercises exactly the shipped server wiring: smithy-java-generated
  * request decoding / response &amp; error encoding over one shared, thread-safe
- * {@code Client_Registry}, delegating to the real AWS Encryption SDK for Java.
+ * {@code Client_Registry}, delegating to the real AWS Database Encryption SDK for DynamoDB (Java).
  *
  * <p>The port is resolved, in precedence order, from:
  * <ol>

@@ -38,7 +38,7 @@ class ClientIdGuardPropertyTest {
         DdbItemCodec itemCodec = new DdbItemCodec();
 
         // A canary client that must never be touched by an unknown-id request.
-        ControllableEsdkClient canary = ControllableEsdkClient.succeeding();
+        ControllableDbesdkClient canary = ControllableDbesdkClient.succeeding();
         String canaryId = registry.register(canary);
         // The generated id must be absent/empty/unknown, i.e. not the canary's id.
         Assume.that(!canaryId.equals(unknownId));

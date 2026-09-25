@@ -39,7 +39,7 @@ public final class ConfigValidator {
      */
     public void validate(DBEClientConfig config) {
         if (config == null) {
-            throw error("DBEClientConfig", 0, "");
+            throw error("DBEClientConfig", 0, "keyring, cmm");
         }
         Keyring keyring = config.getKeyring();
         CryptographicMaterialsManager cmm = config.getCmm();
@@ -158,7 +158,7 @@ public final class ConfigValidator {
 
     private static String keyringVariants() {
         return "AwsKms, AwsKmsMrk, AwsKmsMultiKeyring, AwsKmsMrkMultiKeyring, "
-            + "AwsKmsDiscovery, AwsKmsMrkDiscovery, AwsKmsRsa, AwsKmsHierarchical, RawAes, RawRsa, Multi";
+            + "AwsKmsDiscovery, AwsKmsMrkDiscovery, AwsKmsHierarchical, AwsKmsRsa, RawAes, RawRsa, Multi";
     }
 
     private static DBESDKClientError error(String shape, int set, String variants) {

@@ -29,7 +29,7 @@ public final class OperationWrapper {
     /**
      * A handler body that produces the operation's successful modeled response,
      * or throws. Unlike {@link java.util.function.Supplier}, it may throw checked
-     * exceptions (notably {@link DbesdkClientException} from the real ESDK client).
+     * exceptions (notably {@link DbesdkClientException} from the real DB-ESDK client).
      */
     @FunctionalInterface
     public interface HandlerBody<T> {

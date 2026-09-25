@@ -7,8 +7,8 @@ import aws.cryptography.dbesdk.testserver.server.registry.DbesdkClient;
 /**
  * Resolves the {@code ClientId} required by every non-{@code CreateClient}
  * operation (Requirement 3.8). An absent, empty, or unknown id yields a
- * {@link GenericServerError}; because the guard throws before any ESDK call is
- * made, no ESDK operation runs and the {@link ClientRegistry} is left unchanged
+ * {@link GenericServerError}; because the guard throws before any DB-ESDK call is
+ * made, no DB-ESDK operation runs and the {@link ClientRegistry} is left unchanged
  * (Requirement 3.9, Property 5).
  */
 public final class ClientIdGuard {
@@ -30,7 +30,7 @@ public final class ClientIdGuard {
     public DbesdkClient resolve(String clientId) {
         return registry.resolve(clientId).orElseThrow(() ->
             GenericServerError.builder()
-                .message("No ESDK client is registered under ClientId '"
+                .message("No DB-ESDK client is registered under ClientId '"
                     + (clientId == null ? "" : clientId)
                     + "'. Call CreateClient first and pass the returned ClientId.")
                 .build());

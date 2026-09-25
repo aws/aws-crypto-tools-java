@@ -11,17 +11,17 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  * called by those tests, so they throw to make any accidental call obvious.
  *
  * <p>Error-mapping and handler property tests use the richer, controllable fake
- * {@code aws.cryptography.dbesdk.testserver.server.handler.ControllableEsdkClient}.
+ * {@code aws.cryptography.dbesdk.testserver.server.handler.ControllableDbesdkClient}.
  */
-final class StubEsdkClient implements DbesdkClient {
+final class StubDbesdkClient implements DbesdkClient {
 
     @Override
     public Map<String, AttributeValue> encryptItem(Map<String, AttributeValue> plaintextItem) {
-        throw new UnsupportedOperationException("StubEsdkClient does not encrypt");
+        throw new UnsupportedOperationException("StubDbesdkClient does not encrypt");
     }
 
     @Override
     public Map<String, AttributeValue> decryptItem(Map<String, AttributeValue> encryptedItem) {
-        throw new UnsupportedOperationException("StubEsdkClient does not decrypt");
+        throw new UnsupportedOperationException("StubDbesdkClient does not decrypt");
     }
 }

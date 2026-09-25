@@ -15,7 +15,7 @@ import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
  *   <li>An already-modeled {@link GenericServerError} or {@link DBESDKClientError}
  *       is returned unchanged, preserving its type and message (Requirement 6.1).</li>
  *   <li>An {@link DbesdkClientException} — a failure that originated inside the real
- *       ESDK client — becomes an {@link DBESDKClientError} whose message is the ESDK
+ *       DB-ESDK client — becomes an {@link DBESDKClientError} whose message is the DB-ESDK
  *       exception's message, unmodified, and never a {@link GenericServerError}
  *       (Requirements 5.6, Property 8).</li>
  *   <li>Any other (non-modeled) exception — a TestServer-framework failure —

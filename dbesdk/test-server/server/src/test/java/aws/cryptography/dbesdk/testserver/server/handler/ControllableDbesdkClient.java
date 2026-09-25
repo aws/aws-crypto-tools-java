@@ -13,7 +13,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  * failure (a raw unchecked exception). It counts crypto invocations so tests
  * can assert that a rejected request performed no DBE operation (Property 5).
  */
-final class ControllableEsdkClient implements aws.cryptography.dbesdk.testserver.server.registry.DbesdkClient {
+final class ControllableDbesdkClient implements aws.cryptography.dbesdk.testserver.server.registry.DbesdkClient {
 
     enum Mode { SUCCEED, FAIL_ESDK, FAIL_FRAMEWORK }
 
@@ -21,21 +21,21 @@ final class ControllableEsdkClient implements aws.cryptography.dbesdk.testserver
     private final String failureMessage;
     private final AtomicInteger cryptoCalls = new AtomicInteger();
 
-    private ControllableEsdkClient(Mode mode, String failureMessage) {
+    private ControllableDbesdkClient(Mode mode, String failureMessage) {
         this.mode = mode;
         this.failureMessage = failureMessage;
     }
 
-    static ControllableEsdkClient succeeding() {
-        return new ControllableEsdkClient(Mode.SUCCEED, null);
+    static ControllableDbesdkClient succeeding() {
+        return new ControllableDbesdkClient(Mode.SUCCEED, null);
     }
 
-    static ControllableEsdkClient failingInsideEsdk(String message) {
-        return new ControllableEsdkClient(Mode.FAIL_ESDK, message);
+    static ControllableDbesdkClient failingInsideDbe(String message) {
+        return new ControllableDbesdkClient(Mode.FAIL_ESDK, message);
     }
 
-    static ControllableEsdkClient failingInFramework(String message) {
-        return new ControllableEsdkClient(Mode.FAIL_FRAMEWORK, message);
+    static ControllableDbesdkClient failingInFramework(String message) {
+        return new ControllableDbesdkClient(Mode.FAIL_FRAMEWORK, message);
     }
 
     int cryptoCalls() {

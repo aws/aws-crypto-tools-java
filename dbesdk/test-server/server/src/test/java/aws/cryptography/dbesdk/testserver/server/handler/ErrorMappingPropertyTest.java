@@ -30,27 +30,27 @@ class ErrorMappingPropertyTest {
     // Feature: dbesdk-test-server, Property 8: Errors are mapped by origin
     @Property(tries = 200, generation = GenerationMode.RANDOMIZED)
     void errorsAreMappedByOrigin(@ForAll("ops") Op op,
-                                 @ForAll boolean esdkOrigin,
+                                 @ForAll boolean dbeOrigin,
                                  @ForAll("messages") String message) {
         ClientRegistry registry = new ClientRegistry();
         OperationWrapper wrapper = new OperationWrapper();
         ClientIdGuard guard = new ClientIdGuard(registry);
 
-        ControllableEsdkClient client = esdkOrigin
-            ? ControllableEsdkClient.failingInsideEsdk(message)
-            : ControllableEsdkClient.failingInFramework(message);
+        ControllableDbesdkClient client = dbeOrigin
+            ? ControllableDbesdkClient.failingInsideDbe(message)
+            : ControllableDbesdkClient.failingInFramework(message);
         String clientId = registry.register(client);
         int sizeBefore = registry.size();
 
         Throwable thrown = runExpectingThrow(op, guard, wrapper, clientId);
 
-        if (esdkOrigin) {
-            // (5.6, P8) ESDK-origin failure -> DBESDKClientError, message unmodified,
+        if (dbeOrigin) {
+            // (5.6, P8) DB-ESDK-origin failure -> DBESDKClientError, message unmodified,
             // never a GenericServerError.
             DBESDKClientError error = assertInstanceOf(DBESDKClientError.class, thrown,
-                "an ESDK-origin failure must map to DBESDKClientError");
+                "an DB-ESDK-origin failure must map to DBESDKClientError");
             assertEquals(message, error.getMessage(),
-                "DBESDKClientError message must equal the ESDK exception message, unmodified");
+                "DBESDKClientError message must equal the DB-ESDK exception message, unmodified");
         } else {
             // (5.5, P8) framework-origin failure -> GenericServerError, never an
             // DBESDKClientError.

@@ -13,7 +13,7 @@ import aws.cryptography.dbesdk.testserver.server.service.CreateClientOperation;
 import software.amazon.smithy.java.server.RequestContext;
 
 /**
- * Constructs a real ESDK Java client from the modeled config and registers it,
+ * Constructs a real DB-ESDK Java client from the modeled config and registers it,
  * returning its {@code ClientId} (Requirements 3.1, 3.5).
  *
  * <p>The config is first validated for the exactly-one-variant invariant, which
@@ -68,7 +68,7 @@ public final class CreateClientHandler implements CreateClientOperation {
             ? cause.getClass().getName()
             : cause.getMessage();
         return GenericServerError.builder()
-            .message("CreateClient failed to construct the ESDK client: " + detail)
+            .message("CreateClient failed to construct the DB-ESDK client: " + detail)
             .build();
     }
 }

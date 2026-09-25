@@ -31,7 +31,7 @@ import net.jqwik.api.constraints.IntRange;
  * Property-based test that a failed {@code CreateClient} leaves the registry
  * unchanged, using jqwik. Runs a minimum of 100 generated iterations. Uses the
  * real {@link ConfigValidator} and {@link ItemEncryptorFactory}; the generated
- * configs are valid per the exactly-one-variant rule but cause the real ESDK
+ * configs are valid per the exactly-one-variant rule but cause the real DB-ESDK library
  * client construction to fail deterministically and offline (an unwired
  * Caching CMM, an AWS KMS RSA keyring missing its encryption algorithm, or a
  * Raw AES keyring whose wrapping key length does not match its wrapping
@@ -48,7 +48,7 @@ class CreateClientFailurePropertyTest {
             @ForAll @IntRange(min = 0, max = 5) int preexisting) {
         ClientRegistry registry = new ClientRegistry();
         for (int i = 0; i < preexisting; i++) {
-            registry.register(ControllableEsdkClient.succeeding());
+            registry.register(ControllableDbesdkClient.succeeding());
         }
         int sizeBefore = registry.size();
 

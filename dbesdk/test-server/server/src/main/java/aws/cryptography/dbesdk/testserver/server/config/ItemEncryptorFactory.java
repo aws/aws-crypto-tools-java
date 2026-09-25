@@ -181,7 +181,7 @@ public final class ItemEncryptorFactory {
         }
         if (caching != null) {
             throw new UnsupportedOperationException(
-                "Caching CMM is not wired in this pass of the ESDK TestServer");
+                "Caching CMM is not wired in this pass of the DB-ESDK TestServer");
         }
         throw new IllegalArgumentException(
             "CryptographicMaterialsManager had no variant member set");
@@ -328,7 +328,7 @@ public final class ItemEncryptorFactory {
                 .publicKey()
                 .asByteBuffer();
         }
-        // The ESDK's CreateAwsKmsRsaKeyring expects the public key as PEM, but KMS
+        // The MPL's CreateAwsKmsRsaKeyring expects the public key as PEM, but KMS
         // GetPublicKey returns it as DER (X.509 SubjectPublicKeyInfo). Wrap DER as
         // a PEM "PUBLIC KEY" block (pass through if it is already PEM).
         CreateAwsKmsRsaKeyringInput.Builder builder = CreateAwsKmsRsaKeyringInput.builder()

@@ -32,7 +32,7 @@ class ClientRegistryPropertyTest {
         Set<String> seen = new HashSet<>();
 
         for (int i = 0; i < count; i++) {
-            String id = registry.register(new StubEsdkClient());
+            String id = registry.register(new StubDbesdkClient());
 
             assertNotNull(id, "ClientId must not be null");
             assertFalse(id.isEmpty(), "ClientId must be non-empty");
@@ -53,11 +53,11 @@ class ClientRegistryPropertyTest {
             @ForAll @IntRange(min = 1, max = 5) int resolveTimes) {
         ClientRegistry registry = new ClientRegistry();
         for (int i = 0; i < preexisting; i++) {
-            registry.register(new StubEsdkClient());
+            registry.register(new StubDbesdkClient());
         }
 
         int sizeBefore = registry.size();
-        StubEsdkClient client = new StubEsdkClient();
+        StubDbesdkClient client = new StubDbesdkClient();
 
         String id = registry.register(client);
 
