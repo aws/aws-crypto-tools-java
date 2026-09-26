@@ -10,6 +10,15 @@
     "structured-encryption"
   ],
   "unsupportedFeatures": [
-    "beacon-partitions"
+    "raw-rsa",
+    "aws-kms-mrk",
+    "aws-kms-rsa",
+    "aws-kms-hierarchical",
+    "required-encryption-context-cmm",
+    "ddb-transforms",
+    "searchable-encryption",
+    "beacon-partitions",
+    "plaintext-override",
+    "legacy-ddbec"
   ]
 }
