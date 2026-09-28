@@ -11,17 +11,16 @@ import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.S
 
 /**
  * A single configured Structured Encryption client stored in the
- * {@link StructuredClientRegistry}. Wraps a real
- * {@link software.amazon.cryptography.dbencryptionsdk.structuredencryption.StructuredEncryption}
- * plus the {@code CMM} built from the client's config (see
- * {@code RealStructuredClient}).
+ * {@link StructuredClientRegistry}. Holds the {@code CMM} built from the client's
+ * config; the native implementation ({@code NativeStructuredClient}) resolves
+ * materials from that CMM and runs the native crypto pipeline.
  *
  * <p>This is the raw structured-encryption layer beneath the item encryptor: it
  * operates on a flat map of field name to {@link StructuredDataTerminal} (opaque
  * value bytes + a 2-byte type id) rather than a DynamoDB item. Both methods
  * declare {@link DbesdkClientException}: the implementation catches exceptions
- * from the DBE library and rethrows them wrapped, so the operation wrapper
- * forwards them as {@code DBESDKClientError} with the DBE message unmodified.
+ * from the crypto layer and rethrows them wrapped, so the operation wrapper
+ * forwards them as {@code DBESDKClientError} with the message unmodified.
  */
 public interface StructuredClient {
 

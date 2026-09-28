@@ -66,6 +66,13 @@ dependencies {
     implementation("software.amazon.smithy.java:cbor-codec:$smithyJavaVersion")
     runtimeOnly("software.amazon.smithy.java:server-netty:$smithyJavaVersion")
 
+    // --- Native StructuredEncryption implementation ---
+    // The (non-Dafny) native crypto core, substituted from the included build in
+    // settings.gradle.kts. NativeStructuredClient resolves materials from the CMM
+    // and runs this pipeline; the DBE library above stays for the item-encryptor
+    // and transforms handlers, which are not yet ported.
+    implementation("software.amazon.cryptography.dbesdk:dbesdk-structured-encryption:0.1.0-SNAPSHOT")
+
     // --- Real DBE Java delegation ---
     // The CreateClient/EncryptItem/DecryptItem handlers delegate to the real
     // AWS Database Encryption SDK for DynamoDB (Java). This pass consumes the

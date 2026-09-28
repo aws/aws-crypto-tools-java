@@ -12,3 +12,9 @@ pluginManagement {
 }
 
 rootProject.name = "dbesdk-test-server-java"
+
+// The native (non-Dafny) StructuredEncryption implementation is a sibling Gradle
+// build; include it so the Language_Server delegates structured-encryption
+// operations to native code (via NativeStructuredClient) instead of the
+// published Dafny library.
+includeBuild("../../structured-encryption")
