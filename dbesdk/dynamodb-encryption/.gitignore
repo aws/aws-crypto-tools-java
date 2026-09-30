@@ -1,0 +1,9 @@
+# Gradle
+.gradle/
+build/
+
+# jqwik cache
+.jqwik-database
+
+# Eclipse/IDE compiler output
+bin/
