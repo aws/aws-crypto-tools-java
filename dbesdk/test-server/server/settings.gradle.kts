@@ -18,3 +18,5 @@ rootProject.name = "dbesdk-test-server-java"
 // operations to native code (via NativeStructuredClient) instead of the
 // published Dafny library.
 includeBuild("../../structured-encryption")
+includeBuild("../../dynamodb-encryption")
+includeBuild("../../dynamodb-item-encryptor")

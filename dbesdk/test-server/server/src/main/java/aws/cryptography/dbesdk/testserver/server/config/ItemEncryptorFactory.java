@@ -19,12 +19,14 @@ import aws.cryptography.dbesdk.testserver.server.model.RawAesKeyringConfig;
 import aws.cryptography.dbesdk.testserver.server.model.RawRsaKeyringConfig;
 import aws.cryptography.dbesdk.testserver.server.model.RequiredEncryptionContextCmmConfig;
 import aws.cryptography.dbesdk.testserver.server.registry.DbesdkClient;
-import aws.cryptography.dbesdk.testserver.server.registry.RealItemEncryptorClient;
+import aws.cryptography.dbesdk.testserver.server.registry.NativeItemEncryptorClient;
+import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.ItemEncryptorConfig;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.regions.Region;
@@ -32,9 +34,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyRequest;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.model.DynamoDbItemEncryptorConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.model.PlaintextOverride;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoAction;
 import software.amazon.cryptography.keystore.KeyStore;
 import software.amazon.cryptography.keystore.model.KMSConfiguration;
@@ -62,12 +61,13 @@ import software.amazon.cryptography.materialproviders.model.PaddingScheme;
 
 /**
  * Translates a validated {@link DBEClientConfig} into a
- * {@link RealItemEncryptorClient} backed by a real {@link DynamoDbItemEncryptor}
- * from the AWS Database Encryption SDK for DynamoDB, plus a keyring (or CMM)
- * from the Material Providers Library. The tagged-union keyring / CMM shapes
- * are walked recursively — a Default/RequiredEncryptionContext CMM, and a Multi
- * keyring whose children are themselves keyrings — mirroring the model's
- * recursive variants.
+ * {@link NativeItemEncryptorClient} backed by the native (non-Dafny)
+ * DynamoDbItemEncryptor core, plus a keyring (or CMM) from the Material
+ * Providers Library. The tagged-union keyring / CMM shapes are walked
+ * recursively — a Default/RequiredEncryptionContext CMM, and a Multi keyring
+ * whose children are themselves keyrings — mirroring the model's recursive
+ * variants. A configured keyring is wrapped in a default CMM (as the Dafny item
+ * encryptor does); a configured CMM is used directly.
  *
  * <p>This factory assumes the config has already passed {@link ConfigValidator}
  * (exactly one variant member set at each polymorphic node, exactly one of
@@ -102,41 +102,50 @@ public final class ItemEncryptorFactory {
      *     maps this to a {@code GenericServerError}.
      */
     public DbesdkClient create(DBEClientConfig config) {
-        DynamoDbItemEncryptorConfig.Builder dbeConfig = DynamoDbItemEncryptorConfig.builder()
+        ItemEncryptorConfig.Builder nativeConfig = ItemEncryptorConfig.builder()
             .logicalTableName(config.getLogicalTableName())
             .partitionKeyName(config.getPartitionKeyName())
-            .attributeActionsOnEncrypt(toCryptoActions(config.getAttributeActionsOnEncrypt()));
+            .attributeActionsOnEncrypt(toNativeCryptoActions(config.getAttributeActionsOnEncrypt()));
 
         if (config.getSortKeyName() != null) {
-            dbeConfig.sortKeyName(config.getSortKeyName());
+            nativeConfig.sortKeyName(config.getSortKeyName());
         }
         if (config.getAllowedUnsignedAttributePrefix() != null) {
-            dbeConfig.allowedUnsignedAttributePrefix(config.getAllowedUnsignedAttributePrefix());
+            nativeConfig.allowedUnsignedAttributePrefix(config.getAllowedUnsignedAttributePrefix());
         }
         if (config.hasAllowedUnsignedAttributes()
                 && !config.getAllowedUnsignedAttributes().isEmpty()) {
-            dbeConfig.allowedUnsignedAttributes(new ArrayList<>(config.getAllowedUnsignedAttributes()));
-        }
-        if (config.getAlgorithmSuiteId() != null) {
-            dbeConfig.algorithmSuiteId(
-                DBEAlgorithmSuiteId.valueOf(config.getAlgorithmSuiteId().getValue()));
+            nativeConfig.allowedUnsignedAttributes(new LinkedHashSet<>(config.getAllowedUnsignedAttributes()));
         }
         if (config.getPlaintextOverride() != null) {
-            dbeConfig.plaintextOverride(
-                PlaintextOverride.valueOf(config.getPlaintextOverride().getValue()));
+            nativeConfig.plaintextOverride(software.amazon.cryptography.dbesdk.dynamodbitemencryptor.PlaintextOverride
+                .valueOf(config.getPlaintextOverride().getValue()));
         }
 
-        // Exactly one of keyring / cmm is set (validated upstream).
-        if (config.getKeyring() != null) {
-            dbeConfig.keyring(buildKeyring(config.getKeyring()));
-        } else {
-            dbeConfig.cmm(buildCmm(config.getCmm()));
-        }
+        DBEAlgorithmSuiteId algorithmSuiteId = config.getAlgorithmSuiteId() != null
+            ? DBEAlgorithmSuiteId.valueOf(config.getAlgorithmSuiteId().getValue())
+            : null;
 
-        DynamoDbItemEncryptor itemEncryptor = DynamoDbItemEncryptor.builder()
-            .DynamoDbItemEncryptorConfig(dbeConfig.build())
-            .build();
-        return new RealItemEncryptorClient(itemEncryptor);
+        // Exactly one of keyring / cmm is set (validated upstream). A keyring is
+        // wrapped in a default CMM, matching the Dafny item encryptor.
+        ICryptographicMaterialsManager cmm = config.getKeyring() != null
+            ? materialProviders.CreateDefaultCryptographicMaterialsManager(
+                CreateDefaultCryptographicMaterialsManagerInput.builder()
+                    .keyring(buildKeyring(config.getKeyring())).build())
+            : buildCmm(config.getCmm());
+
+        return new NativeItemEncryptorClient(nativeConfig.build(), algorithmSuiteId, materialProviders, cmm);
+    }
+
+    /** Maps the modeled {@code Map<String, CryptoAction>} onto the native crypto-action enum. */
+    private static Map<String, software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction>
+            toNativeCryptoActions(
+                Map<String, aws.cryptography.dbesdk.testserver.server.model.CryptoAction> modeled) {
+        Map<String, software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction> out =
+            new HashMap<>(modeled.size());
+        modeled.forEach((name, action) -> out.put(name,
+            software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction.valueOf(action.getValue())));
+        return out;
     }
 
     /**

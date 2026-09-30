@@ -1,15 +1,9 @@
 package aws.cryptography.dbesdk.testserver.server.registry;
 
 import aws.cryptography.dbesdk.testserver.server.error.DbesdkClientException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.AuthItem;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.AuthenticateAction;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.CryptoAction;
@@ -17,51 +11,33 @@ import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.C
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredDataTerminal;
 import software.amazon.cryptography.dbesdk.structuredencryption.StructuredEncryptionClient;
 import software.amazon.cryptography.dbesdk.structuredencryption.StructuredEncryptionException;
-import software.amazon.cryptography.dbesdk.structuredencryption.V2EncryptionContext;
-import software.amazon.cryptography.dbesdk.structuredencryption.internal.AlgorithmSuite;
 import software.amazon.cryptography.dbesdk.structuredencryption.internal.DecryptionMaterials;
-import software.amazon.cryptography.dbesdk.structuredencryption.internal.EncryptedDataKey;
 import software.amazon.cryptography.dbesdk.structuredencryption.internal.EncryptionMaterials;
 import software.amazon.cryptography.dbesdk.structuredencryption.internal.Terminal;
-import software.amazon.cryptography.dbesdk.structuredencryption.wire.Header;
-import software.amazon.cryptography.dbesdk.structuredencryption.wire.PartialHeader;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.MaterialProviders;
-import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteId;
-import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
-import software.amazon.cryptography.materialproviders.model.CommitmentPolicy;
-import software.amazon.cryptography.materialproviders.model.CreateRequiredEncryptionContextCMMInput;
-import software.amazon.cryptography.materialproviders.model.DBEAlgorithmSuiteId;
-import software.amazon.cryptography.materialproviders.model.DBECommitmentPolicy;
-import software.amazon.cryptography.materialproviders.model.DecryptMaterialsInput;
-import software.amazon.cryptography.materialproviders.model.GetEncryptionMaterialsInput;
 
 /**
  * A {@link StructuredClient} backed by the native (non-Dafny) StructuredEncryption
  * pipeline. This class ports the outer layer of the Dafny
- * {@code Encrypt/DecryptPathStructure} operations — the parts the native pipeline
- * deliberately leaves out because they touch the material providers: resolving
- * materials from the configured CMM, and, for a record with a
- * SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT field, building the version-2 encryption
- * context and wrapping the CMM in a Required-Encryption-Context CMM. The crypto
- * itself runs in {@link StructuredEncryptionClient}, which stays MPL-free.
+ * {@code Encrypt/DecryptPathStructure} operations that touches the material
+ * providers; the crypto itself runs in {@link StructuredEncryptionClient}, which
+ * stays MPL-free, and the CMM-to-materials resolution runs in
+ * {@link NativeMaterialResolver} (shared with the item-encryptor seam). Called
+ * directly, StructuredEncryption has no item base context, so it passes an empty
+ * base context to the resolver.
  *
  * <p>Every failure is wrapped in {@link DbesdkClientException} so the operation
  * wrapper surfaces it as {@code DBESDKClientError} with the message unmodified.
  */
 public final class NativeStructuredClient implements StructuredClient {
 
-    private static final CommitmentPolicy DBE_POLICY = CommitmentPolicy.builder()
-        .DBE(DBECommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
-        .build();
     private static final String HEADER_FIELD = "aws_dbe_head";
 
-    private final MaterialProviders materialProviders;
-    private final ICryptographicMaterialsManager cmm;
+    private final NativeMaterialResolver resolver;
 
     public NativeStructuredClient(MaterialProviders materialProviders, ICryptographicMaterialsManager cmm) {
-        this.materialProviders = materialProviders;
-        this.cmm = cmm;
+        this.resolver = new NativeMaterialResolver(materialProviders, cmm);
     }
 
     @Override
@@ -71,8 +47,9 @@ public final class NativeStructuredClient implements StructuredClient {
             Map<String, CryptoAction> cryptoSchema)
         throws DbesdkClientException {
         try {
-            EncryptionMaterials materials = resolveEncryptionMaterials(
-                StructuredTypeAdapters.toNativeItemsForMaterials(plaintextStructure, cryptoSchema));
+            EncryptionMaterials materials = resolver.forEncrypt(
+                StructuredTypeAdapters.toNativeItemsForMaterials(plaintextStructure, cryptoSchema),
+                Map.of(), null);
             Map<String, Terminal> encrypted = StructuredEncryptionClient.encryptStructure(
                 tableName,
                 StructuredTypeAdapters.toNativeTerminalMap(plaintextStructure),
@@ -94,7 +71,7 @@ public final class NativeStructuredClient implements StructuredClient {
             var authItems = StructuredTypeAdapters.toNativeAuthItems(toAuthItems(encryptedStructure, authenticateSchema));
             byte[] headerBytes = StructuredTypeAdapters.toNativeTerminal(
                 requireHeaderField(encryptedStructure)).value();
-            DecryptionMaterials materials = resolveDecryptionMaterials(tableName, authItems, headerBytes);
+            DecryptionMaterials materials = resolver.forDecrypt(tableName, authItems, headerBytes, Map.of());
             Map<String, Terminal> decrypted = StructuredEncryptionClient.decryptStructure(
                 tableName,
                 StructuredTypeAdapters.toNativeTerminalMap(encryptedStructure),
@@ -111,7 +88,7 @@ public final class NativeStructuredClient implements StructuredClient {
         throws DbesdkClientException {
         try {
             var items = StructuredTypeAdapters.toNativeItems(plaintextStructure);
-            EncryptionMaterials materials = resolveEncryptionMaterials(items);
+            EncryptionMaterials materials = resolver.forEncrypt(items, Map.of(), null);
             var encrypted = StructuredEncryptionClient.encryptPathStructure(tableName, items, materials).structure();
             return StructuredTypeAdapters.toPublishedItems(encrypted);
         } catch (Exception failure) {
@@ -125,7 +102,7 @@ public final class NativeStructuredClient implements StructuredClient {
         try {
             var authItems = StructuredTypeAdapters.toNativeAuthItems(encryptedStructure);
             byte[] headerBytes = headerBytesFromAuth(authItems);
-            DecryptionMaterials materials = resolveDecryptionMaterials(tableName, authItems, headerBytes);
+            DecryptionMaterials materials = resolver.forDecrypt(tableName, authItems, headerBytes, Map.of());
             var decrypted = StructuredEncryptionClient.decryptPathStructure(tableName, authItems, materials).structure();
             return StructuredTypeAdapters.toPublishedItems(decrypted);
         } catch (Exception failure) {
@@ -144,119 +121,6 @@ public final class NativeStructuredClient implements StructuredClient {
         } catch (Exception failure) {
             throw new DbesdkClientException(failure);
         }
-    }
-
-    private EncryptionMaterials resolveEncryptionMaterials(
-            List<software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoItem> items) {
-        int encryptedTerminalCount = 0;
-        long encryptedValuesSize = 0;
-        for (var item : items) {
-            if (item.action()
-                    == software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction.ENCRYPT_AND_SIGN) {
-                encryptedTerminalCount++;
-                encryptedValuesSize += item.data().value().length;
-            }
-        }
-
-        Map<String, byte[]> v2Context = V2EncryptionContext.build(items);
-        ICryptographicMaterialsManager effectiveCmm = v2Context.isEmpty() ? cmm : requiredEcCmm(v2Context.keySet());
-        long maxPlaintextLength = 2L * encryptedTerminalCount + encryptedValuesSize;
-
-        software.amazon.cryptography.materialproviders.model.EncryptionMaterials mpl =
-            effectiveCmm.GetEncryptionMaterials(GetEncryptionMaterialsInput.builder()
-                .encryptionContext(toStringContext(v2Context))
-                .commitmentPolicy(DBE_POLICY)
-                .maxPlaintextLength(maxPlaintextLength)
-                .build()).encryptionMaterials();
-
-        AlgorithmSuite suite = nativeSuite(mpl.algorithmSuite());
-        List<EncryptedDataKey> edks = new ArrayList<>(mpl.encryptedDataKeys().size());
-        for (var edk : mpl.encryptedDataKeys()) {
-            edks.add(new EncryptedDataKey(
-                edk.keyProviderId().getBytes(StandardCharsets.UTF_8),
-                bytes(edk.keyProviderInfo()),
-                bytes(edk.ciphertext())));
-        }
-        List<byte[]> symmetricSigningKeys = new ArrayList<>(mpl.symmetricSigningKeys().size());
-        for (ByteBuffer key : mpl.symmetricSigningKeys()) {
-            symmetricSigningKeys.add(bytes(key));
-        }
-        PrivateKey signingKey = suite.hasEcdsaSignature()
-            ? MplEcKeyDecoder.decodePrivateKey(bytes(mpl.signingKey()))
-            : null;
-
-        return new EncryptionMaterials(
-            bytes(mpl.plaintextDataKey()), suite, edks,
-            toByteContext(mpl.encryptionContext()), Set.copyOf(mpl.requiredEncryptionContextKeys()),
-            symmetricSigningKeys, signingKey);
-    }
-
-    private DecryptionMaterials resolveDecryptionMaterials(
-            String tableName,
-            List<software.amazon.cryptography.dbesdk.structuredencryption.internal.AuthItem> authItems,
-            byte[] headerBytes) {
-        PartialHeader header = Header.deserialize(headerBytes);
-
-        // Rebuild the version-2 context from the record's plaintext SIGN_AND_INCLUDE
-        // fields; empty for a version-1 record, which then uses the base CMM.
-        var resolved = StructuredEncryptionClient.resolveAuthActions(tableName, authItems, headerBytes);
-        Map<String, byte[]> v2Context = V2EncryptionContext.build(resolved);
-        ICryptographicMaterialsManager effectiveCmm = v2Context.isEmpty() ? cmm : requiredEcCmm(v2Context.keySet());
-
-        List<software.amazon.cryptography.materialproviders.model.EncryptedDataKey> edks =
-            new ArrayList<>(header.dataKeys().size());
-        for (EncryptedDataKey edk : header.dataKeys()) {
-            edks.add(software.amazon.cryptography.materialproviders.model.EncryptedDataKey.builder()
-                .keyProviderId(new String(edk.keyProviderId(), StandardCharsets.UTF_8))
-                .keyProviderInfo(ByteBuffer.wrap(edk.keyProviderInfo()))
-                .ciphertext(ByteBuffer.wrap(edk.ciphertext()))
-                .build());
-        }
-
-        software.amazon.cryptography.materialproviders.model.DecryptionMaterials mpl =
-            effectiveCmm.DecryptMaterials(DecryptMaterialsInput.builder()
-                .algorithmSuiteId(AlgorithmSuiteId.builder().DBE(suiteIdForFlavor(header.flavor())).build())
-                .commitmentPolicy(DBE_POLICY)
-                .encryptedDataKeys(edks)
-                .encryptionContext(toStringContext(header.encryptionContext()))
-                .reproducedEncryptionContext(toStringContext(v2Context))
-                .build()).decryptionMaterials();
-
-        AlgorithmSuite suite = nativeSuite(mpl.algorithmSuite());
-        PublicKey verificationKey = suite.hasEcdsaSignature()
-            ? MplEcKeyDecoder.decodePublicKey(bytes(mpl.verificationKey()))
-            : null;
-
-        return new DecryptionMaterials(
-            bytes(mpl.plaintextDataKey()), suite,
-            toByteContext(mpl.encryptionContext()), bytes(mpl.symmetricSigningKey()), verificationKey);
-    }
-
-    private ICryptographicMaterialsManager requiredEcCmm(Set<String> requiredKeys) {
-        return materialProviders.CreateRequiredEncryptionContextCMM(
-            CreateRequiredEncryptionContextCMMInput.builder()
-                .underlyingCMM(cmm)
-                .requiredEncryptionContextKeys(new ArrayList<>(requiredKeys))
-                .build());
-    }
-
-    // Both defined DBE suites use SHA-512 key derivation, SHA-512 commitment,
-    // SHA-384 symmetric signature, and 256-bit keys (AlgorithmSuites.dfy); only the
-    // format flavor and ECDSA presence distinguish them, so read those from the
-    // resolved suite and take the rest as the shared DBE constants.
-    private static AlgorithmSuite nativeSuite(AlgorithmSuiteInfo info) {
-        byte flavor = bytes(info.binaryId())[1];
-        boolean hasEcdsa = info.signature() != null && info.signature().ECDSA() != null;
-        return new AlgorithmSuite(flavor, hasEcdsa, "HmacSHA512", "HmacSHA512", "HmacSHA384", 32, 32);
-    }
-
-    private static DBEAlgorithmSuiteId suiteIdForFlavor(byte flavor) {
-        return switch (flavor) {
-            case 0x00 -> DBEAlgorithmSuiteId.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384;
-            case 0x01 -> DBEAlgorithmSuiteId.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384;
-            default -> throw new StructuredEncryptionException(
-                "Unknown message format flavor: " + (flavor & 0xFF));
-        };
     }
 
     private static List<AuthItem> toAuthItems(
@@ -293,24 +157,5 @@ public final class NativeStructuredClient implements StructuredClient {
             throw new StructuredEncryptionException("Structured data is missing the required header field.");
         }
         return header;
-    }
-
-    private static Map<String, String> toStringContext(Map<String, byte[]> context) {
-        Map<String, String> out = new LinkedHashMap<>();
-        context.forEach((key, value) -> out.put(key, new String(value, StandardCharsets.UTF_8)));
-        return out;
-    }
-
-    private static Map<String, byte[]> toByteContext(Map<String, String> context) {
-        Map<String, byte[]> out = new LinkedHashMap<>();
-        context.forEach((key, value) -> out.put(key, value.getBytes(StandardCharsets.UTF_8)));
-        return out;
-    }
-
-    private static byte[] bytes(ByteBuffer buffer) {
-        ByteBuffer duplicate = buffer.duplicate();
-        byte[] out = new byte[duplicate.remaining()];
-        duplicate.get(out);
-        return out;
     }
 }

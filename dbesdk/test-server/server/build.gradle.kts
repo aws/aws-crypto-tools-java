@@ -72,6 +72,8 @@ dependencies {
     // and runs this pipeline; the DBE library above stays for the item-encryptor
     // and transforms handlers, which are not yet ported.
     implementation("software.amazon.cryptography.dbesdk:dbesdk-structured-encryption:0.1.0-SNAPSHOT")
+    implementation("software.amazon.cryptography.dbesdk:dbesdk-dynamodb-encryption:0.1.0-SNAPSHOT")
+    implementation("software.amazon.cryptography.dbesdk:dbesdk-dynamodb-item-encryptor:0.1.0-SNAPSHOT")
 
     // --- Real DBE Java delegation ---
     // The CreateClient/EncryptItem/DecryptItem handlers delegate to the real
