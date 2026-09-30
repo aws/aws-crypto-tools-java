@@ -14,14 +14,17 @@ per-server config.
   `java-codegen` plugin (SERVER mode) from the single source-of-truth Smithy
   model in commons; only the operation handler bodies are hand-written. The
   server carries **no** copy of the model — it is supplied at build time via the
-  required `-PmodelDir` Gradle property.
-- `server-config.json` / `feature-config.json` / `bug-config.json` — the
-  per-server config trio the orchestrator reads. `feature-config.json` is the
-  Feature_Declaration: its `supportedFeatures` + `unsupportedFeatures` must
-  together equal the commons Feature_Catalog, and the orchestrator skips any
-  test that needs a feature not declared supported. Move a feature from
-  `unsupportedFeatures` to `supportedFeatures` as its implementation lands and
-  the orchestrated run starts exercising that feature's tests automatically.
+  required `-PmodelDir` Gradle property. This directory also holds the
+  per-server config trio below, co-located with the server as the commons
+  `java-native` entry's `configPath` (`dbesdk/test-server/server`) expects.
+- `server/server-config.json` / `server/feature-config.json` /
+  `server/bug-config.json` — the per-server config trio the orchestrator reads.
+  `feature-config.json` is the Feature_Declaration: its `supportedFeatures` +
+  `unsupportedFeatures` must together equal the commons Feature_Catalog, and the
+  orchestrator skips any test that needs a feature not declared supported. Move
+  a feature from `unsupportedFeatures` to `supportedFeatures` as its
+  implementation lands and the orchestrated run starts exercising that feature's
+  tests automatically.
 
 ## How it is run
 

@@ -7,7 +7,8 @@
   "supportedFeatures": [
     "raw-aes",
     "aws-kms",
-    "structured-encryption"
+    "structured-encryption",
+    "plaintext-override"
   ],
   "unsupportedFeatures": [
     "raw-rsa",
@@ -18,7 +19,6 @@
     "ddb-transforms",
     "searchable-encryption",
     "beacon-partitions",
-    "plaintext-override",
     "legacy-ddbec"
   ]
 }
