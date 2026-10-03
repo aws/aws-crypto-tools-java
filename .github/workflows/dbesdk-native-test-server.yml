@@ -1,7 +1,7 @@
 # CI for the native (non-Dafny) DB-ESDK Java test server. Builds the server
 # module and runs its unit tests (the jqwik property tests + the registry
 # concurrency integration test) on every change under
-# dbesdk/test-server/server. This is the fast, credential-free gate: it does
+# test-server/dbesdk. This is the fast, credential-free gate: it does
 # NOT run the cross-language conformance suite. That suite lives in
 # aws-crypto-tools-commons (.github/workflows/dbesdk-test-server.yml): its
 # orchestrator launches this server via the `java-native` entry in
@@ -17,14 +17,16 @@ name: DB-ESDK Native Java Test Server
 on:
   pull_request:
     paths:
-      - "dbesdk/test-server/server/**"
+      - "test-server/dbesdk/**"
+      - "dbesdk/**"
       - ".github/workflows/dbesdk-native-test-server.yml"
   push:
     branches:
       - main
       - dbesdk-native-java-unverified
     paths:
-      - "dbesdk/test-server/server/**"
+      - "test-server/dbesdk/**"
+      - "dbesdk/**"
       - ".github/workflows/dbesdk-native-test-server.yml"
   workflow_dispatch:
     inputs:
@@ -67,7 +69,7 @@ jobs:
           cache: gradle
 
       - name: Build + unit test the native test server
-        working-directory: dbesdk/test-server/server
+        working-directory: test-server/dbesdk
         run: ./gradlew build -PmodelDir="${{ github.workspace }}/.commons/dbesdk/test-server/model"
 
       - name: Upload test reports
@@ -76,6 +78,6 @@ jobs:
         with:
           name: dbesdk-native-test-server-reports
           path: |
-            dbesdk/test-server/server/build/reports/tests
-            dbesdk/test-server/server/build/test-results
+            test-server/dbesdk/build/reports/tests
+            test-server/dbesdk/build/test-results
           if-no-files-found: ignore

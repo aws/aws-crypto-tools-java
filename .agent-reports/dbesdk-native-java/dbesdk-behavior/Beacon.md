@@ -159,7 +159,7 @@ implementation's `ensures` clauses (basicHash = HMAC-SHA384 first 8 bytes → ri
 
 ## 11. Native implementation status
 
-Landed in module `dbesdk/dynamodb-encryption`, package
+Landed in module `dbesdk`, package
 `software.amazon.cryptography.dbesdk.dynamodbencryption`:
 
 - `StandardBeacon` — the `basicHash`/`BytesToHex`/partition-encoding primitive (§2–§4)

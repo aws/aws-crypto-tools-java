@@ -78,7 +78,7 @@ Source root: `~/github/dbesdk/aws-database-encryption-sdk-dynamodb/DynamoDbEncry
 - [x] 10. Source pointers recorded (spec §10, exact paths + line counts).
 
 ## Continuation notes (resolved + new)
-- RESOLVED: DynamoToStruct specced + implemented as its own component (dbesdk/dynamodb-encryption/).
+- RESOLVED: DynamoToStruct specced + implemented as its own component (dbesdk/).
 - NEW CRITICAL FINDING (spec §8): the native DynamoToStruct done so far is the TERMINAL layer only
   (attrToStructured/structuredToAttr + NumberNormalizer). The item encryptor also needs the ITEM
   layer — ItemToStructured2, StructuredToItemEncrypt, StructuredToItemDecrypt (spec §6). These must

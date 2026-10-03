@@ -13,7 +13,7 @@
 
 ## Implementation (landed this session)
 `BeaconKeyDerivation` (+ reuses structured-encryption `crypto/Hkdf.java`) in module
-`dbesdk/dynamodb-encryption`. Verified: 5 tests incl. the 8 end-to-end Dafny golden
+`dbesdk`. Verified: 5 tests incl. the 8 end-to-end Dafny golden
 vectors (std2/Name/Title/std4/std6/NameTitleField/empty Name/Title) composing
 DynamoToStruct → deriveBeaconKey → StandardBeacon, plus number-normalization equality and
 the duplicate-name rejection. Module total 31 tests, 0 failures (JDK 21). Status recorded

@@ -145,7 +145,7 @@ DDB value.
 
 ## 8. DynamoToStruct native component — item layer status
 
-The native `DynamoToStruct` (`dbesdk/dynamodb-encryption/`) now covers BOTH layers:
+The native `DynamoToStruct` (`dbesdk/`) now covers BOTH layers:
 - **Terminal layer**: `attrToStructured`/`structuredToAttr` (= `AttrToStructured`/`StructuredToAttr`)
   plus `NumberNormalizer`.
 - **Item layer** (added, this module needs it): `itemToStructured` (= `ItemToStructured2`),
@@ -176,7 +176,7 @@ All paths under `~/github/dbesdk/aws-database-encryption-sdk-dynamodb/DynamoDbEn
 
 ## 11. Native implementation status
 
-Implemented in module `dbesdk/dynamodb-item-encryptor/` (package `...dynamodbitemencryptor`),
+Implemented in module `dbesdk/` (package `...dynamodbitemencryptor`),
 the **MPL-free core**:
 - `ItemEncryptorConfig` (+ validating builder): version derivation, key-action check,
   forward-compatibility, reserved-namespace check (`aws_dbe_` and `aws-crypto-`), signature scope.

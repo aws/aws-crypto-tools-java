@@ -1,9 +1,0 @@
-# Gradle
-.gradle/
-build/
-
-# Eclipse-style compiled-classes output dir
-bin/
-
-# Smithy build output
-smithyprojections/

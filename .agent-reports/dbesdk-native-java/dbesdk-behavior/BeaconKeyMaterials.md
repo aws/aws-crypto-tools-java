@@ -125,5 +125,5 @@ None found (§6).
   `GetBeaconValue` helper :380-402); `test/BeaconTestFixtures.dfy:96-103` (golden strings),
   `:388-391` (`GetHmacKeys` call over the deduplicated beacon-name set).
 - `specification/searchable-encryption/search-config.md#hmac-key-generation`.
-- Reused native primitive: `dbesdk/structured-encryption` `crypto/Hkdf.java` (RFC 5869
+- Reused native primitive: `dbesdk` `crypto/Hkdf.java` (RFC 5869
   extract-then-expand, caller-selected Mac, salt=None → HashLen zeros).

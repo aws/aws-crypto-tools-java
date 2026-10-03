@@ -131,7 +131,7 @@ the bodies.
 
 ## 11. Native implementation status
 
-Landed in module `dbesdk/dynamodb-encryption`, package
+Landed in module `dbesdk`, package
 `software.amazon.cryptography.dbesdk.dynamodbencryption`:
 
 - `TermLoc` — `make(loc)` parse (§2), `termToAttr(item)` navigation (§3, every miss →
