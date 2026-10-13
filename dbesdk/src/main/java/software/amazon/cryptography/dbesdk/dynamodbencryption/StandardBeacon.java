@@ -1,5 +1,6 @@
 package software.amazon.cryptography.dbesdk.dynamodbencryption;
 
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,10 +28,12 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
  *       value, serialize it, and (for an {@code asSet} beacon) beaconize each set element.
  * </ul>
  *
- * <p>Scope: this slice covers plain (non-virtual) beacons. Virtual fields, compound
- * beacons, {@code partOnly}/shared beacons, and {@code GenerateEncryptedBeacons}
- * orchestration are separate slices (BeaconValueLocation spec §7). The per-beacon HMAC key
- * is an input, derived in {@link BeaconKeyDerivation}.
+ * <p>Scope: standard beacons, including the Shared, AsSet, SharedSet, and PartOnly styles
+ * (via {@link #keyName()} and {@link #isPartOnly()}). A non-set beacon's location may name a
+ * virtual field, resolved through the virtual-field map passed to
+ * {@link #getHash(Map, Map, byte[], int)}. The write-path assembly over a set of beacons is
+ * {@link BeaconVersion#generateEncryptedBeacons}. The per-beacon HMAC key is an input,
+ * derived in {@link BeaconKeyDerivation}.
  */
 public final class StandardBeacon {
 
@@ -47,18 +50,28 @@ public final class StandardBeacon {
     private final TermLoc loc;
     private final boolean asSet;
     private final int numberOfPartitions;
+    // The name of the beacon whose HMAC key this beacon hashes under: its own name, or the
+    // `other` beacon's name when this is a shared beacon (Beacon.dfy keyName(), lines 179-182).
+    private final String keyName;
+    // PartOnly beacons participate in compound beacons but are never written to the item
+    // (Beacon spec; GenerateBeacons2 skips them).
+    private final boolean partOnly;
 
-    private StandardBeacon(String name, int lengthBits, TermLoc loc, boolean asSet, int numberOfPartitions) {
+    private StandardBeacon(
+            String name, int lengthBits, TermLoc loc, boolean asSet, int numberOfPartitions,
+            String keyName, boolean partOnly) {
         this.name = name;
         this.lengthBits = lengthBits;
         this.loc = loc;
         this.asSet = asSet;
         this.numberOfPartitions = numberOfPartitions;
+        this.keyName = keyName;
+        this.partOnly = partOnly;
     }
 
     /**
-     * @param name               the beacon's name (used to derive its HMAC key and in
-     *                           error messages)
+     * @param name               the beacon's name (written as {@code aws_dbe_b_<name>} and
+     *                           used in error messages)
      * @param lengthBits         beacon length in bits, 1..63 — how many rightmost hash
      *                           bits are kept in the beacon value
      * @param loc                the source-value location string (see {@link TermLoc#make})
@@ -70,6 +83,22 @@ public final class StandardBeacon {
      */
     public static StandardBeacon create(
             String name, int lengthBits, String loc, boolean asSet, int numberOfPartitions) {
+        return create(name, lengthBits, loc, asSet, numberOfPartitions, null, false);
+    }
+
+    /**
+     * The full factory, carrying the two style flags the write-path orchestration needs
+     * (Beacon spec §7, ConfigToInfo.AddStandardBeacons):
+     *
+     * @param share    the {@code other} beacon's name for a Shared/SharedSet beacon, so
+     *                 this beacon hashes under {@code other}'s key and equal values across
+     *                 the two collide; {@code null} for an independent beacon
+     * @param partOnly whether this beacon is PartOnly — configured for use in compound
+     *                 beacons but never written to the item on its own
+     */
+    public static StandardBeacon create(
+            String name, int lengthBits, String loc, boolean asSet, int numberOfPartitions,
+            String share, boolean partOnly) {
         if (lengthBits < MIN_LENGTH_BITS || lengthBits > MAX_LENGTH_BITS) {
             throw new BeaconException("Beacon length must be between 1 and 63 bits, got " + lengthBits);
         }
@@ -77,7 +106,43 @@ public final class StandardBeacon {
             throw new BeaconException(
                 "Number of partitions must be between 0 and 255, got " + numberOfPartitions);
         }
-        return new StandardBeacon(name, lengthBits, TermLoc.make(loc), asSet, numberOfPartitions);
+        return new StandardBeacon(
+            name, lengthBits, TermLoc.make(loc), asSet, numberOfPartitions,
+            share == null ? name : share, partOnly);
+    }
+
+    /** The beacon's own name (its written attribute is {@code aws_dbe_b_<name>}). */
+    public String name() {
+        return name;
+    }
+
+    /** The source-value location this beacon reads (used by compound encrypted parts). */
+    public TermLoc loc() {
+        return loc;
+    }
+
+    /**
+     * The stored attributes this beacon reads (Beacon {@code GetFields}): the location's
+     * root key, or — if that root names a virtual field — that field's underlying roots.
+     */
+    public List<String> getFields(Map<String, VirtualField> virtualFields) {
+        String root = loc.rootKey();
+        VirtualField virtualField = virtualFields.get(root);
+        return virtualField != null ? virtualField.getFields() : List.of(root);
+    }
+
+    /**
+     * The name of the beacon whose HMAC key this beacon hashes under — its own name, or the
+     * {@code other} beacon's name when shared (Beacon.dfy keyName()). The orchestration
+     * looks this up in the derived HMAC-key map.
+     */
+    public String keyName() {
+        return keyName;
+    }
+
+    /** Whether this beacon is PartOnly and so must not be written to the item. */
+    public boolean isPartOnly() {
+        return partOnly;
     }
 
     /**
@@ -91,13 +156,82 @@ public final class StandardBeacon {
      * @throws BeaconException if an {@code asSet} beacon's located value is not a Set
      */
     public Optional<AttributeValue> getHash(Map<String, AttributeValue> item, byte[] key, int partition) {
-        return asSet ? getHashSet(item, key, partition) : getHashNonSet(item, key, partition);
+        return getHash(item, Map.of(), key, partition);
+    }
+
+    /**
+     * The beacon value for an item, resolving a location that names a virtual field through
+     * {@code virtualFields} (Beacon.dfy {@code getHash} over {@code VirtToBytes}). Set
+     * beacons never read a virtual field — a virtual field is always a string, not a set —
+     * so {@code virtualFields} is consulted only on the non-set path.
+     *
+     * @param virtualFields the version's virtual fields, by name (may be empty)
+     */
+    public Optional<AttributeValue> getHash(
+            Map<String, AttributeValue> item, Map<String, VirtualField> virtualFields, byte[] key, int partition) {
+        return asSet ? getHashSet(item, key, partition) : getHashNonSet(item, virtualFields, key, partition);
     }
 
     // Non-set beacon: the located value's bytes hashed to a single "S" beacon value.
     private Optional<AttributeValue> getHashNonSet(
-            Map<String, AttributeValue> item, byte[] key, int partition) {
-        return loc.termToBytes(item).map(bytes -> AttributeValue.fromS(hash(bytes, key, partition)));
+            Map<String, AttributeValue> item, Map<String, VirtualField> virtualFields, byte[] key, int partition) {
+        return virtToBytes(item, virtualFields).map(bytes -> AttributeValue.fromS(hash(bytes, key, partition)));
+    }
+
+    // The source bytes to hash (Virtual.dfy VirtToBytes): a location that names a virtual
+    // field hashes the UTF-8 bytes of the field's string value; any other location hashes
+    // the located attribute's serialized bytes.
+    private Optional<byte[]> virtToBytes(Map<String, AttributeValue> item, Map<String, VirtualField> virtualFields) {
+        Optional<String> rootKey = loc.singleSegmentKey();
+        if (rootKey.isPresent() && virtualFields.containsKey(rootKey.get())) {
+            return virtualFields.get(rootKey.get()).getValue(item).map(s -> s.getBytes(StandardCharsets.UTF_8));
+        }
+        return loc.termToBytes(item);
+    }
+
+    /**
+     * The beacon's plaintext (unhashed) value for an item (Virtual.dfy {@code VirtToAttr}):
+     * the virtual field's string when the location names one, otherwise the located
+     * attribute. This is the value a fully-signed beacon contributes before encryption.
+     */
+    Optional<AttributeValue> getNaked(Map<String, AttributeValue> item, Map<String, VirtualField> virtualFields) {
+        Optional<String> rootKey = loc.singleSegmentKey();
+        if (rootKey.isPresent() && virtualFields.containsKey(rootKey.get())) {
+            return virtualFields.get(rootKey.get()).getValue(item).map(AttributeValue::fromS);
+        }
+        return loc.termToAttr(item);
+    }
+
+    /**
+     * The beacon value for a query value (Beacon.dfy {@code GetBeaconValue}): hash the
+     * supplied value the same way the write path hashes the stored value, so an equality
+     * query matches the written beacon. The value is given directly (not located in an
+     * item), so it is serialized with {@link DynamoToStruct} exactly as
+     * {@link TermLoc#termToBytes} serializes a located value.
+     *
+     * <p>A Set-valued query beaconizes each element: an {@code asSet} beacon queried with a
+     * non-scalar value, or any beacon queried under {@code contains} with a Set value
+     * ({@code forContains}), yields the {@code SS} of element beacons; a scalar value yields
+     * a single beacon (e.g. {@code contains(setAttr, :element)}).
+     *
+     * @param key         the per-beacon HMAC key ({@link BeaconKeyDerivation})
+     * @param forContains whether the surrounding operation is {@code contains}
+     * @throws BeaconException if an {@code asSet} query value is not a Set type
+     */
+    public AttributeValue getBeaconValue(AttributeValue value, byte[] key, boolean forContains, int partition) {
+        boolean nonScalar = value.type() != AttributeValue.Type.S
+            && value.type() != AttributeValue.Type.N
+            && value.type() != AttributeValue.Type.B;
+        boolean setValue = value.type() == AttributeValue.Type.SS
+            || value.type() == AttributeValue.Type.NS
+            || value.type() == AttributeValue.Type.BS;
+        if (asSet && nonScalar) {
+            return valueToSet(value, key, partition);
+        }
+        if (forContains && setValue) {
+            return valueToSet(value, key, partition);
+        }
+        return AttributeValue.fromS(hash(DynamoToStruct.attrToStructured(value).value(), key, partition));
     }
 
     // Set beacon: the located Set value turned into an "SS" of per-element beacon values.

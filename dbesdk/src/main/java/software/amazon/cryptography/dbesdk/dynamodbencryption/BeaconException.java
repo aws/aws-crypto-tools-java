@@ -10,4 +10,8 @@ public class BeaconException extends RuntimeException {
     public BeaconException(String message) {
         super(message);
     }
+
+    public BeaconException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -60,6 +60,15 @@ public final class TermLoc {
     }
 
     /**
+     * A location of a single map key (Dafny {@code TermLocMap}): the beacon query rewrite uses
+     * it for a rewritten {@code aws_dbe_b_<name>} attribute, and the tokenizer uses it as the
+     * fallback for an attribute token that is not a parseable path.
+     */
+    public static TermLoc ofKey(String key) {
+        return new TermLoc(List.of(new MapKey(key)));
+    }
+
+    /**
      * The located attribute value, or empty if it is absent. Every navigation miss — a
      * missing key, an out-of-range index, or a selector that does not match the value's
      * shape — is reported as absent, not an error (BeaconValueLocation spec §3): a beacon
@@ -85,6 +94,28 @@ public final class TermLoc {
 
     private String firstKey() {
         return ((MapKey) selectors.get(0)).key();
+    }
+
+    // The root map key of this location (loc[0].key): the stored attribute a beacon or
+    // virtual-field part reads from.
+    String rootKey() {
+        return firstKey();
+    }
+
+    // The located value as a plain string, or empty if absent or not a string terminal.
+    Optional<String> termToString(Map<String, AttributeValue> item) {
+        return termToAttr(item)
+            .flatMap(value -> value.type() == AttributeValue.Type.S
+                ? Optional.of(value.s())
+                : Optional.empty());
+    }
+
+    // The single map key when this location is one bare segment, else empty — used to
+    // detect a location that names a virtual field rather than a stored attribute.
+    Optional<String> singleSegmentKey() {
+        return selectors.size() == 1 && selectors.get(0) instanceof MapKey key
+            ? Optional.of(key.key())
+            : Optional.empty();
     }
 
     List<Selector> selectors() {

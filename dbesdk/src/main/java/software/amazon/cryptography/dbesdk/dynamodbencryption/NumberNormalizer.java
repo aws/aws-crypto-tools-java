@@ -10,7 +10,7 @@ import java.math.BigInteger;
  * 38 significant digits and DynamoDB's supported magnitude range. Zero
  * normalizes to {@code "0"} (its sign dropped); other values keep their sign.
  */
-final class NumberNormalizer {
+public final class NumberNormalizer {
 
     private static final int MAX_SIGNIFICANT_DIGITS = 38;
     private static final BigInteger MIN_EXPONENT_MAGNITUDE = BigInteger.valueOf(-129);
@@ -18,7 +18,7 @@ final class NumberNormalizer {
 
     private NumberNormalizer() {}
 
-    static String normalizeNumber(String n) {
+    public static String normalizeNumber(String n) {
         try {
             return normalizeNumber2(n);
         } catch (InvalidNumber e) {
