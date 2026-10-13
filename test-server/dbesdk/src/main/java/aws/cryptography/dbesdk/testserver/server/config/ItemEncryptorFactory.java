@@ -102,10 +102,22 @@ public final class ItemEncryptorFactory {
      *     maps this to a {@code GenericServerError}.
      */
     public DbesdkClient create(DBEClientConfig config) {
+        return create(config, List.of());
+    }
+
+    /**
+     * Build the item encryptor with the given signed-beacon names configured SIGN_ONLY, so
+     * {@code EncryptItem} authenticates the {@code <name>} attributes the transforms layer
+     * signs into the item before encryption.
+     *
+     * @param signedBeaconNames the fully-signed compound beacon names
+     *     ({@link software.amazon.cryptography.dbesdk.dynamodbencryptiontransforms.SearchInfo#signedBeaconNames()})
+     */
+    public DbesdkClient create(DBEClientConfig config, List<String> signedBeaconNames) {
         ItemEncryptorConfig.Builder nativeConfig = ItemEncryptorConfig.builder()
             .logicalTableName(config.getLogicalTableName())
             .partitionKeyName(config.getPartitionKeyName())
-            .attributeActionsOnEncrypt(toNativeCryptoActions(config.getAttributeActionsOnEncrypt()));
+            .attributeActionsOnEncrypt(augmentedActions(config, signedBeaconNames));
 
         if (config.getSortKeyName() != null) {
             nativeConfig.sortKeyName(config.getSortKeyName());
@@ -146,6 +158,47 @@ public final class ItemEncryptorFactory {
         modeled.forEach((name, action) -> out.put(name,
             software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction.valueOf(action.getValue())));
         return out;
+    }
+
+    /**
+     * The native attribute actions augmented with a SIGN_ONLY action for each signed-beacon
+     * name (transforms Index.dfy {@code AddSignedBeaconActions}). Used for both the item
+     * encryptor and the transforms table config so each sees the beacon as SIGN_ONLY. The
+     * version tag {@code aws_dbe_v_1} is not added here — it carries the reserved
+     * {@code aws_dbe_} prefix the item encryptor authenticates without an explicit action.
+     *
+     * @throws IllegalArgumentException if a signed-beacon name is already configured — as an
+     *     attribute action, an unauthenticated attribute, or under the unauthenticated prefix
+     *     (predicate {@code IsConfigured}); the caller maps this to a {@code GenericServerError}
+     */
+    public static Map<String, software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction>
+            augmentedActions(DBEClientConfig config, List<String> signedBeaconNames) {
+        Map<String, software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction> actions =
+            toNativeCryptoActions(config.getAttributeActionsOnEncrypt());
+        for (String name : signedBeaconNames) {
+            if (isConfigured(config, name)) {
+                throw new IllegalArgumentException(
+                    "Signed beacon " + name
+                        + " cannot be configured with a crypto action or as an unauthenticated attribute.");
+            }
+            actions.put(name,
+                software.amazon.cryptography.dbesdk.structuredencryption.internal.CryptoAction.SIGN_ONLY);
+        }
+        return actions;
+    }
+
+    // A name is already configured (so cannot be auto-added as a signed beacon) if it has an
+    // attribute action, is an allowed-unsigned attribute, or begins with the unauthenticated
+    // prefix (transforms Index.dfy IsConfigured).
+    private static boolean isConfigured(DBEClientConfig config, String name) {
+        if (config.getAttributeActionsOnEncrypt().containsKey(name)) {
+            return true;
+        }
+        if (config.hasAllowedUnsignedAttributes() && config.getAllowedUnsignedAttributes().contains(name)) {
+            return true;
+        }
+        String prefix = config.getAllowedUnsignedAttributePrefix();
+        return prefix != null && name.startsWith(prefix);
     }
 
     /**

@@ -29,10 +29,9 @@ import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
 
 /**
- * A single configured DBE DDB-SDK transforms client stored in the
- * {@link TransformsClientRegistry}. On the Java server this wraps a real
- * {@link software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms}
- * (see {@code RealTransformsClient}).
+ * A single configured transforms client stored in the
+ * {@link TransformsClientRegistry}, backed by the native DB-ESDK transforms
+ * implementation once it exists.
  *
  * <p>Unlike the {@link DbesdkClient} item encryptor, which operates on an
  * already-materialized item map, the transforms client operates on real AWS SDK
