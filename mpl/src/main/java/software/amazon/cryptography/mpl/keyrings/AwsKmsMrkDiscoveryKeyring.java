@@ -7,11 +7,15 @@ import java.util.List;
 import java.util.Optional;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.KmsDataKeys;
 
 /**
  * Discovery keyring for {@code region}: decrypts data keys under single-Region keys in that Region
@@ -31,8 +35,11 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   private final List<String> grantTokens;
   private final String region;
 
-  private AwsKmsMrkDiscoveryKeyring() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private AwsKmsMrkDiscoveryKeyring(KmsClient kmsClient, DiscoveryFilter discoveryFilter, List<String> grantTokens, String region) {
+    this.kmsClient = kmsClient;
+    this.discoveryFilter = discoveryFilter;
+    this.grantTokens = grantTokens;
+    this.region = region;
   }
 
   public static Builder builder() {
@@ -62,7 +69,11 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   /** Always throws {@link ValidationException}. */
   @Override
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    EncryptionMaterials materials = request.materials();
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#onencrypt
+    //= type=implication
+    //# This function MUST fail.
+    throw new ValidationException(AwsKmsDiscoveryKeyring.ENCRYPT_UNSUPPORTED);
   }
 
   /**
@@ -80,7 +91,33 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   //# (../structures.md#encrypted-data-key) as input.
   @Override
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    DecryptionMaterials materials = request.materials();
+    List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
+    return AwsKmsDiscoveryKeyring.decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, this::keyIdFor);
+  }
+
+  // DiscoveryMatch and ToStringForRegion: a single-Region key must be in this Region; a multi-Region key is used through its replica here.
+  private String keyIdFor(AwsKmsIdentifier arn) {
+    if (!AwsKmsDiscoveryKeyring.passes(discoveryFilter, arn)) {
+      return null;
+    }
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# - `KeyId`: If the provider info’s resource type is `key` and its
+    //# resource is a multi-Region key then a new ARN MUST be created
+    //# where the region part MUST equal the AWS KMS client region and
+    //# every other part MUST equal the provider info.
+    if (arn.isMultiRegion()) {
+      return arn.toArnString(region);
+    }
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# - If the provider info is not [identified as a multi-Region key](aws-
+    //# kms-key-arn.md#identifying-an-aws-kms-multi-region-key), then the
+    //# provider info’sRegion MUST match the AWS KMS client region.
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# Otherwise it MUST
+    //# be the provider info.
+    return arn.region().equals(region) ? arn.toString() : null;
   }
 
   /**
@@ -92,6 +129,11 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   //= type=implication
   //# On initialization the keyring MUST accept the following parameters:
 
+  //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#initialization
+  //= type=exception
+  //= reason=The Region of a caller-supplied KMS client is not known to the builder, so the configured region is not compared with it.
+  //# The keyring SHOULD fail initialization if the provided region does not match the
+  //# region of the KMS client.
   public static final class Builder {
 
     private KmsClient kmsClient;
@@ -125,7 +167,12 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
     }
 
     public AwsKmsMrkDiscoveryKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#initialization
+      //# They keyring MUST fail initialization if any required parameters are
+      //# missing or null.
+      KeyringNames.requireSet(kmsClient, "kmsClient");
+      KeyringNames.requireSet(region, "region");
+      return new AwsKmsMrkDiscoveryKeyring(kmsClient, discoveryFilter, KmsDataKeys.grantTokens(grantTokens), region);
     }
   }
 }

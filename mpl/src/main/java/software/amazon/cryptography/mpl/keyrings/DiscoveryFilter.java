@@ -51,7 +51,7 @@ public final class DiscoveryFilter {
 
   /** Whether a key in {@code partition} and {@code account} passes the filter. */
   boolean matches(String keyPartition, String keyAccount) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return partition.equals(keyPartition) && accountIds.contains(keyAccount);
   }
 
   @Override

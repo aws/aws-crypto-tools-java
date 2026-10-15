@@ -11,6 +11,7 @@ import software.amazon.cryptography.materialproviders.internal.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.internal.Boundary;
 import software.amazon.cryptography.materialproviders.internal.Buffers;
 import software.amazon.cryptography.materialproviders.internal.CommitmentPolicies;
+import software.amazon.cryptography.materialproviders.internal.CustomClientSupplier;
 import software.amazon.cryptography.materialproviders.internal.CustomCmm;
 import software.amazon.cryptography.materialproviders.internal.CustomKeyring;
 import software.amazon.cryptography.materialproviders.internal.Errors;
@@ -19,14 +20,22 @@ import software.amazon.cryptography.materialproviders.internal.NativeCmm;
 import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateDefaultClientSupplierInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
 import software.amazon.cryptography.materialproviders.model.CreateMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawRsaKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRequiredEncryptionContextCMMInput;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
+import software.amazon.cryptography.materialproviders.model.DiscoveryFilter;
 import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.InitializeDecryptionMaterialsInput;
 import software.amazon.cryptography.materialproviders.model.InitializeEncryptionMaterialsInput;
@@ -45,8 +54,14 @@ import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkMultiKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
 import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
@@ -260,12 +275,95 @@ public class MaterialProviders {
     );
   }
 
+  public IKeyring CreateAwsKmsDiscoveryKeyring(CreateAwsKmsDiscoveryKeyringInput input) {
+    return create(() ->
+      AwsKmsDiscoveryKeyring
+        .builder()
+        .kmsClient(input.kmsClient())
+        .discoveryFilter(discoveryFilter(input.discoveryFilter()))
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsMrkDiscoveryKeyring(CreateAwsKmsMrkDiscoveryKeyringInput input) {
+    return create(() ->
+      AwsKmsMrkDiscoveryKeyring
+        .builder()
+        .kmsClient(input.kmsClient())
+        .discoveryFilter(discoveryFilter(input.discoveryFilter()))
+        .grantTokens(input.grantTokens())
+        .region(input.region())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsMultiKeyring(CreateAwsKmsMultiKeyringInput input) {
+    return create(() ->
+      AwsKmsMultiKeyring
+        .builder()
+        .generator(input.generator())
+        .kmsKeyIds(input.kmsKeyIds())
+        .clientSupplier(clientSupplier(input.clientSupplier()))
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsMrkMultiKeyring(CreateAwsKmsMrkMultiKeyringInput input) {
+    return create(() ->
+      AwsKmsMrkMultiKeyring
+        .builder()
+        .generator(input.generator())
+        .kmsKeyIds(input.kmsKeyIds())
+        .clientSupplier(clientSupplier(input.clientSupplier()))
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsDiscoveryMultiKeyring(CreateAwsKmsDiscoveryMultiKeyringInput input) {
+    return create(() ->
+      AwsKmsDiscoveryMultiKeyring
+        .builder()
+        .regions(input.regions())
+        .discoveryFilter(discoveryFilter(input.discoveryFilter()))
+        .clientSupplier(clientSupplier(input.clientSupplier()))
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsMrkDiscoveryMultiKeyring(CreateAwsKmsMrkDiscoveryMultiKeyringInput input) {
+    return create(() ->
+      AwsKmsMrkDiscoveryMultiKeyring
+        .builder()
+        .regions(input.regions())
+        .discoveryFilter(discoveryFilter(input.discoveryFilter()))
+        .clientSupplier(clientSupplier(input.clientSupplier()))
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IClientSupplier CreateDefaultClientSupplier(CreateDefaultClientSupplierInput input) {
+    return CustomClientSupplier.toOld(software.amazon.cryptography.mpl.keyrings.ClientSupplier.defaultSupplier());
+  }
+
   private static IKeyring create(Supplier<software.amazon.cryptography.mpl.Keyring> build) {
     try {
       return new NativeKeyring(build.get());
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
     }
+  }
+
+  private static software.amazon.cryptography.mpl.keyrings.DiscoveryFilter discoveryFilter(DiscoveryFilter filter) {
+    return filter == null ? null : software.amazon.cryptography.mpl.keyrings.DiscoveryFilter.of(filter.accountIds(), filter.partition());
+  }
+
+  private static software.amazon.cryptography.mpl.keyrings.ClientSupplier clientSupplier(IClientSupplier supplier) {
+    return supplier == null ? null : CustomClientSupplier.of(supplier);
   }
 
   public interface Builder {

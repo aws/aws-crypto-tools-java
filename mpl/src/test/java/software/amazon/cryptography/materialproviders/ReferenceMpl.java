@@ -205,6 +205,9 @@ final class ReferenceMpl {
     if (value instanceof CryptographicMaterialsManager && ((CryptographicMaterialsManager) value).impl() instanceof Paired) {
       return rebuild(((CryptographicMaterialsManager) value).impl(), target);
     }
+    if (value instanceof ClientSupplier && ((ClientSupplier) value).impl() instanceof Paired) {
+      return rebuild(((ClientSupplier) value).impl(), target);
+    }
     if (target == loader()) {
       if (value instanceof Paired) {
         return ((Paired) value).reference();

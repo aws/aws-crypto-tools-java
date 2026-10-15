@@ -10,6 +10,8 @@ import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.internal.KmsDataKeys;
+import software.amazon.cryptography.mpl.internal.KmsMultiKeyrings;
 
 /**
  * Multi-Region-aware discovery keyrings in several Regions, tried in order; cannot encrypt.
@@ -26,9 +28,26 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
   private final DiscoveryFilter discoveryFilter;
   private final ClientSupplier clientSupplier;
   private final List<String> grantTokens;
+  private final KmsMultiKeyrings.Built built;
 
-  private AwsKmsMrkDiscoveryMultiKeyring() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private AwsKmsMrkDiscoveryMultiKeyring(Builder builder, List<String> grantTokens) {
+    this.regions = KmsMultiKeyrings.copy(builder.regions);
+    this.discoveryFilter = builder.discoveryFilter;
+    this.clientSupplier = builder.clientSupplier;
+    this.grantTokens = grantTokens;
+    this.built = KmsMultiKeyrings.discovery(
+      regions,
+      clientSupplier,
+      //= spec/framework/aws-kms/aws-kms-mrk-multi-keyrings.md#aws-kms-mrk-discovery-multi-keyring
+      //= type=implication
+      //# Then a set of [AWS KMS MRK Discovery Keyring](aws-kms-mrk-discovery-
+      //# keyring.md) MUST be created for each AWS KMS client by initializing
+      //# each keyring with
+      //# - The AWS KMS client
+      //# - The input discovery filter
+      //# - The input AWS KMS grant tokens
+      (client, region) -> AwsKmsMrkDiscoveryKeyring.builder().kmsClient(client).discoveryFilter(discoveryFilter).grantTokens(grantTokens).region(region).build()
+    );
   }
 
   public static Builder builder() {
@@ -62,18 +81,18 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
    */
   @Override
   public void close() {
-    throw new UnsupportedOperationException("not implemented yet");
+    built.close();
   }
 
   /** Always throws: discovery keyrings cannot encrypt. */
   @Override
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return built.keyring.onEncrypt(request);
   }
 
   @Override
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return built.keyring.onDecrypt(request);
   }
 
   /**
@@ -122,7 +141,7 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
 
     /** Gets each Region's client from the client supplier. */
     public AwsKmsMrkDiscoveryMultiKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      return new AwsKmsMrkDiscoveryMultiKeyring(this, KmsDataKeys.grantTokens(grantTokens));
     }
   }
 }

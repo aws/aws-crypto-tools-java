@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.awssdk.services.kms.KmsClientBuilder;
+import software.amazon.cryptography.mpl.internal.UserAgent;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 
 /**
@@ -10,6 +19,9 @@ import software.amazon.cryptography.mpl.exceptions.ValidationException;
  * Thread-safe; {@link #close()} closes the clients.
  */
 public final class DefaultClientSupplier implements ClientSupplier, AutoCloseable {
+
+  // Guarded by this, so close() cannot miss a client getClient is creating.
+  private final Map<String, KmsClient> clients = new HashMap<>();
 
   DefaultClientSupplier() {}
 
@@ -20,11 +32,30 @@ public final class DefaultClientSupplier implements ClientSupplier, AutoCloseabl
    */
   @Override
   public synchronized KmsClient getClient(String region) {
-    throw new UnsupportedOperationException("not implemented yet");
+    Objects.requireNonNull(region, "region");
+    return clients.computeIfAbsent(region, DefaultClientSupplier::create);
   }
 
   @Override
   public synchronized void close() {
-    throw new UnsupportedOperationException("not implemented yet");
+    List<KmsClient> created = new ArrayList<>(clients.values());
+    clients.clear();
+    for (KmsClient client : created) {
+      client.close();
+    }
+  }
+
+  private static KmsClient create(String region) {
+    KmsClientBuilder builder = KmsClient
+      .builder()
+      .overrideConfiguration(UserAgent.overrideConfiguration());
+    if (!region.isEmpty()) {
+      builder.region(Region.of(region));
+    }
+    try {
+      return builder.build();
+    } catch (SdkClientException e) {
+      throw new ValidationException(e.getMessage(), e);
+    }
   }
 }

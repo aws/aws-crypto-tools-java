@@ -10,6 +10,8 @@ import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.internal.KmsDataKeys;
+import software.amazon.cryptography.mpl.internal.KmsMultiKeyrings;
 
 /**
  * {@link AwsKmsMultiKeyring} whose keys treat multi-Region replicas as the same key when decrypting.
@@ -29,9 +31,31 @@ public final class AwsKmsMrkMultiKeyring implements Keyring, AutoCloseable {
   private final List<String> kmsKeyIds;
   private final ClientSupplier clientSupplier;
   private final List<String> grantTokens;
+  private final KmsMultiKeyrings.Built built;
 
-  private AwsKmsMrkMultiKeyring() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private AwsKmsMrkMultiKeyring(Builder builder, List<String> grantTokens) {
+    this.generator = builder.generator;
+    this.kmsKeyIds = KmsMultiKeyrings.copy(builder.kmsKeyIds);
+    this.clientSupplier = builder.clientSupplier;
+    this.grantTokens = grantTokens;
+    this.built = KmsMultiKeyrings.strict(
+      generator,
+      kmsKeyIds,
+      clientSupplier,
+      true,
+      //= spec/framework/aws-kms/aws-kms-mrk-multi-keyrings.md#aws-kms-mrk-multi-keyring
+      //= type=implication
+      //# If there is a generator input then the generator keyring MUST be a
+      //# [AWS KMS MRK Keyring](aws-kms-mrk-keyring.md) initialized with
+
+      //= spec/framework/aws-kms/aws-kms-mrk-multi-keyrings.md#aws-kms-mrk-multi-keyring
+      //= type=implication
+      //# If there is a set of child identifiers then a set of [AWS KMS MRK
+      //# Keyring](aws-kms-mrk-keyring.md) MUST be created for each AWS KMS key
+      //# identifier by initialized each keyring with
+      (client, keyId) -> AwsKmsMrkKeyring.builder().kmsKeyId(keyId).kmsClient(client).grantTokens(grantTokens).build(),
+      "generatorKeyring or child Keyrings needed to create a multi keyring"
+    );
   }
 
   public static Builder builder() {
@@ -65,17 +89,17 @@ public final class AwsKmsMrkMultiKeyring implements Keyring, AutoCloseable {
    */
   @Override
   public void close() {
-    throw new UnsupportedOperationException("not implemented yet");
+    built.close();
   }
 
   @Override
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return built.keyring.onEncrypt(request);
   }
 
   @Override
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return built.keyring.onDecrypt(request);
   }
 
   /**
@@ -115,7 +139,7 @@ public final class AwsKmsMrkMultiKeyring implements Keyring, AutoCloseable {
 
     /** Gets each key's client from the client supplier. */
     public AwsKmsMrkMultiKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      return new AwsKmsMrkMultiKeyring(this, KmsDataKeys.grantTokens(grantTokens));
     }
   }
 }

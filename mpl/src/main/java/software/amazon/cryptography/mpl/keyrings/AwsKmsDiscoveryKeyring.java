@@ -2,16 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.KmsDataKeys;
 
 /**
  * Decrypts data keys encrypted under any KMS key the caller may use in the client's Region; cannot encrypt.
@@ -24,12 +30,16 @@ import software.amazon.cryptography.mpl.exceptions.ValidationException;
 //# MUST implement that [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
 public final class AwsKmsDiscoveryKeyring implements Keyring {
 
+  static final String ENCRYPT_UNSUPPORTED = "Encryption is not supported with a Discovery Keyring.";
+
   private final KmsClient kmsClient;
   private final DiscoveryFilter discoveryFilter;
   private final List<String> grantTokens;
 
-  private AwsKmsDiscoveryKeyring() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private AwsKmsDiscoveryKeyring(KmsClient kmsClient, DiscoveryFilter discoveryFilter, List<String> grantTokens) {
+    this.kmsClient = kmsClient;
+    this.discoveryFilter = discoveryFilter;
+    this.grantTokens = grantTokens;
   }
 
   public static Builder builder() {
@@ -54,7 +64,11 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
   /** Always throws {@link ValidationException}. */
   @Override
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    EncryptionMaterials materials = request.materials();
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#onencrypt
+    //= type=implication
+    //# This function MUST fail.
+    throw new ValidationException(ENCRYPT_UNSUPPORTED);
   }
 
   /**
@@ -70,7 +84,122 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
   //# a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
   @Override
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    DecryptionMaterials materials = request.materials();
+    List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
+    return decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, arn -> passes(discoveryFilter, arn) ? arn.toString() : null);
+  }
+
+  //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+  //# - If a discovery filter is configured, its partition and the provider info partition MUST match.
+
+  //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+  //# - If a discovery filter is configured, its set of accounts MUST contain the provider info account.
+
+  //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+  //# - If a discovery filter is configured, its partition and the
+  //# provider info partition MUST match.
+
+  //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+  //# - If a discovery filter is configured, its set of accounts MUST
+  //# contain the provider info account.
+  static boolean passes(DiscoveryFilter discoveryFilter, AwsKmsIdentifier arn) {
+    return discoveryFilter == null || discoveryFilter.matches(arn.partition(), arn.account());
+  }
+
+  /**
+   * The OnDecrypt of both discovery keyrings.
+   * {@code keyIdFor} gives the key id to decrypt an encrypted data key with, or null to skip it.
+   */
+  static DecryptionMaterials decrypt(
+    KmsClient kmsClient,
+    List<String> grantTokens,
+    DecryptionMaterials materials,
+    List<EncryptedDataKey> encryptedDataKeys,
+    Function<AwsKmsIdentifier, String> keyIdFor
+  ) {
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+    //= type=implication
+    //# If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key,
+    //# they keyring MUST fail and MUST NOT modify the [decryption materials](../structures.md#decryption-materials).
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //= type=implication
+    //# If the [decryption materials](../structures.md#decryption-materials)
+    //# already contained a valid plaintext data key, they keyring MUST fail
+    //# and MUST NOT modify the [decryption materials]
+    //# (../structures.md#decryption-materials).
+    KmsDataKeys.requireNoPlaintextDataKey(materials);
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+    //# The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# The set of encrypted data keys MUST first be filtered to match this
+    //# keyring’s configuration.
+    List<KmsDataKeys.Candidate> candidates = new ArrayList<>();
+    for (EncryptedDataKey edk : encryptedDataKeys) {
+      //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+      //# - Its provider ID MUST exactly match the value “aws-kms”.
+
+      //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+      //# - Its provider ID MUST exactly match the value “aws-kms”.
+      if (!edk.keyProviderId().equals(KmsDataKeys.PROVIDER_ID)) {
+        continue;
+      }
+      //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+      //# - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key
+      //# -arn.md#a-valid-aws-kms-arn) with a resource type of `key` or
+      //# OnDecrypt MUST fail.
+
+      //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+      //# - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-
+      //# arn.md#a-valid-aws-kms-arn) with a resource type of `key` or
+      //# OnDecrypt MUST fail.
+      AwsKmsIdentifier arn = KmsDataKeys.providerInfoArn(edk);
+      KmsDataKeys.requireKeyResource(arn);
+      String keyId = keyIdFor.apply(arn);
+      if (keyId != null) {
+        candidates.add(new KmsDataKeys.Candidate(edk, keyId));
+      }
+    }
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+    //# For each encrypted data key in the filtered set, one at a time, the OnDecrypt MUST attempt to decrypt the data key.
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# For each encrypted data key in the filtered set, one at a time, the
+    //# OnDecrypt MUST attempt to decrypt the data key.
+
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+    //# If the response does not satisfy these requirements
+    //# then an error is collected and the next encrypted data key in the filtered set MUST be attempted.
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# If the response does not satisfies these requirements then an error
+    //# is collected and the next encrypted data key in the filtered set MUST
+    //# be attempted.
+
+    //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+    //# If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    //# then it MUST yield an error that includes all collected errors.
+
+    //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+    //# If OnDecrypt fails to successfully decrypt any [encrypted data key]
+    //# (../structures.md#encrypted-data-key), then it MUST yield an error that
+    //# includes all collected errors.
+    return KmsDataKeys.firstSuccess(
+      candidates,
+      //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt
+      //= type=implication
+      //# To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+      //# OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+
+      //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#ondecrypt
+      //= type=implication
+      //# To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+      //# OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+      candidate -> KmsDataKeys.decryptAs(kmsClient, candidate, grantTokens, materials),
+      encryptedDataKeys,
+      materials.algorithmSuite()
+    );
   }
 
   /**
@@ -107,7 +236,10 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
     }
 
     public AwsKmsDiscoveryKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#initialization
+      //# The AWS KMS SDK client MUST NOT be null.
+      KeyringNames.requireSet(kmsClient, "kmsClient");
+      return new AwsKmsDiscoveryKeyring(kmsClient, discoveryFilter, KmsDataKeys.grantTokens(grantTokens));
     }
   }
 }
