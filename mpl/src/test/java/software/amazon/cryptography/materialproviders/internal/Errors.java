@@ -17,7 +17,9 @@ import software.amazon.cryptography.mpl.internal.keystore.KeyStoreOperations;
 import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
 import software.amazon.cryptography.mpl.internal.primitives.Ecdsa;
 import software.amazon.cryptography.mpl.internal.primitives.Rsa;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.primitives.AtomicPrimitives;
+import software.amazon.cryptography.primitives.model.AwsCryptographicPrimitivesError;
 import software.amazon.cryptography.primitives.model.OpaqueError;
 
 /** Test adapter: native exceptions as the old API threw them. */
@@ -57,6 +59,10 @@ public final class Errors {
         if (!(e instanceof CryptographicException && e.getCause() instanceof GeneralSecurityException)) {
           throw new IllegalStateException("no old-API mapping for a failure thrown in " + origin, e);
         }
+      }
+      // The hierarchical keyring checks the branch key length where the Dafny-based MPL left it to KdfCounterMode's input check.
+      if (origin.equals(AwsKmsHierarchicalKeyring.class.getName()) && e.getMessage().equals("Kdf in Counter Mode input is invalid.")) {
+        return AwsCryptographicPrimitivesError.builder().message(e.getMessage()).build();
       }
       // A key store failure inside a keyring surfaced as the key store's own error.
       if (origin.startsWith(KEY_STORE_INTERNALS)) {

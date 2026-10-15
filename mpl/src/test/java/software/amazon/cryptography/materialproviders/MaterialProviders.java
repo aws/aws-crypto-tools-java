@@ -12,6 +12,7 @@ import software.amazon.cryptography.materialproviders.internal.Boundary;
 import software.amazon.cryptography.materialproviders.internal.Buffers;
 import software.amazon.cryptography.materialproviders.internal.CacheAdapter;
 import software.amazon.cryptography.materialproviders.internal.CommitmentPolicies;
+import software.amazon.cryptography.materialproviders.internal.CustomBranchKeyIdSupplier;
 import software.amazon.cryptography.materialproviders.internal.CustomClientSupplier;
 import software.amazon.cryptography.materialproviders.internal.CustomCmm;
 import software.amazon.cryptography.materialproviders.internal.CustomKeyring;
@@ -20,10 +21,12 @@ import software.amazon.cryptography.materialproviders.internal.Materials;
 import software.amazon.cryptography.materialproviders.internal.NativeCache;
 import software.amazon.cryptography.materialproviders.internal.NativeCmm;
 import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
+import software.amazon.cryptography.materialproviders.internal.SharedCaches;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryMultiKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDiscoveryMultiKeyringInput;
@@ -62,6 +65,7 @@ import software.amazon.cryptography.mpl.internal.cache.CacheEngine;
 import software.amazon.cryptography.mpl.internal.cache.Caches;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryMultiKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
@@ -222,6 +226,28 @@ public class MaterialProviders {
           .privateKey(input.privateKey() == null ? null : SecretBytes.copyOf(Buffers.toArray(input.privateKey())))
           .build()
       );
+    } catch (RuntimeException e) {
+      throw Errors.toOld(e);
+    }
+  }
+
+  /**
+   * A hierarchical keyring on the native key store behind {@code keyStore}.
+   * A {@code Shared} cache from {@link #CreateCryptographicMaterialsCache} keeps its entries; see {@link SharedCaches}.
+   */
+  public IKeyring CreateAwsKmsHierarchicalKeyring(CreateAwsKmsHierarchicalKeyringInput input) {
+    try {
+      AwsKmsHierarchicalKeyring.Builder builder = AwsKmsHierarchicalKeyring
+        .builder()
+        .keyStore(input.keyStore().impl())
+        .ttlSeconds(input.ttlSeconds())
+        .branchKeyId(input.branchKeyId())
+        .branchKeyIdSupplier(input.branchKeyIdSupplier() == null ? null : CustomBranchKeyIdSupplier.of(input.branchKeyIdSupplier()))
+        .partitionId(input.partitionId());
+      if (input.cache() != null) {
+        builder.cache(CacheAdapter.cacheType(input.cache(), SharedCaches::toNative));
+      }
+      return new NativeKeyring(builder.build());
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
     }
