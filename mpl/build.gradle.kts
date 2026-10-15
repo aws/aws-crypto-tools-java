@@ -30,9 +30,10 @@ val referenceMplVersion: String by project
 val referenceMpl: Configuration by configurations.creating
 
 dependencies {
-    // The copied old-API model classes take KmsClient and DynamoDbClient.
-    testImplementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
-    testImplementation("software.amazon.awssdk:kms")
+    // The KMS keyrings take a KmsClient.
+    api(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
+    api("software.amazon.awssdk:kms")
+    // The copied old-API model classes take a DynamoDbClient.
     testImplementation("software.amazon.awssdk:dynamodb")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
