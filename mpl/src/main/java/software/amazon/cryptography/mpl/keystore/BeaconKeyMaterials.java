@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
 
 //= spec/framework/structures.md#structure-4
 //= type=implication
@@ -23,6 +24,10 @@ import software.amazon.cryptography.mpl.SecretBytes;
 //# - [HMAC Keys](#hmac-keys)
 /** The beacon key of a branch key, used by the AWS Database Encryption SDK. Immutable. */
 public final class BeaconKeyMaterials {
+
+  static {
+    KeyMaterialsAccess.registerBeaconKey(BeaconKeyMaterials::new);
+  }
 
   private final String beaconKeyIdentifier;
   private final EncryptionContext encryptionContext;

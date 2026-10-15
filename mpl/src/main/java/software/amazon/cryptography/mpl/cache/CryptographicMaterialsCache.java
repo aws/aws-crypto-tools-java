@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
+import java.util.Objects;
 import java.util.Optional;
+import software.amazon.cryptography.mpl.internal.cache.BuiltInCache;
+import software.amazon.cryptography.mpl.internal.cache.CacheClock;
+import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
+import software.amazon.cryptography.mpl.internal.cache.Caches;
 
 /**
  * Caches branch keys and beacon keys. Create one with {@link #create(CacheType)} to share it between keyrings
@@ -21,6 +26,12 @@ public interface CryptographicMaterialsCache {
   //= spec/framework/cryptographic-materials-cache.md#put-cache-entry
   //= type=implication
   //# This operation MUST NOT return the inserted cache entry.
+  //
+  //= spec/framework/cryptographic-materials-cache.md#put-cache-entry
+  //= type=exception
+  //= reason=Cache entries carry no usage metadata; the branch key and beacon key caches never read it.
+  //# The cache entry MUST include all [usage metadata](#usage-metadata)
+  //# since this information can not be updated after the put operation.
   void put(CacheKey key, CacheEntry entry);
 
   void remove(CacheKey key);
@@ -30,6 +41,10 @@ public interface CryptographicMaterialsCache {
    * The {@link CacheType#singleThreaded} cache is the one built-in cache that is not thread-safe.
    */
   static CryptographicMaterialsCache create(CacheType cacheType) {
-    throw new UnsupportedOperationException("not implemented yet");
+    CacheSpec spec = CacheSpec.of(Objects.requireNonNull(cacheType, "cacheType"));
+    if (spec.kind == CacheType.Kind.SHARED) {
+      return spec.shared;
+    }
+    return new BuiltInCache(Caches.engine(cacheType, CacheClock.SYSTEM));
   }
 }

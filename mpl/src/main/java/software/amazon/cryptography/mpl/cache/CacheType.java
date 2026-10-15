@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
+import java.util.Objects;
+import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
+
 /**
  * Which cache a hierarchical keyring uses: a private cache it builds from these settings, or a shared instance.
  * Create one with the static methods. Immutable.
@@ -18,6 +21,10 @@ package software.amazon.cryptography.mpl.cache;
  * {@link software.amazon.cryptography.mpl.exceptions.ValidationException} otherwise.
  */
 public abstract class CacheType {
+
+  static {
+    CacheSpec.register(type -> ((Variant) type).spec);
+  }
 
   /** The kinds, for {@code switch}. More kinds may be added; include a {@code default} branch. */
   public enum Kind {
@@ -37,12 +44,24 @@ public abstract class CacheType {
    * {@link StormTrackingCache.Builder}'s defaults give the same durations in {@link TimeUnits#SECONDS} (10, 1, and 10).
    */
   public static CacheType defaultCache(int entryCapacity) {
-    throw new UnsupportedOperationException("not implemented yet");
+    // StormTracker.dfy DefaultStorm: the default tuning, expressed in milliseconds.
+    StormTrackingCache settings = StormTrackingCache
+      .builder()
+      .entryCapacity(entryCapacity)
+      .entryPruningTailSize(1)
+      .gracePeriod(10 * 1000)
+      .graceInterval(1 * 1000)
+      .fanOut(20)
+      .inFlightTtl(10 * 1000)
+      .sleepMilli(20)
+      .timeUnits(TimeUnits.MILLISECONDS)
+      .build();
+    return new Variant(CacheSpec.stormTracking(Kind.DEFAULT, settings));
   }
 
   /** Caches nothing: every operation reads the key store. */
   public static CacheType noCache() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return new Variant(CacheSpec.local(Kind.NO_CACHE, 0, 1));
   }
 
   /** An LRU cache for use from one thread at a time. */
@@ -57,36 +76,52 @@ public abstract class CacheType {
   //#
   //# - [Entry Pruning Tail Size](#entry-pruning-tail-size)
   public static CacheType singleThreaded(int entryCapacity) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return singleThreaded(entryCapacity, StormTrackingCache.DEFAULT_ENTRY_PRUNING_TAIL_SIZE);
   }
 
   /** {@link #singleThreaded(int)} that prunes {@code entryPruningTailSize} expired entries per pass instead of 1. */
   public static CacheType singleThreaded(int entryCapacity, int entryPruningTailSize) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return local(Kind.SINGLE_THREADED, entryCapacity, entryPruningTailSize);
   }
 
   /** A thread-safe LRU cache. */
   public static CacheType multiThreaded(int entryCapacity) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return multiThreaded(entryCapacity, StormTrackingCache.DEFAULT_ENTRY_PRUNING_TAIL_SIZE);
   }
 
   /** {@link #multiThreaded(int)} that prunes {@code entryPruningTailSize} expired entries per pass instead of 1. */
   public static CacheType multiThreaded(int entryCapacity, int entryPruningTailSize) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return local(Kind.MULTI_THREADED, entryCapacity, entryPruningTailSize);
   }
 
   public static CacheType stormTracking(StormTrackingCache settings) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return new Variant(CacheSpec.stormTracking(Kind.STORM_TRACKING, Objects.requireNonNull(settings, "settings")));
   }
 
   /** An existing cache, shared with every keyring given the same instance; entries are separated by partition id. */
   public static CacheType shared(CryptographicMaterialsCache cache) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return new Variant(CacheSpec.shared(Objects.requireNonNull(cache, "cache")));
   }
 
   public abstract Kind kind();
 
   private static CacheType local(Kind kind, int entryCapacity, int entryPruningTailSize) {
-    throw new UnsupportedOperationException("not implemented yet");
+    StormTrackingCache.atLeastOne("entryCapacity", entryCapacity);
+    StormTrackingCache.atLeastOne("entryPruningTailSize", entryPruningTailSize);
+    return new Variant(CacheSpec.local(kind, entryCapacity, entryPruningTailSize));
+  }
+
+  private static final class Variant extends CacheType {
+
+    private final CacheSpec spec;
+
+    Variant(CacheSpec spec) {
+      this.spec = spec;
+    }
+
+    @Override
+    public Kind kind() {
+      return spec.kind;
+    }
   }
 }

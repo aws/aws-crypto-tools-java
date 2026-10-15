@@ -10,12 +10,14 @@ import java.util.function.Supplier;
 import software.amazon.cryptography.materialproviders.internal.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.internal.Boundary;
 import software.amazon.cryptography.materialproviders.internal.Buffers;
+import software.amazon.cryptography.materialproviders.internal.CacheAdapter;
 import software.amazon.cryptography.materialproviders.internal.CommitmentPolicies;
 import software.amazon.cryptography.materialproviders.internal.CustomClientSupplier;
 import software.amazon.cryptography.materialproviders.internal.CustomCmm;
 import software.amazon.cryptography.materialproviders.internal.CustomKeyring;
 import software.amazon.cryptography.materialproviders.internal.Errors;
 import software.amazon.cryptography.materialproviders.internal.Materials;
+import software.amazon.cryptography.materialproviders.internal.NativeCache;
 import software.amazon.cryptography.materialproviders.internal.NativeCmm;
 import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
@@ -28,6 +30,7 @@ import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDisco
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateCryptographicMaterialsCacheInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultClientSupplierInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
 import software.amazon.cryptography.materialproviders.model.CreateMultiKeyringInput;
@@ -54,6 +57,9 @@ import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.cache.CacheClock;
+import software.amazon.cryptography.mpl.internal.cache.CacheEngine;
+import software.amazon.cryptography.mpl.internal.cache.Caches;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
@@ -355,6 +361,34 @@ public class MaterialProviders {
       return new NativeKeyring(build.get());
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
+    }
+  }
+
+  /**
+   * A built-in cache: Default (storm tracking, timed in milliseconds), No, SingleThreaded, MultiThreaded,
+   * or StormTracking (timed in seconds unless timeUnits says otherwise).
+   *
+   * @throws AwsCryptographicMaterialProvidersException for inconsistent storm-tracking settings, or a Shared cache
+   */
+  public ICryptographicMaterialsCache CreateCryptographicMaterialsCache(CreateCryptographicMaterialsCacheInput input) {
+    return CryptographicMaterialsCache.wrap(new NativeCache(cacheEngine(input, CacheClock.SYSTEM)));
+  }
+
+  /** The engine behind {@link #CreateCryptographicMaterialsCache}, on a given clock. */
+  static CacheEngine<NativeCache.Entry> cacheEngine(CreateCryptographicMaterialsCacheInput input, CacheClock clock) {
+    try {
+      // The Dafny-based MPL rejected a shared cache here, where the native create returns it;
+      // so which native instance stands in for the customer's does not matter.
+      software.amazon.cryptography.mpl.cache.CacheType type = CacheAdapter.cacheType(
+        input.cache(),
+        shared -> software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache.create(software.amazon.cryptography.mpl.cache.CacheType.noCache())
+      );
+      if (type.kind() == software.amazon.cryptography.mpl.cache.CacheType.Kind.SHARED) {
+        throw new ValidationException("CreateCryptographicMaterialsCache should never be called with Shared CacheType.");
+      }
+      return Caches.engine(type, clock);
+    } catch (ValidationException e) {
+      throw AwsCryptographicMaterialProvidersException.builder().message(e.getMessage()).build();
     }
   }
 

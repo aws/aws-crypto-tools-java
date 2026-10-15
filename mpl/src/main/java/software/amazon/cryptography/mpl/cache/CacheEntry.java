@@ -12,6 +12,21 @@ import software.amazon.cryptography.mpl.keystore.BranchKeyMaterials;
  * Cached materials with their lifetime: a branch key (hierarchical keyring)
  * or a beacon key (AWS Database Encryption SDK searchable encryption). Immutable.
  */
+//= spec/framework/cryptographic-materials-cache.md#cache-entry
+//= type=exception
+//= reason=A cache entry holds materials, creation time, and expiry time but no usage metadata; the branch key and beacon key caches never read it.
+//# A cache entry represents an entry in the cryptographic materials cache
+//# and MUST have the following information.
+//#
+//# - [Materials](#materials)
+//# - [Creation Time](#creation-time)
+//# - [Expiry Time](#expiry-time)
+//# - [Usage Metadata](#usage-metadata)
+//
+//= spec/framework/cryptographic-materials-cache.md#usage-metadata
+//= type=exception
+//= reason=Cache entries carry no usage metadata, so there is nothing to update.
+//# Updating usage metadata SHOULD be atomic.
 public final class CacheEntry {
 
   private final BranchKeyMaterials branchKeyMaterials;

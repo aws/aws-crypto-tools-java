@@ -5,6 +5,7 @@ package software.amazon.cryptography.mpl.keystore;
 import java.util.Objects;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
 
 //= spec/framework/structures.md#structure-3
 //= type=implication
@@ -16,6 +17,10 @@ import software.amazon.cryptography.mpl.SecretBytes;
 //# - [Encryption Context](#encryption-context-3)
 /** One version of a branch key. Immutable. */
 public final class BranchKeyMaterials {
+
+  static {
+    KeyMaterialsAccess.registerBranchKey(BranchKeyMaterials::new);
+  }
 
   private final String branchKeyIdentifier;
   private final String branchKeyVersion;

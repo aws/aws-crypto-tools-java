@@ -181,7 +181,43 @@ public final class StormTrackingCache {
 
     /** @throws ValidationException if a number is below 1 or the times are inconsistent */
     public StormTrackingCache build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      if (entryCapacity == null) {
+        throw new ValidationException("Missing value for required field `entryCapacity`");
+      }
+      atLeastOne("entryCapacity", entryCapacity);
+      atLeastOne("entryPruningTailSize", entryPruningTailSize);
+      atLeastOne("gracePeriod", gracePeriod);
+      atLeastOne("graceInterval", graceInterval);
+      atLeastOne("fanOut", fanOut);
+      atLeastOne("inFlightTTL", inFlightTtl);
+      atLeastOne("sleepMilli", sleepMilli);
+      if (!(graceInterval <= gracePeriod && inFlightTtl <= gracePeriod && graceInterval <= inFlightTtl)) {
+        throw new ValidationException(inconsistentMessage());
+      }
+      return new StormTrackingCache(this);
+    }
+
+    // Text from StormTracker.dfy BadCacheMsg. It names only the first two rules,
+    // so graceInterval > inFlightTtl alone yields just the prefix.
+    private String inconsistentMessage() {
+      String message = "For a StormCache : ";
+      if (!(graceInterval <= gracePeriod)) {
+        message +=
+          "graceInterval must not exceed gracePeriod, yet configuration has graceInterval=" + graceInterval +
+          " and gracePeriod=" + gracePeriod + ". ";
+      }
+      if (!(inFlightTtl <= gracePeriod)) {
+        message +=
+          "inFlightTTL must not exceed gracePeriod, yet configuration has inFlightTTL=" + inFlightTtl +
+          " and gracePeriod=" + gracePeriod + ". ";
+      }
+      return message;
+    }
+  }
+
+  static void atLeastOne(String field, int value) {
+    if (value < 1) {
+      throw new ValidationException("`" + field + "` must be greater than or equal to 1");
     }
   }
 }
