@@ -5,9 +5,12 @@ package software.amazon.cryptography.mpl;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.function.Function;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.Destroyable;
+import software.amazon.cryptography.mpl.internal.SecretBytesAccess;
+import software.amazon.cryptography.mpl.internal.primitives.Randoms;
 
 /**
  * Secret key material: plaintext data keys, signing keys, wrapping keys, branch keys.
@@ -26,6 +29,18 @@ import javax.security.auth.Destroyable;
  * {@link #contentEquals}, which runs in constant time. Thread-safe.
  */
 public final class SecretBytes implements Destroyable, AutoCloseable {
+
+  static {
+    SecretBytesAccess.register(
+      new SecretBytesAccess.Reader() {
+        @Override
+        public <R> R apply(SecretBytes secret, Function<byte[], R> use) {
+          secret.checkLive();
+          return use.apply(secret.bytes);
+        }
+      }
+    );
+  }
 
   private final byte[] bytes;
   private volatile boolean destroyed;
@@ -47,7 +62,7 @@ public final class SecretBytes implements Destroyable, AutoCloseable {
 
   /** {@code length} bytes from a SecureRandom. */
   public static SecretBytes random(int length) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return new SecretBytes(Randoms.generate(length));
   }
 
   public int length() {

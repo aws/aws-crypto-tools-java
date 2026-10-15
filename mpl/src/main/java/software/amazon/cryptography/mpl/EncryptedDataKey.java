@@ -20,6 +20,18 @@ import software.amazon.cryptography.mpl.internal.Utf8;
 //# This specification uses the terms "encrypt" and "decrypt" for simplicity,
 //# but the actual process by which a key provider obtains the plaintext data key from the ciphertext
 //# and vice versa MAY be any reversible operation, though we expect that most will use encryption.
+//
+//= spec/framework/structures.md#structure
+//= type=exception
+//= reason=How the ciphertext relates to the data key is the keyring's choice; this type does not constrain it.
+//# This specification uses the terms "encrypt" and "decrypt" for simplicity,
+//# but the actual process by which a key provider obtains the plaintext data key from the ciphertext
+//# and vice versa MAY be any reversible operation, though we expect that most will use encryption.
+//
+//= spec/framework/structures.md#ciphertext
+//= type=exception
+//= reason=Only the built-in keyrings can be held to this; a custom keyring may produce any ciphertext.
+//# Some key provider MUST be capable of deterministically obtaining the plaintext key from the ciphertext.
 /**
  * A data key encrypted by one keyring, as stored in a message.
  * Immutable; {@code equals} compares all three fields; {@code toString} shows the provider id and field lengths.

@@ -9,12 +9,23 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.CanonicalEncryptionContext;
 import software.amazon.cryptography.mpl.internal.Utf8;
 
 //= spec/framework/structures.md#structure-1
 //= type=implication
 //# The encryption context is a key-value mapping of arbitrary, non-secret, UTF-8 encoded strings.
 //# It is used during [encryption](../client-apis/encrypt.md) and [decryption](../client-apis/decrypt.md) to provide additional authenticated data (AAD).
+//
+//= spec/framework/structures.md#structure-1
+//= type=exception
+//= reason=This is guidance on what callers store; the library cannot check it.
+//# Users SHOULD use the encryption context to store:
+//#
+//# - Non-secret data that MUST remain associated with the [message](../data-format/message.md) ciphertext.
+//# - Data that is useful in logging and tracking, such as data about the file type, purpose, or ownership.
+//#
+//# Users MUST NOT use the encryption context to store secret data.
 /**
  * An encryption context: non-secret key-value pairs bound to a message as additional authenticated data.
  *
@@ -89,7 +100,7 @@ public final class EncryptionContext extends AbstractMap<String, String> {
    * @throws ValidationException if the context has 2^16 or more pairs, or a key or value of 2^16 or more bytes
    */
   public byte[] canonicalBytes() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return CanonicalEncryptionContext.serialize(this);
   }
 
   /** This context with {@code key} set to {@code value}. */
