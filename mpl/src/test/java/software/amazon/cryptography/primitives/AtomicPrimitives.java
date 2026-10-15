@@ -5,9 +5,50 @@ package software.amazon.cryptography.primitives;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.Objects;
+import software.amazon.cryptography.mpl.AlgorithmSuite;
+import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
+import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
+import software.amazon.cryptography.mpl.internal.primitives.Ecdsa;
+import software.amazon.cryptography.mpl.internal.primitives.Rsa;
+import software.amazon.cryptography.mpl.internal.primitives.RsaKeyGeneration;
+import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.mpl.keyrings.PaddingScheme;
+import software.amazon.cryptography.primitives.model.CompressPublicKeyInput;
+import software.amazon.cryptography.primitives.model.CompressPublicKeyOutput;
+import software.amazon.cryptography.primitives.model.DecompressPublicKeyInput;
+import software.amazon.cryptography.primitives.model.DecompressPublicKeyOutput;
+import software.amazon.cryptography.primitives.model.DeriveSharedSecretInput;
+import software.amazon.cryptography.primitives.model.DeriveSharedSecretOutput;
+import software.amazon.cryptography.primitives.model.ECCPrivateKey;
+import software.amazon.cryptography.primitives.model.ECCPublicKey;
+import software.amazon.cryptography.primitives.model.ECDHCurveSpec;
+import software.amazon.cryptography.primitives.model.ECDSASignInput;
+import software.amazon.cryptography.primitives.model.ECDSASignatureAlgorithm;
+import software.amazon.cryptography.primitives.model.ECDSAVerifyInput;
+import software.amazon.cryptography.primitives.model.GenerateECCKeyPairInput;
+import software.amazon.cryptography.primitives.model.GenerateECCKeyPairOutput;
+import software.amazon.cryptography.primitives.model.GenerateECDSASignatureKeyInput;
+import software.amazon.cryptography.primitives.model.GenerateECDSASignatureKeyOutput;
+import software.amazon.cryptography.primitives.model.GenerateRSAKeyPairInput;
+import software.amazon.cryptography.primitives.model.GenerateRSAKeyPairOutput;
+import software.amazon.cryptography.primitives.model.GetPublicKeyFromPrivateKeyInput;
+import software.amazon.cryptography.primitives.model.GetPublicKeyFromPrivateKeyOutput;
+import software.amazon.cryptography.primitives.model.GetRSAKeyModulusLengthInput;
+import software.amazon.cryptography.primitives.model.GetRSAKeyModulusLengthOutput;
+import software.amazon.cryptography.primitives.model.ParsePublicKeyInput;
+import software.amazon.cryptography.primitives.model.ParsePublicKeyOutput;
+import software.amazon.cryptography.primitives.model.RSADecryptInput;
+import software.amazon.cryptography.primitives.model.RSAEncryptInput;
+import software.amazon.cryptography.primitives.model.RSAPaddingMode;
+import software.amazon.cryptography.primitives.model.RSAPrivateKey;
+import software.amazon.cryptography.primitives.model.RSAPublicKey;
+import software.amazon.cryptography.primitives.model.ValidatePublicKeyInput;
+import software.amazon.cryptography.primitives.model.ValidatePublicKeyOutput;
 import software.amazon.cryptography.mpl.internal.primitives.AesGcm;
 import software.amazon.cryptography.materialproviders.internal.Buffers;
 import software.amazon.cryptography.mpl.internal.primitives.Bytes;
+import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.primitives.EcKeys;
 import software.amazon.cryptography.mpl.internal.primitives.Digests;
 import software.amazon.cryptography.mpl.internal.primitives.Hkdf;
 import software.amazon.cryptography.mpl.internal.primitives.KdfCounterMode;
@@ -225,6 +266,222 @@ public class AtomicPrimitives {
     } finally {
       Bytes.zero(key);
     }
+  }
+
+  // The Dafny-based MPL threw a plain RuntimeException when key generation failed.
+  public GenerateRSAKeyPairOutput GenerateRSAKeyPair(GenerateRSAKeyPairInput input) {
+    byte[][] pems;
+    try {
+      pems = RsaKeyGeneration.generateKeyPair(input.lengthBits());
+    } catch (MaterialProvidersException e) {
+      throw new RuntimeException(e.getMessage());
+    }
+    return GenerateRSAKeyPairOutput
+      .builder()
+      .publicKey(RSAPublicKey.builder().lengthBits(input.lengthBits()).pem(ByteBuffer.wrap(pems[0])).build())
+      .privateKey(RSAPrivateKey.builder().lengthBits(input.lengthBits()).pem(ByteBuffer.wrap(pems[1])).build())
+      .build();
+  }
+
+  public GetRSAKeyModulusLengthOutput GetRSAKeyModulusLength(GetRSAKeyModulusLengthInput input) {
+    try {
+      return GetRSAKeyModulusLengthOutput.builder().length(Rsa.modulusLengthBits(Buffers.toArray(input.publicKey()))).build();
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    }
+  }
+
+  public ByteBuffer RSAEncrypt(RSAEncryptInput input) {
+    byte[] plaintext = Buffers.toArray(input.plaintext());
+    try {
+      return ByteBuffer.wrap(Rsa.encrypt(padding(input.padding()), Buffers.toArray(input.publicKey()), plaintext));
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    } finally {
+      Bytes.zero(plaintext);
+    }
+  }
+
+  public ByteBuffer RSADecrypt(RSADecryptInput input) {
+    byte[] privateKey = Buffers.toArray(input.privateKey());
+    try {
+      return ByteBuffer.wrap(Rsa.decrypt(padding(input.padding()), privateKey, Buffers.toArray(input.cipherText())));
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    } finally {
+      Bytes.zero(privateKey);
+    }
+  }
+
+  public GenerateECDSASignatureKeyOutput GenerateECDSASignatureKey(GenerateECDSASignatureKeyInput input) {
+    byte[][] keys;
+    try {
+      keys = Ecdsa.generateKeyPair(signature(input.signatureAlgorithm()));
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    }
+    return GenerateECDSASignatureKeyOutput
+      .builder()
+      .signatureAlgorithm(input.signatureAlgorithm())
+      .verificationKey(ByteBuffer.wrap(keys[0]))
+      .signingKey(ByteBuffer.wrap(keys[1]))
+      .build();
+  }
+
+  public ByteBuffer ECDSASign(ECDSASignInput input) {
+    byte[] signingKey = Buffers.toArray(input.signingKey());
+    try {
+      return ByteBuffer.wrap(Ecdsa.sign(signature(input.signatureAlgorithm()), signingKey, Buffers.toArray(input.message())));
+    } catch (ValidationException e) {
+      if (EcKeys.EMPTY_SIGNING_KEY.equals(e.getMessage())) {
+        // The Dafny-based MPL passed the empty key to BigInteger, which throws this.
+        throw new NumberFormatException("Zero length BigInteger");
+      }
+      throw rsaOrEcdsaError(e);
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    } finally {
+      Bytes.zero(signingKey);
+    }
+  }
+
+  public Boolean ECDSAVerify(ECDSAVerifyInput input) {
+    try {
+      return Ecdsa.verify(
+        signature(input.signatureAlgorithm()),
+        Buffers.toArray(input.verificationKey()),
+        Buffers.toArray(input.message()),
+        Buffers.toArray(input.signature())
+      );
+    } catch (ValidationException e) {
+      if (EcKeys.EMPTY_VERIFICATION_KEY.equals(e.getMessage())) {
+        // The Dafny-based MPL copied bytes [1, 0) of the empty key, which throws this.
+        throw new IllegalArgumentException("1 > 0");
+      }
+      throw rsaOrEcdsaError(e);
+    } catch (MaterialProvidersException e) {
+      throw rsaOrEcdsaError(e);
+    }
+  }
+
+  public GenerateECCKeyPairOutput GenerateECCKeyPair(GenerateECCKeyPairInput input) {
+    byte[][] keys = Ecdh.generateKeyPair(curve(input.eccCurve()));
+    return GenerateECCKeyPairOutput
+      .builder()
+      .eccCurve(input.eccCurve())
+      .privateKey(ECCPrivateKey.builder().pem(ByteBuffer.wrap(keys[0])).build())
+      .publicKey(ECCPublicKey.builder().der(ByteBuffer.wrap(keys[1])).build())
+      .build();
+  }
+
+  public GetPublicKeyFromPrivateKeyOutput GetPublicKeyFromPrivateKey(GetPublicKeyFromPrivateKeyInput input) {
+    byte[] privateKey = Buffers.toArray(input.privateKey().pem());
+    try {
+      byte[] publicKey = Ecdh.publicKeyFromPrivateKey(curve(input.eccCurve()), privateKey);
+      return GetPublicKeyFromPrivateKeyOutput
+        .builder()
+        .eccCurve(input.eccCurve())
+        .privateKey(ECCPrivateKey.builder().pem(ByteBuffer.wrap(Buffers.toArray(input.privateKey().pem()))).build())
+        .publicKey(ByteBuffer.wrap(publicKey))
+        .build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    } finally {
+      Bytes.zero(privateKey);
+    }
+  }
+
+  public ValidatePublicKeyOutput ValidatePublicKey(ValidatePublicKeyInput input) {
+    try {
+      boolean valid = Ecdh.validatePublicKey(curve(input.eccCurve()), Buffers.toArray(input.publicKey()));
+      return ValidatePublicKeyOutput.builder().success(valid).build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    }
+  }
+
+  public DeriveSharedSecretOutput DeriveSharedSecret(DeriveSharedSecretInput input) {
+    byte[] privateKey = Buffers.toArray(input.privateKey().pem());
+    try {
+      byte[] secret = Ecdh.deriveSharedSecret(curve(input.eccCurve()), privateKey, Buffers.toArray(input.publicKey().der()));
+      return DeriveSharedSecretOutput.builder().sharedSecret(ByteBuffer.wrap(secret)).build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    } finally {
+      Bytes.zero(privateKey);
+    }
+  }
+
+  // The Dafny-based MPL ignored eccCurve here.
+  public CompressPublicKeyOutput CompressPublicKey(CompressPublicKeyInput input) {
+    try {
+      byte[] compressed = Ecdh.compressPublicKey(Buffers.toArray(input.publicKey().der()));
+      return CompressPublicKeyOutput.builder().compressedPublicKey(ByteBuffer.wrap(compressed)).build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    }
+  }
+
+  public DecompressPublicKeyOutput DecompressPublicKey(DecompressPublicKeyInput input) {
+    try {
+      byte[] der = Ecdh.decompressPublicKey(Buffers.toArray(input.compressedPublicKey()), curve(input.eccCurve()));
+      return DecompressPublicKeyOutput.builder().publicKey(ECCPublicKey.builder().der(ByteBuffer.wrap(der)).build()).build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    }
+  }
+
+  public ParsePublicKeyOutput ParsePublicKey(ParsePublicKeyInput input) {
+    try {
+      byte[] der = Ecdh.parsePublicKey(Buffers.toArray(input.publicKey()));
+      return ParsePublicKeyOutput.builder().publicKey(ECCPublicKey.builder().der(ByteBuffer.wrap(der)).build()).build();
+    } catch (MaterialProvidersException e) {
+      throw ecdhError(e);
+    }
+  }
+
+  private static PaddingScheme padding(RSAPaddingMode padding) {
+    switch (padding) {
+      case PKCS1:
+        return PaddingScheme.PKCS1;
+      case OAEP_SHA1:
+        return PaddingScheme.OAEP_SHA1_MGF1;
+      case OAEP_SHA256:
+        return PaddingScheme.OAEP_SHA256_MGF1;
+      case OAEP_SHA384:
+        return PaddingScheme.OAEP_SHA384_MGF1;
+      case OAEP_SHA512:
+        return PaddingScheme.OAEP_SHA512_MGF1;
+      default:
+        throw new IllegalArgumentException("unknown RSA padding " + padding);
+    }
+  }
+
+  private static AlgorithmSuite.Signature signature(ECDSASignatureAlgorithm algorithm) {
+    return AlgorithmSuite.Signature.valueOf(algorithm.name());
+  }
+
+  private static EcdhCurveSpec curve(ECDHCurveSpec curve) {
+    return EcdhCurveSpec.valueOf(curve.name());
+  }
+
+  // RSA and ECDSA returned a JCE or BouncyCastle exception as OpaqueError, and their own checks as
+  // AwsCryptographicPrimitivesError. The core reports the former with the exception's own message and the exception as cause.
+  public static RuntimeException rsaOrEcdsaError(MaterialProvidersException e) {
+    Throwable cause = e.getCause();
+    if (cause != null && Objects.equals(e.getMessage(), cause.getMessage())) {
+      return OpaqueError.builder().obj(cause).build();
+    }
+    return error(e.getMessage());
+  }
+
+  // ECDH returned every failure as AwsCryptographicPrimitivesError with the underlying message, except unsupported SM2.
+  // A null message makes the error's builder throw IllegalArgumentException, which the Dafny-based MPL threw too.
+  public static RuntimeException ecdhError(MaterialProvidersException e) {
+    if (Ecdh.SM2_UNSUPPORTED.equals(e.getMessage())) {
+      return OpaqueError.builder().obj(new RuntimeException(e.getMessage())).build();
+    }
+    return error(e.getMessage());
   }
 
   private static DigestAlgorithm alg(software.amazon.cryptography.primitives.model.DigestAlgorithm algorithm) {

@@ -37,6 +37,8 @@ dependencies {
     api("software.amazon.awssdk:dynamodb")
     // MaterialProvidersException.isRetryable reads the retryable flag of an AWS SDK cause.
     implementation("software.amazon.awssdk:sdk-core")
+    // RSA, ECDH, and PEM/DER parsing through the same BouncyCastle calls as the Dafny-based MPL.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.83")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
