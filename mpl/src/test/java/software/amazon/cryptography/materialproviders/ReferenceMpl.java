@@ -11,11 +11,13 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -29,6 +31,9 @@ import java.util.function.Supplier;
  * so native and reference calls compare with one assertEquals.
  *
  * <p>Values from the bootstrap class loader (ByteBuffer, String, boxed numbers) pass between the sides as is.
+ * AWS SDK clients do not: each side has its own copy of the SDK classes.
+ * {@link #registerTwin} names the reference-side client that {@link #toReference} substitutes for a native one;
+ * see {@code ReferenceAws}.
  */
 final class ReferenceMpl {
 
@@ -37,6 +42,8 @@ final class ReferenceMpl {
 
   private static File jar;
   private static URLClassLoader loader;
+  // Weak keys: a twin lives as long as the test holds its native value. SDK clients compare by identity.
+  private static final Map<Object, Object> twins = Collections.synchronizedMap(new WeakHashMap<>());
 
   private ReferenceMpl() {}
 
@@ -167,9 +174,17 @@ final class ReferenceMpl {
     }
   }
 
+  /** Makes {@link #toReference} return {@code referenceValue} for {@code nativeValue}. */
+  static void registerTwin(Object nativeValue, Object referenceValue) {
+    if (referenceValue.getClass().getClassLoader() != loader()) {
+      throw new IllegalArgumentException("not a reference-side value: " + referenceValue.getClass().getName());
+    }
+    twins.put(nativeValue, referenceValue);
+  }
+
   /**
    * Rebuilds a native model value in the reference class loader.
-   * A value already in the reference class loader stays as is.
+   * A value with a registered twin becomes the twin; a value already in the reference class loader stays as is.
    */
   static Object toReference(Object value) {
     return rebuild(value, loader());
@@ -193,6 +208,10 @@ final class ReferenceMpl {
     if (target == loader()) {
       if (value instanceof Paired) {
         return ((Paired) value).reference();
+      }
+      Object twin = twins.get(value);
+      if (twin != null) {
+        return twin;
       }
       if (value.getClass().getClassLoader() == loader()) {
         return value;
