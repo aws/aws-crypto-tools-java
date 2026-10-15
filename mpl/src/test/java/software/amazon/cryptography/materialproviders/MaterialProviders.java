@@ -4,12 +4,16 @@ package software.amazon.cryptography.materialproviders;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.function.Supplier;
 import software.amazon.cryptography.materialproviders.internal.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.internal.Buffers;
 import software.amazon.cryptography.materialproviders.internal.CommitmentPolicies;
+import software.amazon.cryptography.materialproviders.internal.Errors;
 import software.amazon.cryptography.materialproviders.internal.Materials;
+import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
+import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.InitializeDecryptionMaterialsInput;
@@ -25,6 +29,8 @@ import software.amazon.cryptography.materialproviders.model.ValidDecryptionMater
 import software.amazon.cryptography.materialproviders.model.ValidEncryptionMaterialsTransitionInput;
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnDecryptInput;
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnEncryptInput;
+import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
 
 public class MaterialProviders {
 
@@ -145,6 +151,30 @@ public class MaterialProviders {
   public void DecryptionMaterialsWithPlaintextDataKey(DecryptionMaterials input) {
     if (!Materials.decryptionMaterialsWithPlaintextDataKey(input)) {
       throw InvalidDecryptionMaterials.builder().message("Invalid Decryption Materials").build();
+    }
+  }
+
+  public IKeyring CreateRawAesKeyring(CreateRawAesKeyringInput input) {
+    try {
+      return new NativeKeyring(
+        RawAesKeyring
+          .builder()
+          .keyNamespace(input.keyNamespace())
+          .keyName(input.keyName())
+          .wrappingKey(SecretBytes.copyOf(Buffers.toArray(input.wrappingKey())))
+          .wrappingAlg(software.amazon.cryptography.mpl.keyrings.AesWrappingAlg.valueOf(input.wrappingAlg().name()))
+          .build()
+      );
+    } catch (RuntimeException e) {
+      throw Errors.toOld(e);
+    }
+  }
+
+  private static IKeyring create(Supplier<software.amazon.cryptography.mpl.Keyring> build) {
+    try {
+      return new NativeKeyring(build.get());
+    } catch (RuntimeException e) {
+      throw Errors.toOld(e);
     }
   }
 

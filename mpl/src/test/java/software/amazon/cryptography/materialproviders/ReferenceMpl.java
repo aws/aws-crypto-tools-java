@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -86,6 +87,37 @@ final class ReferenceMpl {
     return invoke(builder, "build");
   }
 
+  /**
+   * A reference-side implementation of a customer interface, such as {@code materialproviders.IKeyring}.
+   * Each call records the method and the argument it received, described, then runs {@code behavior}:
+   * its native result or exception is rebuilt in the reference class loader and returned or thrown.
+   */
+  static Object customer(String relativeInterfaceName, List<String> received, Supplier<Object> behavior) {
+    return customer(relativeInterfaceName, received, argument -> behavior.get());
+  }
+
+  /** As {@link #customer(String, List, Supplier)}, with {@code behavior} given the argument rebuilt as a native model value. */
+  static Object customer(String relativeInterfaceName, List<String> received, Function<Object, Object> behavior) {
+    Class<?> type = referenceClass(relativeInterfaceName);
+    return java.lang.reflect.Proxy.newProxyInstance(
+      loader(),
+      new Class<?>[] { type },
+      (proxy, method, args) -> {
+        if (method.getDeclaringClass() == Object.class) {
+          return method.invoke(behavior, args);
+        }
+        received.add(method.getName() + " " + describe(args == null ? null : args[0]));
+        Object result;
+        try {
+          result = behavior.apply(args == null ? null : fromReference(args[0]));
+        } catch (RuntimeException e) {
+          throw (Throwable) toReference(e);
+        }
+        return toReference(result);
+      }
+    );
+  }
+
   /** Calls {@code method} on a reference object, converting native model arguments first. */
   static Object call(Object target, String method, Object... nativeArgs) {
     Object[] args = new Object[nativeArgs.length];
@@ -140,8 +172,16 @@ final class ReferenceMpl {
     if (value == null || isShared(value)) {
       return value;
     }
-    if (target == loader() && value.getClass().getClassLoader() == loader()) {
-      return value;
+    if (value instanceof Keyring && ((Keyring) value).impl() instanceof Paired) {
+      return rebuild(((Keyring) value).impl(), target);
+    }
+    if (target == loader()) {
+      if (value instanceof Paired) {
+        return ((Paired) value).reference();
+      }
+      if (value.getClass().getClassLoader() == loader()) {
+        return value;
+      }
     }
     if (value instanceof List) {
       List<Object> converted = new ArrayList<>();
@@ -311,6 +351,11 @@ final class ReferenceMpl {
     } catch (IllegalAccessException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  /** A native value that stands for a reference object, such as a keyring built on both sides; rebuilt as that object. */
+  interface Paired {
+    Object reference();
   }
 
   /** Carries an exception thrown by the reference MPL so {@link #outcome} can report it. */

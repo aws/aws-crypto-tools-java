@@ -6,12 +6,15 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.model.OpaqueError;
 
 /**
  * Input checks the Dafny-based MPL performed while converting public inputs, before any operation logic:
@@ -80,5 +83,24 @@ public final class Boundary {
   public static void decryptionMaterials(DecryptionMaterials materials) {
     encryptionContext(materials.encryptionContext());
     utf8List(materials.requiredEncryptionContextKeys());
+  }
+
+  /**
+   * An exception from a caller's keyring or CMM after the round trip through Dafny's error type:
+   * a collection's message gains the list's description again, and an exception the model does not
+   * declare becomes an {@link OpaqueError} holding it.
+   */
+  public static RuntimeException crossing(RuntimeException e) {
+    if (e instanceof CollectionOfErrors) {
+      List<RuntimeException> list = new ArrayList<>();
+      for (RuntimeException element : ((CollectionOfErrors) e).list()) {
+        list.add(crossing(element));
+      }
+      return CollectionOfErrors.builder().message(e.getMessage()).list(list).build();
+    }
+    if (e.getClass().getName().startsWith("software.amazon.cryptography.materialproviders.model.")) {
+      return e;
+    }
+    return OpaqueError.builder().obj(e).build();
   }
 }
