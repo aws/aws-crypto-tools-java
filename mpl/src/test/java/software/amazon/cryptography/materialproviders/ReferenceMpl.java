@@ -106,6 +106,13 @@ final class ReferenceMpl {
     return invoke(builder, "build");
   }
 
+  /** A reference {@code KeyStore} client built from a native {@code KeyStoreConfig}; its clients become their twins. */
+  static Object keyStore(Object nativeConfig) {
+    Object builder = invoke(null, referenceClass("keystore.KeyStore"), "builder");
+    invoke(builder, "KeyStoreConfig", toReference(nativeConfig));
+    return invoke(builder, "build");
+  }
+
   /**
    * A reference-side implementation of a customer interface, such as {@code materialproviders.IKeyring}.
    * Each call records the method and the argument it received, described, then runs {@code behavior}:

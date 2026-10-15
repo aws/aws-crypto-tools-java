@@ -6,12 +6,14 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.cryptography.keystore.internal.KeyStoreConvert;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
 import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.keystore.KeyStoreOperations;
 import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
 import software.amazon.cryptography.mpl.internal.primitives.Ecdsa;
 import software.amazon.cryptography.mpl.internal.primitives.Rsa;
@@ -20,6 +22,8 @@ import software.amazon.cryptography.primitives.model.OpaqueError;
 
 /** Test adapter: native exceptions as the old API threw them. */
 public final class Errors {
+
+  private static final String KEY_STORE_INTERNALS = KeyStoreOperations.class.getPackage().getName() + ".";
 
   private Errors() {}
 
@@ -53,6 +57,10 @@ public final class Errors {
         if (!(e instanceof CryptographicException && e.getCause() instanceof GeneralSecurityException)) {
           throw new IllegalStateException("no old-API mapping for a failure thrown in " + origin, e);
         }
+      }
+      // A key store failure inside a keyring surfaced as the key store's own error.
+      if (origin.startsWith(KEY_STORE_INTERNALS)) {
+        return KeyStoreConvert.toOld((MaterialProvidersException) e);
       }
     }
     // A JCE failure inside a primitive surfaced as the primitives library's opaque error.

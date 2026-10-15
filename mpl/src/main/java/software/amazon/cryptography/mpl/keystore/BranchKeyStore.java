@@ -7,9 +7,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.EncryptionContext;
+import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.keystore.KeyStoreOperations;
+import software.amazon.cryptography.mpl.internal.keystore.UnwrappedKey;
+import software.amazon.cryptography.mpl.internal.primitives.Bytes;
 
 /**
  * Branch keys, the versioned keys the hierarchical keyring wraps data keys with, stored in a DynamoDB table
@@ -36,8 +43,12 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 //#- [GetBeaconKey](#getbeaconkey)
 public final class BranchKeyStore implements AutoCloseable {
 
-  private BranchKeyStore() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private final KeyStoreInfo info;
+  private final KeyStoreOperations operations;
+
+  private BranchKeyStore(KeyStoreInfo info, KeyStoreOperations operations) {
+    this.info = info;
+    this.operations = operations;
   }
 
   public static Builder builder() {
@@ -54,17 +65,17 @@ public final class BranchKeyStore implements AutoCloseable {
    *   if the table exists without the key store's key schema
    */
   public String createKeyStore() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return operations.createKeyStore();
   }
 
   /** Creates a branch key with a random id and returns the id. */
   public String createKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return operations.createKey(null, null);
   }
 
   /** Creates a branch key with a random id and a custom encryption context, and returns the id. */
   public String createKey(EncryptionContext encryptionContext) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return operations.createKey(null, Objects.requireNonNull(encryptionContext, "encryptionContext"));
   }
 
   /**
@@ -80,7 +91,10 @@ public final class BranchKeyStore implements AutoCloseable {
   //# - An optional branch key id
   //# - An optional encryption context
   public String createKey(String branchKeyIdentifier, EncryptionContext encryptionContext) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return operations.createKey(
+      Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"),
+      Objects.requireNonNull(encryptionContext, "encryptionContext")
+    );
   }
 
   /** Makes a new version of the branch key active; earlier versions stay available for decryption. */
@@ -88,14 +102,22 @@ public final class BranchKeyStore implements AutoCloseable {
   //= type=implication
   //# - MUST supply a `branch-key-id`
   public void versionKey(String branchKeyIdentifier) {
-    throw new UnsupportedOperationException("not implemented yet");
+    operations.versionKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"));
   }
 
   //= spec/framework/branch-key-store.md#getactivebranchkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
   public BranchKeyMaterials getActiveBranchKey(String branchKeyIdentifier) {
-    throw new UnsupportedOperationException("not implemented yet");
+    //= spec/framework/branch-key-store.md#getactivebranchkey
+    //= type=implication
+    //# This GetActiveBranchKey MUST construct [branch key materials](./structures.md#branch-key-materials)
+    //# according to [Branch Key Materials From Authenticated Encryption Context](#branch-key-materials-from-authenticated-encryption-context).
+
+    //= spec/framework/branch-key-store.md#getactivebranchkey
+    //= type=implication
+    //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
+    return branchKeyMaterials(operations.getActiveBranchKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier")));
   }
 
   //= spec/framework/branch-key-store.md#getbranchkeyversion
@@ -106,26 +128,70 @@ public final class BranchKeyStore implements AutoCloseable {
   //= type=implication
   //# - MUST supply a `branchKeyVersion`
   public BranchKeyMaterials getBranchKeyVersion(String branchKeyIdentifier, String branchKeyVersion) {
-    throw new UnsupportedOperationException("not implemented yet");
+    //= spec/framework/branch-key-store.md#getbranchkeyversion
+    //= type=implication
+    //# This GetBranchKeyVersion MUST construct [branch key materials](./structures.md#branch-key-materials)
+    //# according to [Branch Key Materials From Authenticated Encryption Context](#branch-key-materials-from-authenticated-encryption-context).
+
+    //= spec/framework/branch-key-store.md#getbranchkeyversion
+    //= type=implication
+    //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
+    return branchKeyMaterials(
+      operations.getBranchKeyVersion(
+        Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"),
+        Objects.requireNonNull(branchKeyVersion, "branchKeyVersion")
+      )
+    );
   }
 
   //= spec/framework/branch-key-store.md#getbeaconkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
   public BeaconKeyMaterials getBeaconKey(String branchKeyIdentifier) {
-    throw new UnsupportedOperationException("not implemented yet");
+    UnwrappedKey unwrapped = operations.getBeaconKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"));
+    try {
+      EncryptionContext context = EncryptionContext.copyOf(unwrapped.encryptionContext());
+      //= spec/framework/branch-key-store.md#getbeaconkey
+      //= type=implication
+      //# This GetBeaconKey MUST construct [beacon key materials](./structures.md#beacon-key-materials) from the decrypted branch key material
+      //# and the `branchKeyId` from the returned `branch-key-id` field.
+
+      //= spec/framework/branch-key-store.md#getbeaconkey
+      //= type=implication
+      //# This operation MUST return the constructed [beacon key materials](./structures.md#beacon-key-materials).
+      return KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap());
+    } finally {
+      Bytes.zero(unwrapped.key());
+    }
   }
 
   //= spec/framework/branch-key-store.md#getkeystoreinfo
   //= type=implication
   //# This operation MUST return the keystore information in this keystore configuration.
   public KeyStoreInfo getKeyStoreInfo() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return info;
   }
 
   @Override
   public void close() {
-    throw new UnsupportedOperationException("not implemented yet");
+    operations.close();
+  }
+
+  private static BranchKeyMaterials branchKeyMaterials(UnwrappedKey unwrapped) {
+    try {
+      String version = unwrapped.branchKeyVersion();
+      EncryptionContext context = EncryptionContext.copyOf(unwrapped.encryptionContext());
+      //= spec/framework/branch-key-store.md#branch-key-materials-from-authenticated-encryption-context
+      //= type=implication
+      //# - [Branch Key](./structures.md#branch-key) MUST be the [decrypted branch key material](#aws-kms-branch-key-decryption)
+
+      //= spec/framework/branch-key-store.md#branch-key-materials-from-authenticated-encryption-context
+      //= type=implication
+      //# - [Branch Key Id](./structures.md#branch-key-id) MUST be the `branch-key-id`
+      return KeyMaterialsAccess.branchKey(unwrapped.branchKeyIdentifier(), version, context, SecretBytes.copyOf(unwrapped.key()));
+    } finally {
+      Bytes.zero(unwrapped.key());
+    }
   }
 
   /**
@@ -201,7 +267,32 @@ public final class BranchKeyStore implements AutoCloseable {
     }
 
     public BranchKeyStore build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      //= spec/framework/branch-key-store.md#initialization
+      //= type=implication
+      //# The following inputs MUST be specified to create a KeyStore:
+      //#
+      //# - [Table Name](#table-name)
+      //# - [AWS KMS Configuration](#aws-kms-configuration)
+      //# - [Logical KeyStore Name](#logical-keystore-name)
+      KeyringNames.requireSet(ddbTableName, "ddbTableName");
+      KeyringNames.requireSet(kmsConfiguration, "kmsConfiguration");
+      KeyringNames.requireSet(logicalKeyStoreName, "logicalKeyStoreName");
+      KeyStoreOperations operations = KeyStoreOperations.create(
+        ddbTableName,
+        logicalKeyStoreName,
+        kmsConfiguration,
+        grantTokens,
+        kmsClient,
+        ddbClient
+      );
+      //= spec/framework/branch-key-store.md#keystore-id
+      //# If one is not supplied, then a [version 4 UUID](https://www.ietf.org/rfc/rfc4122.txt) MUST be used.
+      String keyStoreId = id == null ? UUID.randomUUID().toString() : id;
+      //= spec/framework/branch-key-store.md#getkeystoreinfo
+      //= type=implication
+      //# This MUST include:
+      KeyStoreInfo info = new KeyStoreInfo(keyStoreId, ddbTableName, logicalKeyStoreName, grantTokens, kmsConfiguration);
+      return new BranchKeyStore(info, operations);
     }
   }
 }
