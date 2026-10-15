@@ -33,7 +33,6 @@ public interface Keyring {
   //= spec/framework/keyring-interface.md#onencrypt
   //= type=implication
   //# This interface MUST take [encryption materials](structures.md#encryption-materials) as input.
-  //
   //= spec/framework/keyring-interface.md#onencrypt
   //= type=implication
   //# It MUST modify it with at least one of the following behaviors:
@@ -53,7 +52,6 @@ public interface Keyring {
   //= type=implication
   //# This interface MUST take [decryption materials](structures.md#decryption-materials) and
   //# a list of [encrypted data keys](structures.md#encrypted-data-key) as input.
-  //
   //= spec/framework/keyring-interface.md#ondecrypt
   //= type=implication
   //# It MUST modify it with the following behavior:

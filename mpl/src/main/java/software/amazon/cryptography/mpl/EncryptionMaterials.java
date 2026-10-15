@@ -5,6 +5,7 @@ package software.amazon.cryptography.mpl;
 import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,9 +13,19 @@ import java.util.Optional;
 import javax.security.auth.Destroyable;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.MaterialsAccess;
+import software.amazon.cryptography.mpl.internal.MaterialsRules;
+import software.amazon.cryptography.mpl.internal.SecretBytesAccess;
+import software.amazon.cryptography.mpl.internal.primitives.EcKeys;
 
 //= spec/framework/structures.md#overview
 //= type=implication
+//# While these structures will usually be represented as objects, lower level languages MAY represent
+//# these fields in a less strictly defined way as long as all field properties are still upheld.
+//
+//= spec/framework/structures.md#overview
+//= type=exception
+//= reason=The materials are Java objects, so the less strictly defined representation this permits is not used.
 //# While these structures will usually be represented as objects, lower level languages MAY represent
 //# these fields in a less strictly defined way as long as all field properties are still upheld.
 //
@@ -43,7 +54,15 @@ import software.amazon.cryptography.mpl.exceptions.ValidationException;
  */
 public final class EncryptionMaterials implements Destroyable {
 
-  private EncryptionMaterials() {}
+  static {
+    MaterialsAccess.registerEncryption(EncryptionMaterials::new, materials -> materials.fields);
+  }
+
+  private final MaterialsRules.Encryption fields;
+
+  private EncryptionMaterials(MaterialsRules.Encryption fields) {
+    this.fields = fields;
+  }
 
   /**
    * Starts materials for {@code suite}: no data key yet.
@@ -55,20 +74,20 @@ public final class EncryptionMaterials implements Destroyable {
   }
 
   public AlgorithmSuite algorithmSuite() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return fields.suite;
   }
 
   public EncryptionContext encryptionContext() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return EncryptionContext.copyOf(fields.encryptionContext);
   }
 
   /** Context keys that must be supplied again on decrypt; they are not stored in the message. The order carries no meaning. */
   public List<String> requiredEncryptionContextKeys() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Collections.unmodifiableList(fields.requiredEncryptionContextKeys);
   }
 
   public List<EncryptedDataKey> encryptedDataKeys() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Collections.unmodifiableList(fields.encryptedDataKeys);
   }
 
   //= spec/framework/structures.md#plaintext-data-key
@@ -76,7 +95,7 @@ public final class EncryptionMaterials implements Destroyable {
   //# The plaintext data key SHOULD be stored as immutable data.
   /** Owned by these materials; read it, do not destroy it. */
   public Optional<SecretBytes> plaintextDataKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Optional.ofNullable(fields.plaintextDataKey);
   }
 
   //= spec/framework/structures.md#signing-key
@@ -87,12 +106,15 @@ public final class EncryptionMaterials implements Destroyable {
    * (big-endian two's complement, so it may start with a zero byte). Owned by these materials.
    */
   public Optional<SecretBytes> signingKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Optional.ofNullable(fields.signingKey);
   }
 
   /** {@link #signingKey()} as a JCA key on the suite's curve. */
   public Optional<PrivateKey> signingPrivateKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    if (fields.signingKey == null) {
+      return Optional.empty();
+    }
+    return Optional.of(SecretBytesAccess.apply(fields.signingKey, scalar -> EcKeys.privateKey(fields.suite.signature().get(), scalar)));
   }
 
   //= spec/framework/structures.md#symmetric-signing-keys
@@ -100,7 +122,7 @@ public final class EncryptionMaterials implements Destroyable {
   //# The value of keys in this list MUST be kept secret.
   /** One HMAC key per encrypted data key, in the same order; empty unless the suite signs symmetrically. Owned by these materials. */
   public List<SecretBytes> symmetricSigningKeys() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Collections.unmodifiableList(fields.symmetricSigningKeys);
   }
 
   /**
@@ -109,44 +131,127 @@ public final class EncryptionMaterials implements Destroyable {
    * @throws InvalidMaterialsException if a key is already set or its length does not match the suite
    */
   public EncryptionMaterials withPlaintextDataKey(SecretBytes plaintextDataKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    Objects.requireNonNull(plaintextDataKey, "plaintextDataKey");
+    requireValid();
+    if (fields.plaintextDataKey != null) {
+      throw new InvalidMaterialsException("Attempt to modify plaintextDataKey.");
+    }
+    if (plaintextDataKey.length() != fields.suite.dataKeyLength()) {
+      throw new InvalidMaterialsException("plaintextDataKey does not match Algorithm Suite specification.");
+    }
+    return copy(plaintextDataKey.copy(), fields.encryptedDataKeys, copies(fields.symmetricSigningKeys));
   }
 
+  //= spec/framework/structures.md#encrypted-data-keys
+  //= type=exception
+  //= reason=Keyrings, including custom ones, produce the ciphertext; the materials cannot check that it holds this plaintext data key.
+  //# The [ciphertext](#ciphertext) of each encrypted data key in this list MUST be an opaque form of the
+  //# plaintext data key from this set of encryption materials.
   /** These materials with one more encrypted data key, for a suite without symmetric signing. */
   public EncryptionMaterials withEncryptedDataKey(EncryptedDataKey encryptedDataKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return addEncryptedDataKey(encryptedDataKey, null);
   }
 
   /** These materials with one more encrypted data key and its HMAC key, for a symmetric-signing (DBE) suite. */
   public EncryptionMaterials withEncryptedDataKey(EncryptedDataKey encryptedDataKey, SecretBytes symmetricSigningKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return addEncryptedDataKey(encryptedDataKey, Objects.requireNonNull(symmetricSigningKey, "symmetricSigningKey"));
   }
 
   /** Whether the materials can encrypt: a plaintext data key and at least one encrypted data key. */
   public boolean isReadyForEncrypt() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return MaterialsRules.isReadyForEncrypt(fields);
   }
 
   /** Whether these materials can follow {@code start}: nothing removed or changed, keys only added. */
   public boolean isValidTransitionFrom(EncryptionMaterials start) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return MaterialsRules.isValidTransition(start.fields, fields);
   }
 
+  //= spec/framework/structures.md#plaintext-data-key
+  //# The plaintext data key SHOULD offer an interface to zero the plaintext data key.
   /** Destroys the secrets these materials own; materials created from them by {@code with...} own separate copies. */
   @Override
   public void destroy() {
-    throw new UnsupportedOperationException("not implemented yet");
+    destroy(fields.plaintextDataKey);
+    destroy(fields.signingKey);
+    fields.symmetricSigningKeys.forEach(EncryptionMaterials::destroy);
   }
 
   @Override
   public boolean isDestroyed() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return fields.plaintextDataKey != null && fields.plaintextDataKey.isDestroyed();
   }
 
   /** Suite, context keys, and provider ids; never secrets. */
   @Override
   public String toString() {
-    throw new UnsupportedOperationException("not implemented yet");
+    List<String> providers = new ArrayList<>();
+    for (EncryptedDataKey edk : fields.encryptedDataKeys) {
+      providers.add(edk.keyProviderId());
+    }
+    return (
+      "EncryptionMaterials[" + fields.suite + ", context keys " + fields.encryptionContext.keySet() +
+      ", encrypted data keys " + providers + ", plaintext data key " + (fields.plaintextDataKey != null) + "]"
+    );
+  }
+
+  private EncryptionMaterials addEncryptedDataKey(EncryptedDataKey encryptedDataKey, SecretBytes symmetricSigningKey) {
+    Objects.requireNonNull(encryptedDataKey, "encryptedDataKey");
+    requireValid();
+    if (fields.plaintextDataKey == null) {
+      throw new InvalidMaterialsException("Adding encrypted data keys without a plaintext data key is not allowed.");
+    }
+    if (symmetricSigningKey == null && fields.suite.isSymmetricSigning()) {
+      throw new InvalidMaterialsException(
+        "Adding encrypted data keys without a symmetric signing key when using symmetric signing is not allowed."
+      );
+    }
+    if (symmetricSigningKey != null && !fields.suite.isSymmetricSigning()) {
+      throw new InvalidMaterialsException(
+        "Adding encrypted data keys with a symmetric signing key when not using symmetric signing is not allowed."
+      );
+    }
+    List<EncryptedDataKey> edks = new ArrayList<>(fields.encryptedDataKeys);
+    edks.add(encryptedDataKey);
+    List<SecretBytes> symmetric = copies(fields.symmetricSigningKeys);
+    if (symmetricSigningKey != null) {
+      symmetric.add(symmetricSigningKey.copy());
+    }
+    return copy(fields.plaintextDataKey.copy(), edks, symmetric);
+  }
+
+  private void requireValid() {
+    if (!MaterialsRules.isValid(fields)) {
+      throw new InvalidMaterialsException("Attempt to modify invalid encryption material.");
+    }
+  }
+
+  private EncryptionMaterials copy(SecretBytes plaintextDataKey, List<EncryptedDataKey> edks, List<SecretBytes> symmetric) {
+    return new EncryptionMaterials(
+      new MaterialsRules.Encryption(
+        fields.suite,
+        fields.encryptionContext,
+        edks,
+        fields.requiredEncryptionContextKeys,
+        plaintextDataKey,
+        fields.signingKey == null ? null : fields.signingKey.copy(),
+        symmetric
+      )
+    );
+  }
+
+  private static List<SecretBytes> copies(List<SecretBytes> secrets) {
+    List<SecretBytes> copies = new ArrayList<>(secrets.size());
+    for (SecretBytes secret : secrets) {
+      copies.add(secret.copy());
+    }
+    return copies;
+  }
+
+  private static void destroy(SecretBytes secret) {
+    if (secret != null) {
+      secret.destroy();
+    }
   }
 
   /** Not thread-safe. {@link #build()} validates as InitializeEncryptionMaterials did. */
@@ -188,7 +293,23 @@ public final class EncryptionMaterials implements Destroyable {
      *   or a signing key pair is missing for a signing suite or present for another
      */
     public EncryptionMaterials build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      return new EncryptionMaterials(
+        new MaterialsRules.Encryption(
+          suite,
+          MaterialsRules.initialEncryptionContext(
+            suite,
+            encryptionContext,
+            requiredEncryptionContextKeys,
+            signingKey,
+            verificationKey
+          ),
+          new ArrayList<>(),
+          new ArrayList<>(requiredEncryptionContextKeys),
+          null,
+          signingKey,
+          new ArrayList<>()
+        )
+      );
     }
   }
 }

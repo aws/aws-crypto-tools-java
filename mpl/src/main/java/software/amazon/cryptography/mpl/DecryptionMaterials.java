@@ -5,6 +5,7 @@ package software.amazon.cryptography.mpl;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,6 +13,9 @@ import java.util.Optional;
 import javax.security.auth.Destroyable;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.MaterialsAccess;
+import software.amazon.cryptography.mpl.internal.MaterialsRules;
+import software.amazon.cryptography.mpl.internal.primitives.EcKeys;
 
 //= spec/framework/structures.md#fields
 //= type=implication
@@ -36,7 +40,15 @@ import software.amazon.cryptography.mpl.exceptions.ValidationException;
  */
 public final class DecryptionMaterials implements Destroyable {
 
-  private DecryptionMaterials() {}
+  static {
+    MaterialsAccess.registerDecryption(DecryptionMaterials::new, materials -> materials.fields);
+  }
+
+  private final MaterialsRules.Decryption fields;
+
+  private DecryptionMaterials(MaterialsRules.Decryption fields) {
+    this.fields = fields;
+  }
 
   /**
    * Starts materials for {@code suite}: no data key yet. For a signing suite the verification key is
@@ -47,15 +59,15 @@ public final class DecryptionMaterials implements Destroyable {
   }
 
   public AlgorithmSuite algorithmSuite() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return fields.suite;
   }
 
   public EncryptionContext encryptionContext() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return EncryptionContext.copyOf(fields.encryptionContext);
   }
 
   public List<String> requiredEncryptionContextKeys() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Collections.unmodifiableList(fields.requiredEncryptionContextKeys);
   }
 
   //= spec/framework/structures.md#plaintext-data-key-1
@@ -63,12 +75,12 @@ public final class DecryptionMaterials implements Destroyable {
   //# The plaintext data key SHOULD be stored as immutable data.
   /** Owned by these materials; read it, do not destroy it. */
   public Optional<SecretBytes> plaintextDataKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Optional.ofNullable(fields.plaintextDataKey);
   }
 
   /** The compressed public point from the encryption context; present only for a signing suite. A copy. */
   public Optional<byte[]> verificationKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Optional.ofNullable(fields.verificationKey).map(byte[]::clone);
   }
 
   /**
@@ -77,7 +89,10 @@ public final class DecryptionMaterials implements Destroyable {
    * @throws ValidationException if the encoded key is not a point on the curve
    */
   public Optional<PublicKey> verificationPublicKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    if (fields.verificationKey == null) {
+      return Optional.empty();
+    }
+    return Optional.of(EcKeys.publicKey(fields.suite.signature().get(), fields.verificationKey));
   }
 
   //= spec/framework/structures.md#symmetric-signing-key
@@ -85,7 +100,7 @@ public final class DecryptionMaterials implements Destroyable {
   //# This value MUST be kept secret.
   /** The HMAC key for the encrypted data key that was decrypted; present only for a symmetric-signing suite. Owned. */
   public Optional<SecretBytes> symmetricSigningKey() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return Optional.ofNullable(fields.symmetricSigningKey);
   }
 
   /**
@@ -93,37 +108,77 @@ public final class DecryptionMaterials implements Destroyable {
    *   or the suite needs a symmetric signing key
    */
   public DecryptionMaterials withPlaintextDataKey(SecretBytes plaintextDataKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return addDataKey(plaintextDataKey, null);
   }
 
   /** For a symmetric-signing (DBE) suite: the data key and its HMAC key together. */
   public DecryptionMaterials withPlaintextDataKey(SecretBytes plaintextDataKey, SecretBytes symmetricSigningKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return addDataKey(plaintextDataKey, Objects.requireNonNull(symmetricSigningKey, "symmetricSigningKey"));
   }
 
   public boolean isReadyForDecrypt() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return MaterialsRules.isReadyForDecrypt(fields);
   }
 
   public boolean isValidTransitionFrom(DecryptionMaterials start) {
-    throw new UnsupportedOperationException("not implemented yet");
+    return MaterialsRules.isValidTransition(start.fields, fields);
   }
 
+  //= spec/framework/structures.md#plaintext-data-key-1
+  //# The plaintext data key SHOULD offer an interface to zero the plaintext data key.
   /** Destroys the secrets these materials own. */
   @Override
   public void destroy() {
-    throw new UnsupportedOperationException("not implemented yet");
+    if (fields.plaintextDataKey != null) {
+      fields.plaintextDataKey.destroy();
+    }
+    if (fields.symmetricSigningKey != null) {
+      fields.symmetricSigningKey.destroy();
+    }
   }
 
   @Override
   public boolean isDestroyed() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return fields.plaintextDataKey != null && fields.plaintextDataKey.isDestroyed();
   }
 
   /** Suite and context keys; never secrets. */
   @Override
   public String toString() {
-    throw new UnsupportedOperationException("not implemented yet");
+    return (
+      "DecryptionMaterials[" + fields.suite + ", context keys " + fields.encryptionContext.keySet() +
+      ", plaintext data key " + (fields.plaintextDataKey != null) + "]"
+    );
+  }
+
+  private DecryptionMaterials addDataKey(SecretBytes plaintextDataKey, SecretBytes symmetricSigningKey) {
+    Objects.requireNonNull(plaintextDataKey, "plaintextDataKey");
+    if (!MaterialsRules.isValid(fields)) {
+      throw new InvalidMaterialsException("Attempt to modify invalid decryption material.");
+    }
+    if (fields.plaintextDataKey != null) {
+      throw new InvalidMaterialsException("Attempt to modify plaintextDataKey.");
+    }
+    if (plaintextDataKey.length() != fields.suite.dataKeyLength()) {
+      throw new InvalidMaterialsException("plaintextDataKey does not match Algorithm Suite specification.");
+    }
+    if ((symmetricSigningKey != null) != fields.suite.isSymmetricSigning()) {
+      throw new InvalidMaterialsException(
+        symmetricSigningKey == null
+          ? "symmetric signature key must be added with plaintextDataKey if using an algorithm suite with symmetric signing."
+          : "symmetric signature key cannot be added with plaintextDataKey if using an algorithm suite without symmetric signing."
+      );
+    }
+    return new DecryptionMaterials(
+      new MaterialsRules.Decryption(
+        fields.suite,
+        fields.encryptionContext,
+        fields.requiredEncryptionContextKeys,
+        plaintextDataKey.copy(),
+        fields.verificationKey,
+        symmetricSigningKey == null ? null : symmetricSigningKey.copy()
+      )
+    );
   }
 
   /** Not thread-safe. {@link #build()} validates as InitializeDecryptionMaterials did. */
@@ -153,7 +208,17 @@ public final class DecryptionMaterials implements Destroyable {
      *   missing (signing suite), present (other suites), or not base64
      */
     public DecryptionMaterials build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      byte[] verificationKey = MaterialsRules.initialVerificationKey(suite, encryptionContext, requiredEncryptionContextKeys);
+      return new DecryptionMaterials(
+        new MaterialsRules.Decryption(
+          suite,
+          encryptionContext,
+          new ArrayList<>(requiredEncryptionContextKeys),
+          null,
+          verificationKey,
+          null
+        )
+      );
     }
   }
 }

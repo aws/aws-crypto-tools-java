@@ -3,16 +3,22 @@
 package software.amazon.cryptography.materialproviders.internal;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteId;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.CommitmentPolicy;
 import software.amazon.cryptography.materialproviders.model.DBEAlgorithmSuiteId;
 import software.amazon.cryptography.materialproviders.model.DIRECT_KEY_WRAPPING;
+import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.DerivationAlgorithm;
 import software.amazon.cryptography.materialproviders.model.ECDSA;
 import software.amazon.cryptography.materialproviders.model.ESDKAlgorithmSuiteId;
 import software.amazon.cryptography.materialproviders.model.EdkWrappingAlgorithm;
 import software.amazon.cryptography.materialproviders.model.Encrypt;
+import software.amazon.cryptography.materialproviders.model.EncryptedDataKey;
+import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.HKDF;
 import software.amazon.cryptography.materialproviders.model.IntermediateKeyWrapping;
 import software.amazon.cryptography.materialproviders.model.None;
@@ -20,6 +26,8 @@ import software.amazon.cryptography.materialproviders.model.SignatureAlgorithm;
 import software.amazon.cryptography.materialproviders.model.SymmetricSignatureAlgorithm;
 import software.amazon.cryptography.mpl.DbeCommitmentPolicy;
 import software.amazon.cryptography.mpl.EsdkCommitmentPolicy;
+import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.internal.MaterialsRules;
 import software.amazon.cryptography.primitives.model.AES_GCM;
 import software.amazon.cryptography.primitives.model.DigestAlgorithm;
 import software.amazon.cryptography.primitives.model.ECDSASignatureAlgorithm;
@@ -112,5 +120,96 @@ public final class Convert {
 
   private static Encrypt aesGcm(int keyLength, int tagLength, int ivLength) {
     return Encrypt.builder().AES_GCM(AES_GCM.builder().keyLength(keyLength).tagLength(tagLength).ivLength(ivLength).build()).build();
+  }
+
+  public static software.amazon.cryptography.mpl.EncryptedDataKey edk(EncryptedDataKey edk) {
+    return software.amazon.cryptography.mpl.EncryptedDataKey.of(
+      edk.keyProviderId(),
+      Buffers.toArray(edk.keyProviderInfo()),
+      Buffers.toArray(edk.ciphertext())
+    );
+  }
+
+  public static EncryptedDataKey edk(software.amazon.cryptography.mpl.EncryptedDataKey edk) {
+    return EncryptedDataKey
+      .builder()
+      .keyProviderId(edk.keyProviderId())
+      .keyProviderInfo(ByteBuffer.wrap(edk.keyProviderInfo()))
+      .ciphertext(ByteBuffer.wrap(edk.ciphertext()))
+      .build();
+  }
+
+  /** Raw fields of old-shape materials whose suite description is valid. */
+  public static MaterialsRules.Encryption fields(EncryptionMaterials m) {
+    List<software.amazon.cryptography.mpl.EncryptedDataKey> edks = new ArrayList<>();
+    for (EncryptedDataKey edk : m.encryptedDataKeys()) {
+      edks.add(edk(edk));
+    }
+    List<SecretBytes> symmetric = new ArrayList<>();
+    if (m.symmetricSigningKeys() != null) {
+      for (ByteBuffer key : m.symmetricSigningKeys()) {
+        symmetric.add(SecretBytes.copyOf(Buffers.toArray(key)));
+      }
+    }
+    return new MaterialsRules.Encryption(
+      suite(m.algorithmSuite().id()),
+      new HashMap<>(m.encryptionContext()),
+      edks,
+      new ArrayList<>(m.requiredEncryptionContextKeys()),
+      secret(m.plaintextDataKey()),
+      secret(m.signingKey()),
+      symmetric
+    );
+  }
+
+  public static MaterialsRules.Decryption fields(DecryptionMaterials m) {
+    return new MaterialsRules.Decryption(
+      suite(m.algorithmSuite().id()),
+      new HashMap<>(m.encryptionContext()),
+      new ArrayList<>(m.requiredEncryptionContextKeys()),
+      secret(m.plaintextDataKey()),
+      m.verificationKey() == null ? null : Buffers.toArray(m.verificationKey()),
+      secret(m.symmetricSigningKey())
+    );
+  }
+
+  public static EncryptionMaterials materials(software.amazon.cryptography.mpl.EncryptionMaterials m) {
+    List<EncryptedDataKey> edks = new ArrayList<>();
+    for (software.amazon.cryptography.mpl.EncryptedDataKey edk : m.encryptedDataKeys()) {
+      edks.add(edk(edk));
+    }
+    List<ByteBuffer> symmetric = null;
+    if (m.algorithmSuite().isSymmetricSigning()) {
+      symmetric = new ArrayList<>();
+      for (SecretBytes key : m.symmetricSigningKeys()) {
+        symmetric.add(ByteBuffer.wrap(key.toByteArray()));
+      }
+    }
+    return EncryptionMaterials
+      .builder()
+      .algorithmSuite(info(m.algorithmSuite()))
+      .encryptionContext(new HashMap<>(m.encryptionContext()))
+      .encryptedDataKeys(edks)
+      .requiredEncryptionContextKeys(new ArrayList<>(m.requiredEncryptionContextKeys()))
+      .plaintextDataKey(m.plaintextDataKey().map(k -> ByteBuffer.wrap(k.toByteArray())).orElse(null))
+      .signingKey(m.signingKey().map(k -> ByteBuffer.wrap(k.toByteArray())).orElse(null))
+      .symmetricSigningKeys(symmetric)
+      .build();
+  }
+
+  public static DecryptionMaterials materials(software.amazon.cryptography.mpl.DecryptionMaterials m) {
+    return DecryptionMaterials
+      .builder()
+      .algorithmSuite(info(m.algorithmSuite()))
+      .encryptionContext(new HashMap<>(m.encryptionContext()))
+      .requiredEncryptionContextKeys(new ArrayList<>(m.requiredEncryptionContextKeys()))
+      .plaintextDataKey(m.plaintextDataKey().map(k -> ByteBuffer.wrap(k.toByteArray())).orElse(null))
+      .verificationKey(m.verificationKey().map(ByteBuffer::wrap).orElse(null))
+      .symmetricSigningKey(m.symmetricSigningKey().map(k -> ByteBuffer.wrap(k.toByteArray())).orElse(null))
+      .build();
+  }
+
+  private static SecretBytes secret(ByteBuffer buffer) {
+    return buffer == null ? null : SecretBytes.copyOf(Buffers.toArray(buffer));
   }
 }
