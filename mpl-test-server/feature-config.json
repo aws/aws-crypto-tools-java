@@ -1,0 +1,13 @@
+{
+  "supportedFeatures": [
+    "raw-aes",
+    "default-cmm",
+    "required-ec",
+    "multi-keyring",
+    "raw-rsa",
+    "raw-ecdh",
+    "algorithm-suites",
+    "materials-validation"
+  ],
+  "unsupportedFeatures": []
+}

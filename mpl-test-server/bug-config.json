@@ -1,0 +1,5 @@
+[
+  "raw-aes-accepts-aws-kms-prefixed-namespace",
+  "default-cmm-forbid-encrypt-default-suite-is-0x0378",
+  "default-cmm-accepts-wrong-length-verification-key"
+]
