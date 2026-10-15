@@ -39,6 +39,7 @@ final class ReferenceMpl {
 
   private static final String JAR_PREFIX = "aws-cryptographic-material-providers-";
   private static final String MODEL_ROOT = "software.amazon.cryptography.";
+  private static final String SDK_ROOT = "software.amazon.awssdk.";
 
   private static File jar;
   private static URLClassLoader loader;
@@ -242,6 +243,10 @@ final class ReferenceMpl {
       return converted;
     }
     Class<?> type = value.getClass();
+    // Each side has its own copy of the AWS SDK; its enums, such as KMS's EncryptionAlgorithmSpec, map by name.
+    if (type.isEnum() && type.getName().startsWith(SDK_ROOT)) {
+      return enumConstant(load(type.getName(), target), ((Enum<?>) value).name());
+    }
     if (!type.getName().startsWith(MODEL_ROOT)) {
       throw new IllegalArgumentException("cannot rebuild " + type.getName());
     }

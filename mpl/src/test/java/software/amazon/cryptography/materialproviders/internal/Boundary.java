@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.EncryptedDataKey;
@@ -37,6 +38,23 @@ public final class Boundary {
       throw new RuntimeException("Could not encode input to Dafny Bytes.");
     }
     return value;
+  }
+
+  /**
+   * The KMS SDK's encryption algorithms the Dafny-based MPL could convert; for any other (SM2PKE, an unknown value)
+   * its conversion threw this RuntimeException.
+   */
+  public static void kmsEncryptionAlgorithm(EncryptionAlgorithmSpec algorithm) {
+    switch (algorithm) {
+      case SYMMETRIC_DEFAULT:
+      case RSAES_OAEP_SHA_1:
+      case RSAES_OAEP_SHA_256:
+        return;
+      default:
+        throw new RuntimeException(
+          "Cannot convert " + algorithm + " to software.amazon.cryptography.services.kms.internaldafny.types.EncryptionAlgorithmSpec."
+        );
+    }
   }
 
   /** An optional list as the Dafny-based MPL saw it: an empty list meant the field was not set. */

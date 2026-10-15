@@ -3,6 +3,8 @@
 package software.amazon.cryptography.mpl.keyrings;
 
 import java.security.PublicKey;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.primitives.Pem;
 
 /**
  * Which keys an {@link AwsKmsEcdhKeyring} uses. Create one with the static methods; there are no other kinds.
@@ -39,7 +41,9 @@ public abstract class KmsEcdhStaticConfigurations {
    * The keyring fetches the sender's public key with KMS GetPublicKey when it is built.
    */
   public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, byte[] recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, null, recipientPublicKey.clone());
   }
 
   /** As above with the sender's public key supplied, so the keyring makes no GetPublicKey call. */
@@ -48,12 +52,17 @@ public abstract class KmsEcdhStaticConfigurations {
     byte[] senderPublicKey,
     byte[] recipientPublicKey
   ) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
+    KeyringNames.requireSet(senderPublicKey, "senderPublicKey");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, senderPublicKey.clone(), recipientPublicKey.clone());
   }
 
   /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[])} with a JCA key. */
   public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, PublicKey recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return kmsPrivateKeyToStaticPublicKey(senderKmsIdentifier, Pem.encoded(recipientPublicKey, "recipientPublicKey"));
   }
 
   /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[], byte[])} with JCA keys. */
@@ -62,7 +71,14 @@ public abstract class KmsEcdhStaticConfigurations {
     PublicKey senderPublicKey,
     PublicKey recipientPublicKey
   ) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
+    KeyringNames.requireSet(senderPublicKey, "senderPublicKey");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return kmsPrivateKeyToStaticPublicKey(
+      senderKmsIdentifier,
+      Pem.encoded(senderPublicKey, "senderPublicKey"),
+      Pem.encoded(recipientPublicKey, "recipientPublicKey")
+    );
   }
 
   /**
@@ -70,7 +86,8 @@ public abstract class KmsEcdhStaticConfigurations {
    * The keyring fetches the recipient's public key with KMS GetPublicKey when it is built.
    */
   public static KmsEcdhStaticConfigurations kmsPublicKeyDiscovery(String recipientKmsIdentifier) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(recipientKmsIdentifier, "recipientKmsIdentifier");
+    return new Of(Kind.KMS_PUBLIC_KEY_DISCOVERY, recipientKmsIdentifier, null, null);
   }
 
   public abstract Kind kind();

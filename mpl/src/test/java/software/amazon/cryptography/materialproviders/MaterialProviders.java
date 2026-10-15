@@ -25,6 +25,7 @@ import software.amazon.cryptography.materialproviders.internal.SharedCaches;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsEcdhKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsDiscoveryMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
@@ -33,6 +34,7 @@ import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkDisco
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMultiKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsRsaKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateCryptographicMaterialsCacheInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultClientSupplierInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
@@ -52,6 +54,7 @@ import software.amazon.cryptography.materialproviders.model.InvalidAlgorithmSuit
 import software.amazon.cryptography.materialproviders.model.InvalidDecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.InvalidDecryptionMaterialsTransition;
 import software.amazon.cryptography.materialproviders.model.InvalidEncryptionMaterialsTransition;
+import software.amazon.cryptography.materialproviders.model.KmsEcdhStaticConfigurations;
 import software.amazon.cryptography.materialproviders.model.MaterialProvidersConfig;
 import software.amazon.cryptography.materialproviders.model.RawEcdhStaticConfigurations;
 import software.amazon.cryptography.materialproviders.model.ValidDecryptionMaterialsTransitionInput;
@@ -67,6 +70,7 @@ import software.amazon.cryptography.mpl.internal.cache.CacheEngine;
 import software.amazon.cryptography.mpl.internal.cache.Caches;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryMultiKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsEcdhKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryKeyring;
@@ -74,6 +78,7 @@ import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMultiKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsRsaKeyring;
 import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
@@ -410,6 +415,50 @@ public class MaterialProviders {
         .clientSupplier(clientSupplier(input.clientSupplier()))
         .grantTokens(input.grantTokens())
         .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsRsaKeyring(CreateAwsKmsRsaKeyringInput input) {
+    Boundary.kmsEncryptionAlgorithm(input.encryptionAlgorithm());
+    return create(() ->
+      AwsKmsRsaKeyring
+        .builder()
+        .publicKey(input.publicKey() == null ? null : Buffers.toArray(input.publicKey()))
+        .kmsKeyId(input.kmsKeyId())
+        .encryptionAlgorithm(input.encryptionAlgorithm())
+        .kmsClient(input.kmsClient())
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsEcdhKeyring(CreateAwsKmsEcdhKeyringInput input) {
+    return create(() ->
+      AwsKmsEcdhKeyring
+        .builder()
+        .keyAgreementScheme(kmsEcdhScheme(input.KeyAgreementScheme()))
+        .curveSpec(EcdhCurveSpec.valueOf(input.curveSpec().name()))
+        .kmsClient(input.kmsClient())
+        .grantTokens(input.grantTokens())
+        .build()
+    );
+  }
+
+  private static software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
+    if (scheme.KmsPublicKeyDiscovery() != null) {
+      return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(
+        scheme.KmsPublicKeyDiscovery().recipientKmsIdentifier()
+      );
+    }
+    String sender = scheme.KmsPrivateKeyToStaticPublicKey().senderKmsIdentifier();
+    byte[] recipientPublicKey = Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().recipientPublicKey());
+    if (scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey() == null) {
+      return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
+    }
+    return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(
+      sender,
+      Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey()),
+      recipientPublicKey
     );
   }
 
