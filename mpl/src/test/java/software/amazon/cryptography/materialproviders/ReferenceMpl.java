@@ -78,6 +78,14 @@ final class ReferenceMpl {
     return invoke(builder, "build");
   }
 
+  /** A reference {@code AtomicPrimitives} client built with an empty config. */
+  static Object atomicPrimitives() {
+    Object config = invoke(builder("primitives.model.CryptoConfig"), "build");
+    Object builder = invoke(null, referenceClass("primitives.AtomicPrimitives"), "builder");
+    invoke(builder, "CryptoConfig", config);
+    return invoke(builder, "build");
+  }
+
   /** Calls {@code method} on a reference object, converting native model arguments first. */
   static Object call(Object target, String method, Object... nativeArgs) {
     Object[] args = new Object[nativeArgs.length];

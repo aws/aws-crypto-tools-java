@@ -23,6 +23,7 @@ repositories {
 val junitVersion: String by project
 val awsSdkVersion: String by project
 val referenceMplVersion: String by project
+val jacksonVersion: String by project
 
 // The published Dafny-based MPL and its runtime dependencies.
 // Kept off every compile and runtime classpath: it declares the same class names as this module.
@@ -40,6 +41,8 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // Reads the JSON test vectors under src/test/resources/vectors.
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
 
     referenceMpl("software.amazon.cryptography:aws-cryptographic-material-providers:$referenceMplVersion")
 }
