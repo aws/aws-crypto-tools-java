@@ -175,6 +175,9 @@ final class ReferenceMpl {
     if (value instanceof Keyring && ((Keyring) value).impl() instanceof Paired) {
       return rebuild(((Keyring) value).impl(), target);
     }
+    if (value instanceof CryptographicMaterialsManager && ((CryptographicMaterialsManager) value).impl() instanceof Paired) {
+      return rebuild(((CryptographicMaterialsManager) value).impl(), target);
+    }
     if (target == loader()) {
       if (value instanceof Paired) {
         return ((Paired) value).reference();
@@ -206,13 +209,22 @@ final class ReferenceMpl {
       return enumConstant(targetType, ((Enum<?>) value).name());
     }
     Object builder = invoke(null, targetType, "builder");
+    // A collection's builder appends the list's description to the message; set the list afterwards so it is not appended twice.
+    boolean collection = type.getSimpleName().equals("CollectionOfErrors");
+    Object list = null;
     for (Method accessor : accessors(type)) {
       Object field = invokeMethod(accessor, value);
-      if (field != null) {
+      if (collection && accessor.getName().equals("list")) {
+        list = rebuild(field, target);
+      } else if (field != null) {
         invoke(builder, accessor.getName(), rebuild(field, target));
       }
     }
-    return invoke(builder, "build");
+    Object built = invoke(builder, "build");
+    if (collection) {
+      setField(built, "list", list);
+    }
+    return built;
   }
 
   /** A canonical rendering of a model value from either class loader. */
@@ -349,6 +361,16 @@ final class ReferenceMpl {
     } catch (InvocationTargetException e) {
       throw new ReflectiveFailure(e.getCause());
     } catch (IllegalAccessException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static void setField(Object target, String name, Object value) {
+    try {
+      java.lang.reflect.Field field = target.getClass().getDeclaredField(name);
+      field.setAccessible(true);
+      field.set(target, value);
+    } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
   }
