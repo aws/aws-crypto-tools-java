@@ -30,11 +30,10 @@ val referenceMplVersion: String by project
 val referenceMpl: Configuration by configurations.creating
 
 dependencies {
-    // The KMS keyrings take a KmsClient.
+    // The public API takes AWS SDK clients: a KmsClient (KMS keyrings, BranchKeyStore) and a DynamoDbClient (BranchKeyStore).
     api(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
     api("software.amazon.awssdk:kms")
-    // The copied old-API model classes take a DynamoDbClient.
-    testImplementation("software.amazon.awssdk:dynamodb")
+    api("software.amazon.awssdk:dynamodb")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
