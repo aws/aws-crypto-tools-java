@@ -38,6 +38,7 @@ import software.amazon.cryptography.materialproviders.model.CreateDefaultClientS
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
 import software.amazon.cryptography.materialproviders.model.CreateMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateRawEcdhKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawRsaKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRequiredEncryptionContextCMMInput;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
@@ -52,6 +53,7 @@ import software.amazon.cryptography.materialproviders.model.InvalidDecryptionMat
 import software.amazon.cryptography.materialproviders.model.InvalidDecryptionMaterialsTransition;
 import software.amazon.cryptography.materialproviders.model.InvalidEncryptionMaterialsTransition;
 import software.amazon.cryptography.materialproviders.model.MaterialProvidersConfig;
+import software.amazon.cryptography.materialproviders.model.RawEcdhStaticConfigurations;
 import software.amazon.cryptography.materialproviders.model.ValidDecryptionMaterialsTransitionInput;
 import software.amazon.cryptography.materialproviders.model.ValidEncryptionMaterialsTransitionInput;
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnDecryptInput;
@@ -73,7 +75,9 @@ import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsMultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
+import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
+import software.amazon.cryptography.mpl.keyrings.RawEcdhKeyring;
 import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
 
 public class MaterialProviders {
@@ -229,6 +233,37 @@ public class MaterialProviders {
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
     }
+  }
+
+  public IKeyring CreateRawEcdhKeyring(CreateRawEcdhKeyringInput input) {
+    try {
+      return new NativeKeyring(
+        RawEcdhKeyring
+          .builder()
+          .keyAgreementScheme(ecdhScheme(input.KeyAgreementScheme()))
+          .curveSpec(EcdhCurveSpec.valueOf(input.curveSpec().name()))
+          .build()
+      );
+    } catch (RuntimeException e) {
+      throw Errors.toOld(e);
+    }
+  }
+
+  private static software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations ecdhScheme(RawEcdhStaticConfigurations scheme) {
+    if (scheme.RawPrivateKeyToStaticPublicKey() != null) {
+      return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
+        SecretBytes.copyOf(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().senderStaticPrivateKey())),
+        Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().recipientPublicKey())
+      );
+    }
+    if (scheme.EphemeralPrivateKeyToStaticPublicKey() != null) {
+      return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(
+        Buffers.toArray(scheme.EphemeralPrivateKeyToStaticPublicKey().recipientPublicKey())
+      );
+    }
+    return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.publicKeyDiscovery(
+      SecretBytes.copyOf(Buffers.toArray(scheme.PublicKeyDiscovery().recipientStaticPrivateKey()))
+    );
   }
 
   /**

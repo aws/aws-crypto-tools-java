@@ -12,6 +12,7 @@ import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
 import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
+import software.amazon.cryptography.mpl.internal.EcdhEdkWrapping;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
 import software.amazon.cryptography.mpl.internal.keystore.KeyStoreOperations;
 import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
@@ -59,6 +60,12 @@ public final class Errors {
         if (!(e instanceof CryptographicException && e.getCause() instanceof GeneralSecurityException)) {
           throw new IllegalStateException("no old-API mapping for a failure thrown in " + origin, e);
         }
+      }
+      // ECDH unwrapping checks the tag length where the Dafny-based MPL left it to AESDecrypt's input check.
+      // Likewise the KDF's input check, which only a shared secret of the wrong length from KMS fails.
+      boolean primitivesCheck = e.getMessage().equals("Request does not match algorithm.") || e.getMessage().equals(EcdhEdkWrapping.KDF_INPUT_INVALID);
+      if (origin.equals(EcdhEdkWrapping.class.getName()) && primitivesCheck) {
+        return AwsCryptographicPrimitivesError.builder().message(e.getMessage()).build();
       }
       // The hierarchical keyring checks the branch key length where the Dafny-based MPL left it to KdfCounterMode's input check.
       if (origin.equals(AwsKmsHierarchicalKeyring.class.getName()) && e.getMessage().equals("Kdf in Counter Mode input is invalid.")) {

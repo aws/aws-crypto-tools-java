@@ -5,6 +5,8 @@ package software.amazon.cryptography.mpl.keyrings;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.primitives.Pem;
 
 /**
  * Which keys a {@link RawEcdhKeyring} holds. Create one with the static methods; there are no other kinds.
@@ -34,32 +36,41 @@ public abstract class RawEcdhStaticConfigurations {
 
   /** A fixed sender key pair and recipient public key; encrypts and decrypts. */
   public static RawEcdhStaticConfigurations rawPrivateKeyToStaticPublicKey(SecretBytes senderStaticPrivateKey, byte[] recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderStaticPrivateKey.copy(), recipientPublicKey.clone());
   }
 
   /** {@link #rawPrivateKeyToStaticPublicKey(SecretBytes, byte[])} with JCA keys. */
   public static RawEcdhStaticConfigurations rawPrivateKeyToStaticPublicKey(PrivateKey senderStaticPrivateKey, PublicKey recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    byte[] recipient = Pem.encoded(recipientPublicKey, "recipientPublicKey").clone();
+    return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, Pem.privateKey(senderStaticPrivateKey, "senderStaticPrivateKey"), recipient);
   }
 
   /** A new sender key pair per message; encrypts only. */
   public static RawEcdhStaticConfigurations ephemeralPrivateKeyToStaticPublicKey(byte[] recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, null, recipientPublicKey.clone());
   }
 
   /** {@link #ephemeralPrivateKeyToStaticPublicKey(byte[])} with a JCA key. */
   public static RawEcdhStaticConfigurations ephemeralPrivateKeyToStaticPublicKey(PublicKey recipientPublicKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, null, Pem.encoded(recipientPublicKey, "recipientPublicKey").clone());
   }
 
   /** The recipient's private key; decrypts any message addressed to it, encrypts nothing. */
   public static RawEcdhStaticConfigurations publicKeyDiscovery(SecretBytes recipientStaticPrivateKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
+    return new Of(Kind.PUBLIC_KEY_DISCOVERY, recipientStaticPrivateKey.copy(), null);
   }
 
   /** {@link #publicKeyDiscovery(SecretBytes)} with a JCA key. */
   public static RawEcdhStaticConfigurations publicKeyDiscovery(PrivateKey recipientStaticPrivateKey) {
-    throw new UnsupportedOperationException("not implemented yet");
+    KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
+    return new Of(Kind.PUBLIC_KEY_DISCOVERY, Pem.privateKey(recipientStaticPrivateKey, "recipientStaticPrivateKey"), null);
   }
 
   public abstract Kind kind();
