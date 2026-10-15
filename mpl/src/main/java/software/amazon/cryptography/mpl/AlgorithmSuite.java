@@ -212,6 +212,9 @@ public enum AlgorithmSuite {
     //= spec/framework/algorithm-suites.md#algorithm-suites-signature-settings
     //= type=implication
     //# An algorithm suite with a symmetric signature algorithm MUST use [intermediate key wrapping](#intermediate-key-wrapping).
+    //
+    //= spec/framework/algorithm-suites.md#symmetric-signature-algorithm
+    //# - The algorithm suite MUST also use [Intermediate Key Wrapping](#intermediate-key-wrapping).
     return symmetricSigning;
   }
 

@@ -1,0 +1,116 @@
+// Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+package software.amazon.cryptography.materialproviders.internal;
+
+import java.nio.ByteBuffer;
+import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteId;
+import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
+import software.amazon.cryptography.materialproviders.model.CommitmentPolicy;
+import software.amazon.cryptography.materialproviders.model.DBEAlgorithmSuiteId;
+import software.amazon.cryptography.materialproviders.model.DIRECT_KEY_WRAPPING;
+import software.amazon.cryptography.materialproviders.model.DerivationAlgorithm;
+import software.amazon.cryptography.materialproviders.model.ECDSA;
+import software.amazon.cryptography.materialproviders.model.ESDKAlgorithmSuiteId;
+import software.amazon.cryptography.materialproviders.model.EdkWrappingAlgorithm;
+import software.amazon.cryptography.materialproviders.model.Encrypt;
+import software.amazon.cryptography.materialproviders.model.HKDF;
+import software.amazon.cryptography.materialproviders.model.IntermediateKeyWrapping;
+import software.amazon.cryptography.materialproviders.model.None;
+import software.amazon.cryptography.materialproviders.model.SignatureAlgorithm;
+import software.amazon.cryptography.materialproviders.model.SymmetricSignatureAlgorithm;
+import software.amazon.cryptography.mpl.DbeCommitmentPolicy;
+import software.amazon.cryptography.mpl.EsdkCommitmentPolicy;
+import software.amazon.cryptography.primitives.model.AES_GCM;
+import software.amazon.cryptography.primitives.model.DigestAlgorithm;
+import software.amazon.cryptography.primitives.model.ECDSASignatureAlgorithm;
+
+/**
+ * Test adapter: converts between the old-shape model (the Dafny-based MPL's Java API, kept in test sources)
+ * and the native core, so the differential tests drive the core through the old API.
+ */
+public final class Convert {
+
+  private Convert() {}
+
+  public static software.amazon.cryptography.mpl.AlgorithmSuite suite(AlgorithmSuiteId id) {
+    String name = id.ESDK() != null ? id.ESDK().name() : id.DBE().name();
+    return software.amazon.cryptography.mpl.AlgorithmSuite.valueOf(name);
+  }
+
+  public static AlgorithmSuiteId id(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
+    return suite.format() == software.amazon.cryptography.mpl.AlgorithmSuite.Format.ESDK
+      ? AlgorithmSuiteId.builder().ESDK(ESDKAlgorithmSuiteId.valueOf(suite.name())).build()
+      : AlgorithmSuiteId.builder().DBE(DBEAlgorithmSuiteId.valueOf(suite.name())).build();
+  }
+
+  public static software.amazon.cryptography.mpl.CommitmentPolicy policy(CommitmentPolicy policy) {
+    return policy.ESDK() != null
+      ? EsdkCommitmentPolicy.valueOf(policy.ESDK().name())
+      : DbeCommitmentPolicy.valueOf(policy.DBE().name());
+  }
+
+  /** The old-shape suite description, built only from the native enum's accessors. */
+  public static AlgorithmSuiteInfo info(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
+    DerivationAlgorithm kdf = kdf(suite);
+    return AlgorithmSuiteInfo
+      .builder()
+      .id(id(suite))
+      .binaryId(ByteBuffer.wrap(suite.binaryId()))
+      .messageVersion(suite.messageVersion())
+      .encrypt(aesGcm(suite.dataKeyLength(), suite.tagLength(), suite.ivLength()))
+      .kdf(kdf)
+      .commitment(suite.isCommitting() ? kdf : DerivationAlgorithm.builder().None(None.builder().build()).build())
+      .signature(
+        suite.signature().isPresent()
+          ? SignatureAlgorithm
+            .builder()
+            .ECDSA(ECDSA.builder().curve(ECDSASignatureAlgorithm.valueOf(suite.signature().get().name())).build())
+            .build()
+          : SignatureAlgorithm.builder().None(None.builder().build()).build()
+      )
+      .symmetricSignature(
+        suite.isSymmetricSigning()
+          ? SymmetricSignatureAlgorithm.builder().HMAC(DigestAlgorithm.SHA_384).build()
+          : SymmetricSignatureAlgorithm.builder().None(None.builder().build()).build()
+      )
+      .edkWrapping(
+        suite.usesIntermediateKeyWrapping()
+          ? EdkWrappingAlgorithm
+            .builder()
+            .IntermediateKeyWrapping(
+              IntermediateKeyWrapping
+                .builder()
+                .keyEncryptionKeyKdf(kdf)
+                .macKeyKdf(kdf)
+                .pdkEncryptAlgorithm(aesGcm(suite.dataKeyLength(), suite.tagLength(), suite.ivLength()))
+                .build()
+            )
+            .build()
+          : EdkWrappingAlgorithm.builder().DIRECT_KEY_WRAPPING(DIRECT_KEY_WRAPPING.builder().build()).build()
+      )
+      .build();
+  }
+
+  private static DerivationAlgorithm kdf(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
+    if (suite.keyDerivation() == software.amazon.cryptography.mpl.AlgorithmSuite.KeyDerivation.IDENTITY) {
+      return DerivationAlgorithm.builder().IDENTITY(software.amazon.cryptography.materialproviders.model.IDENTITY.builder().build()).build();
+    }
+    DigestAlgorithm hmac = DigestAlgorithm.valueOf(suite.keyDerivation().name().substring("HKDF_".length()).replace("SHA", "SHA_"));
+    return DerivationAlgorithm
+      .builder()
+      .HKDF(
+        HKDF
+          .builder()
+          .hmac(hmac)
+          .saltLength(suite.kdfSaltLength())
+          .inputKeyLength(suite.dataKeyLength())
+          .outputKeyLength(suite.dataKeyLength())
+          .build()
+      )
+      .build();
+  }
+
+  private static Encrypt aesGcm(int keyLength, int tagLength, int ivLength) {
+    return Encrypt.builder().AES_GCM(AES_GCM.builder().keyLength(keyLength).tagLength(tagLength).ivLength(ivLength).build()).build();
+  }
+}

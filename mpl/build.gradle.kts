@@ -34,6 +34,8 @@ dependencies {
     api(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
     api("software.amazon.awssdk:kms")
     api("software.amazon.awssdk:dynamodb")
+    // MaterialProvidersException.isRetryable reads the retryable flag of an AWS SDK cause.
+    implementation("software.amazon.awssdk:sdk-core")
 
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")

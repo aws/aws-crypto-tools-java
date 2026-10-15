@@ -5,6 +5,7 @@ package software.amazon.cryptography.mpl.exceptions;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import software.amazon.awssdk.core.exception.SdkException;
 
 /**
  * See {@link ErrorKind#NO_MATCHING_DATA_KEY}.
@@ -36,7 +37,23 @@ public final class NoMatchingDataKeyException extends MaterialProvidersException
    */
   @Override
   public boolean isRetryable() {
-    throw new UnsupportedOperationException("not implemented yet");
+    if (super.isRetryable()) {
+      return true;
+    }
+    if (findCause(InterruptedException.class).isPresent()) {
+      return false;
+    }
+    for (Throwable failure : failures) {
+      // A caller's keyring can let an AWS SDK exception through unwrapped.
+      if (failure instanceof MaterialProvidersException ? ((MaterialProvidersException) failure).isRetryable() : isRetryableSdk(failure)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isRetryableSdk(Throwable failure) {
+    return failure instanceof SdkException && ((SdkException) failure).retryable();
   }
 
   @Override

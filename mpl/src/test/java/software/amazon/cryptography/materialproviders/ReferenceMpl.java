@@ -16,13 +16,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 
 /**
  * The published Dafny-based MPL, loaded in an isolated class loader, as a differential-test oracle.
  *
  * <p>Both MPLs declare the same class names, so reference objects are reached only by reflection.
  * {@link #toReference} rebuilds a native model object in the reference class loader through its builder;
- * {@link #describe} renders a model object from either side as a canonical string.
+ * {@link #describe} renders a model object from either side as a canonical string;
+ * {@link #outcome} turns a call into the described result or the thrown exception's class and message,
+ * so native and reference calls compare with one assertEquals.
  *
  * <p>Values from the bootstrap class loader (ByteBuffer, String, boxed numbers) pass between the sides as is.
  */
@@ -65,6 +68,51 @@ final class ReferenceMpl {
     Objects.requireNonNull(jar, "reference MPL jar is not on mpl.reference.classpath");
     // A null parent keeps this module's classes, which share the reference's names, out of the lookup.
     loader = new URLClassLoader(urls.toArray(new URL[0]), null);
+  }
+
+  /** A reference {@code MaterialProviders} client built with an empty config. */
+  static Object materialProviders() {
+    Object config = invoke(builder("materialproviders.model.MaterialProvidersConfig"), "build");
+    Object builder = invoke(null, referenceClass("materialproviders.MaterialProviders"), "builder");
+    invoke(builder, "MaterialProvidersConfig", config);
+    return invoke(builder, "build");
+  }
+
+  /** Calls {@code method} on a reference object, converting native model arguments first. */
+  static Object call(Object target, String method, Object... nativeArgs) {
+    Object[] args = new Object[nativeArgs.length];
+    for (int i = 0; i < args.length; i++) {
+      args[i] = toReference(nativeArgs[i]);
+    }
+    return invoke(target, method, args);
+  }
+
+  /**
+   * The described return value, "void", or "throws <class>: <message>".
+   * An OpaqueError also names the class of the object it wraps.
+   */
+  static String outcome(Supplier<Object> call) {
+    try {
+      Object result = call.get();
+      return result == null ? "void" : describe(result);
+    } catch (RuntimeException e) {
+      Throwable thrown = e instanceof ReflectiveFailure ? e.getCause() : e;
+      String outcome = "throws " + thrown.getClass().getName() + ": " + thrown.getMessage();
+      if (thrown.getClass().getSimpleName().equals("OpaqueError")) {
+        Object obj = invoke(thrown, "obj");
+        outcome += " [obj " + (obj == null ? "null" : obj.getClass().getName()) + "]";
+      }
+      if (thrown.getClass().getSimpleName().equals("CollectionOfErrors")) {
+        List<String> list = new ArrayList<>();
+        for (Object element : (List<?>) invoke(thrown, "list")) {
+          list.add(outcome(() -> {
+            throw (RuntimeException) element;
+          }));
+        }
+        outcome += " " + list;
+      }
+      return outcome;
+    }
   }
 
   /**
@@ -206,6 +254,18 @@ final class ReferenceMpl {
     return accessors;
   }
 
+  private static Object builder(String relativeName) {
+    return invoke(null, referenceClass(relativeName), "builder");
+  }
+
+  private static Class<?> referenceClass(String relativeName) {
+    return loadReference(MODEL_ROOT + relativeName);
+  }
+
+  private static Class<?> loadReference(String name) {
+    return load(name, loader());
+  }
+
   private static Class<?> load(String name, ClassLoader classLoader) {
     try {
       return Class.forName(name, true, classLoader);
@@ -245,7 +305,7 @@ final class ReferenceMpl {
     }
   }
 
-  /** Carries an exception thrown by the reference MPL out of a reflective call. */
+  /** Carries an exception thrown by the reference MPL so {@link #outcome} can report it. */
   private static final class ReflectiveFailure extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
