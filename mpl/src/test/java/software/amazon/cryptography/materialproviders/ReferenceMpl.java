@@ -79,6 +79,18 @@ final class ReferenceMpl {
     return invoke(builder, "build");
   }
 
+  /**
+   * A reference model object built from {@code setterAndValue} pairs, for values {@link #toReference} cannot rebuild,
+   * such as a union holding a reference cache. Values are converted with {@link #toReference}.
+   */
+  static Object build(String relativeName, Object... setterAndValue) {
+    Object builder = builder(relativeName);
+    for (int i = 0; i < setterAndValue.length; i += 2) {
+      invoke(builder, (String) setterAndValue[i], toReference(setterAndValue[i + 1]));
+    }
+    return invoke(builder, "build");
+  }
+
   /** A reference {@code AtomicPrimitives} client built with an empty config. */
   static Object atomicPrimitives() {
     Object config = invoke(builder("primitives.model.CryptoConfig"), "build");

@@ -19,6 +19,7 @@ import software.amazon.cryptography.materialproviders.internal.NativeCmm;
 import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
+import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
 import software.amazon.cryptography.materialproviders.model.CreateMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawRsaKeyringInput;
@@ -39,6 +40,7 @@ import software.amazon.cryptography.materialproviders.model.ValidEncryptionMater
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnDecryptInput;
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnEncryptInput;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
@@ -216,6 +218,12 @@ public class MaterialProviders {
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
     }
+  }
+
+  public ICryptographicMaterialsManager CreateDefaultCryptographicMaterialsManager(
+    CreateDefaultCryptographicMaterialsManagerInput input
+  ) {
+    return new NativeCmm(DefaultCryptographicMaterialsManager.of(CustomKeyring.of(input.keyring())));
   }
 
   public ICryptographicMaterialsManager CreateRequiredEncryptionContextCMM(CreateRequiredEncryptionContextCMMInput input) {
