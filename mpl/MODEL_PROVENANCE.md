@@ -22,3 +22,6 @@ Change these files only by re-running the copy, never by hand:
 scripts/sync-model.sh <mpl-checkout> <ref>           # copy
 scripts/sync-model.sh <mpl-checkout> <ref> --check   # verify the current copy
 ```
+
+After a copy from a newer ref, bump `referenceMplVersion` in `gradle.properties` to the release that
+contains it, so the copied model and the oracle match.

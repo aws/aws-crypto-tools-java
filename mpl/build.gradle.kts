@@ -1,6 +1,7 @@
 // Native (non-Dafny) Java implementation of the AWS Cryptographic Material Providers Library,
 // with an idiomatic API in software.amazon.cryptography.mpl.
-// Behavioral reference: the Dafny source on aws-cryptographic-material-providers-library `main`.
+// Behavioral reference: the Dafny source on aws-cryptographic-material-providers-library `main`;
+// the published Dafny-based MPL (`referenceMplVersion`) is the differential-test oracle.
 //
 // The toolchain is pinned to Java 8 so both compilation and tests prove Java 8 support.
 
@@ -21,6 +22,12 @@ repositories {
 
 val junitVersion: String by project
 val awsSdkVersion: String by project
+val referenceMplVersion: String by project
+
+// The published Dafny-based MPL and its runtime dependencies.
+// Kept off every compile and runtime classpath: it declares the same class names as this module.
+// The differential tests load it in an isolated class loader (ReferenceMpl).
+val referenceMpl: Configuration by configurations.creating
 
 dependencies {
     // The copied old-API model classes take KmsClient and DynamoDbClient.
@@ -31,6 +38,8 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    referenceMpl("software.amazon.cryptography:aws-cryptographic-material-providers:$referenceMplVersion")
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -40,4 +49,6 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+    inputs.files(referenceMpl)
+    systemProperty("mpl.reference.classpath", referenceMpl.asPath)
 }
