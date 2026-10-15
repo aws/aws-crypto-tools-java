@@ -20,8 +20,14 @@ repositories {
 }
 
 val junitVersion: String by project
+val awsSdkVersion: String by project
 
 dependencies {
+    // The copied old-API model classes take KmsClient and DynamoDbClient.
+    testImplementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
+    testImplementation("software.amazon.awssdk:kms")
+    testImplementation("software.amazon.awssdk:dynamodb")
+
     testImplementation(platform("org.junit:junit-bom:$junitVersion"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

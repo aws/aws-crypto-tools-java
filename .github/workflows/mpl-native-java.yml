@@ -21,6 +21,11 @@ jobs:
       - name: Build and test
         working-directory: mpl
         run: ./gradlew build
+      - name: Check the copied model classes against their source
+        run: |
+          ref=$(grep -o '`[0-9a-f]\{9\}`' mpl/MODEL_PROVENANCE.md | head -1 | tr -d '`')
+          git clone --filter=blob:none https://github.com/aws/aws-cryptographic-material-providers-library.git /tmp/mpl
+          mpl/scripts/sync-model.sh /tmp/mpl "$ref" --check
 
   duvet:
     runs-on: ubuntu-latest
