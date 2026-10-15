@@ -19,6 +19,8 @@ import software.amazon.cryptography.materialproviders.internal.NativeCmm;
 import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateAwsKmsMrkKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateDefaultCryptographicMaterialsManagerInput;
 import software.amazon.cryptography.materialproviders.model.CreateMultiKeyringInput;
 import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
@@ -43,6 +45,8 @@ import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkKeyring;
 import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
 import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
 import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
@@ -242,6 +246,18 @@ public class MaterialProviders {
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
     }
+  }
+
+  public IKeyring CreateAwsKmsKeyring(CreateAwsKmsKeyringInput input) {
+    return create(() ->
+      AwsKmsKeyring.builder().kmsKeyId(input.kmsKeyId()).kmsClient(input.kmsClient()).grantTokens(input.grantTokens()).build()
+    );
+  }
+
+  public IKeyring CreateAwsKmsMrkKeyring(CreateAwsKmsMrkKeyringInput input) {
+    return create(() ->
+      AwsKmsMrkKeyring.builder().kmsKeyId(input.kmsKeyId()).kmsClient(input.kmsClient()).grantTokens(input.grantTokens()).build()
+    );
   }
 
   private static IKeyring create(Supplier<software.amazon.cryptography.mpl.Keyring> build) {

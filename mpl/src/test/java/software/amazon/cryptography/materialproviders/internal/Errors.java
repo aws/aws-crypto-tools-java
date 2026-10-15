@@ -5,6 +5,7 @@ package software.amazon.cryptography.materialproviders.internal;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.materialproviders.model.CollectionOfErrors;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
@@ -23,6 +24,10 @@ public final class Errors {
   private Errors() {}
 
   public static RuntimeException toOld(RuntimeException e) {
+    // The old API surfaced the AWS SDK exception itself.
+    if (e instanceof MaterialProvidersException && e.getCause() instanceof SdkException) {
+      return (SdkException) e.getCause();
+    }
     // ErrorMessages.IncorrectDataKeys was a plain error, not a collection.
     if (e instanceof NoMatchingDataKeyException && e.getMessage().startsWith(KeyringNames.INCORRECT_DATA_KEYS)) {
       return AwsCryptographicMaterialProvidersException.builder().message(e.getMessage()).build();

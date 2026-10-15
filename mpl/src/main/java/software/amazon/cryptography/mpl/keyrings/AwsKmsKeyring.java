@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.KmsDataKeys;
 
 /**
  * Encrypts and decrypts data keys with one AWS KMS key. Decrypts only data keys encrypted under that exact key.
@@ -23,11 +28,15 @@ import software.amazon.cryptography.mpl.OnEncryptRequest;
 public final class AwsKmsKeyring implements Keyring {
 
   private final String kmsKeyId;
+  private final AwsKmsIdentifier identifier;
   private final KmsClient kmsClient;
   private final List<String> grantTokens;
 
-  private AwsKmsKeyring() {
-    throw new UnsupportedOperationException("not implemented yet");
+  private AwsKmsKeyring(String kmsKeyId, AwsKmsIdentifier identifier, KmsClient kmsClient, List<String> grantTokens) {
+    this.kmsKeyId = kmsKeyId;
+    this.identifier = identifier;
+    this.kmsClient = kmsClient;
+    this.grantTokens = grantTokens;
   }
 
   public static Builder builder() {
@@ -55,7 +64,8 @@ public final class AwsKmsKeyring implements Keyring {
   //# OnEncrypt MUST take [encryption materials]
   //# (../structures.md#encryption-materials) as input.
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    EncryptionMaterials materials = request.materials();
+    return KmsDataKeys.onEncrypt(kmsClient, kmsKeyId, grantTokens, materials);
   }
 
   /**
@@ -71,7 +81,40 @@ public final class AwsKmsKeyring implements Keyring {
   //# (../structures.md#decryption-materials) and a list of [encrypted data
   //# keys](../structures.md#encrypted-data-key) as input.
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    DecryptionMaterials materials = request.materials();
+    List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
+    //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
+    //= type=implication
+    //# If the [decryption materials](../structures.md#decryption-materials)
+    //# already contained a valid plaintext data key OnDecrypt MUST return an
+    //# error.
+    KmsDataKeys.requireNoPlaintextDataKey(materials);
+    KmsDataKeys.requireKeyArn(identifier, kmsKeyId);
+    List<EncryptedDataKey> candidates = new ArrayList<>();
+    //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
+    //# The set of encrypted data keys MUST first be filtered to match this
+    //#  keyring’s configuration.
+    for (EncryptedDataKey edk : encryptedDataKeys) {
+      //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
+      //= type=implication
+      //# - Its provider ID MUST exactly match the value “aws-kms”.
+      //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
+      //# - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-
+      //# arn.md#a-valid-aws-kms-arn) with a resource type of `key` or
+      //# OnDecrypt MUST fail.
+      //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
+      //# - The provider info MUST match the configured AWS KMS key
+      //# identifier.
+      if (edk.keyProviderId().equals(KmsDataKeys.PROVIDER_ID) && KmsDataKeys.providerInfoArn(edk).toString().equals(kmsKeyId)) {
+        candidates.add(edk);
+      }
+    }
+    return KmsDataKeys.firstSuccess(
+      candidates,
+      edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
+      encryptedDataKeys,
+      materials.algorithmSuite()
+    );
   }
 
   /**
@@ -105,7 +148,30 @@ public final class AwsKmsKeyring implements Keyring {
     }
 
     public AwsKmsKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# - MUST provide an AWS KMS key identifier
+      KeyringNames.requireSet(kmsKeyId, "kmsKeyId");
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# - MUST provide an AWS KMS SDK client
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# The AWS KMS SDK client MUST NOT be null.
+      KeyringNames.requireSet(kmsClient, "kmsClient");
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# The AWS KMS key identifier MUST NOT be null or empty.
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# The AWS KMS
+      //# key identifier MUST be [a valid identifier](aws-kms-key-arn.md#a-
+      //# valid-aws-kms-identifier).
+      AwsKmsIdentifier identifier = AwsKmsIdentifier.validateKeyId(kmsKeyId);
+      //= spec/framework/aws-kms/aws-kms-keyring.md#initialization
+      //= type=implication
+      //# - MAY provide a list of Grant Tokens
+      return new AwsKmsKeyring(kmsKeyId, identifier, kmsClient, KmsDataKeys.grantTokens(grantTokens));
     }
   }
 }
