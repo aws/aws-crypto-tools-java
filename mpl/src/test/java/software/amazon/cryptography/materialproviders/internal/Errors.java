@@ -11,6 +11,10 @@ import software.amazon.cryptography.mpl.exceptions.CryptographicException;
 import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
+import software.amazon.cryptography.mpl.internal.primitives.Ecdsa;
+import software.amazon.cryptography.mpl.internal.primitives.Rsa;
+import software.amazon.cryptography.primitives.AtomicPrimitives;
 import software.amazon.cryptography.primitives.model.OpaqueError;
 
 /** Test adapter: native exceptions as the old API threw them. */
@@ -29,6 +33,22 @@ public final class Errors {
         list.add(toOld((RuntimeException) failure));
       }
       return CollectionOfErrors.builder().message(e.getMessage()).list(list).build();
+    }
+    // A failure inside an asymmetric primitive surfaced as the primitives library's error, as AtomicPrimitives reports it.
+    // Classified by the primitives class that threw it; any other class there fails the test instead of guessing.
+    if (e instanceof MaterialProvidersException && e.getStackTrace().length > 0) {
+      String origin = e.getStackTrace()[0].getClassName();
+      if (origin.startsWith(Rsa.class.getPackage().getName() + ".")) {
+        if (origin.equals(Rsa.class.getName()) || origin.equals(Ecdsa.class.getName())) {
+          return AtomicPrimitives.rsaOrEcdsaError((MaterialProvidersException) e);
+        }
+        if (origin.equals(Ecdh.class.getName())) {
+          return AtomicPrimitives.ecdhError((MaterialProvidersException) e);
+        }
+        if (!(e instanceof CryptographicException && e.getCause() instanceof GeneralSecurityException)) {
+          throw new IllegalStateException("no old-API mapping for a failure thrown in " + origin, e);
+        }
+      }
     }
     // A JCE failure inside a primitive surfaced as the primitives library's opaque error.
     if (e instanceof CryptographicException && e.getCause() instanceof GeneralSecurityException) {

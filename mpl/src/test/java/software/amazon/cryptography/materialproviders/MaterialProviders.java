@@ -14,6 +14,7 @@ import software.amazon.cryptography.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.materialproviders.model.CreateRawAesKeyringInput;
+import software.amazon.cryptography.materialproviders.model.CreateRawRsaKeyringInput;
 import software.amazon.cryptography.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.InitializeDecryptionMaterialsInput;
@@ -31,6 +32,7 @@ import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPo
 import software.amazon.cryptography.materialproviders.model.ValidateCommitmentPolicyOnEncryptInput;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
+import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
 
 public class MaterialProviders {
 
@@ -163,6 +165,23 @@ public class MaterialProviders {
           .keyName(input.keyName())
           .wrappingKey(SecretBytes.copyOf(Buffers.toArray(input.wrappingKey())))
           .wrappingAlg(software.amazon.cryptography.mpl.keyrings.AesWrappingAlg.valueOf(input.wrappingAlg().name()))
+          .build()
+      );
+    } catch (RuntimeException e) {
+      throw Errors.toOld(e);
+    }
+  }
+
+  public IKeyring CreateRawRsaKeyring(CreateRawRsaKeyringInput input) {
+    try {
+      return new NativeKeyring(
+        RawRsaKeyring
+          .builder()
+          .keyNamespace(input.keyNamespace())
+          .keyName(input.keyName())
+          .paddingScheme(software.amazon.cryptography.mpl.keyrings.PaddingScheme.valueOf(input.paddingScheme().name()))
+          .publicKey(input.publicKey() == null ? null : Buffers.toArray(input.publicKey()))
+          .privateKey(input.privateKey() == null ? null : SecretBytes.copyOf(Buffers.toArray(input.privateKey())))
           .build()
       );
     } catch (RuntimeException e) {

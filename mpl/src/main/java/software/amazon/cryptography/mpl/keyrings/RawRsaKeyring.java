@@ -4,14 +4,31 @@ package software.amazon.cryptography.mpl.keyrings;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import software.amazon.cryptography.mpl.AlgorithmSuite;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.EncryptedDataKey;
+import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
+import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.EdkWrapping;
+import software.amazon.cryptography.mpl.internal.KeyringNames;
+import software.amazon.cryptography.mpl.internal.MaterialsAccess;
+import software.amazon.cryptography.mpl.internal.MaterialsRules;
+import software.amazon.cryptography.mpl.internal.SecretBytesAccess;
+import software.amazon.cryptography.mpl.internal.primitives.Bytes;
+import software.amazon.cryptography.mpl.internal.primitives.Pem;
+import software.amazon.cryptography.mpl.internal.primitives.Randoms;
+import software.amazon.cryptography.mpl.internal.primitives.Rsa;
 
 /**
  * Wraps data keys with a local RSA key pair.
@@ -36,7 +53,12 @@ public final class RawRsaKeyring implements Keyring {
   private final SecretBytes privateKey;
 
   private RawRsaKeyring(Builder builder, byte[] keyNameBytes) {
-    throw new UnsupportedOperationException("not implemented yet");
+    this.keyNamespace = builder.keyNamespace;
+    this.keyName = builder.keyName;
+    this.keyNameBytes = keyNameBytes;
+    this.paddingScheme = builder.paddingScheme;
+    this.publicKey = builder.publicKey;
+    this.privateKey = builder.privateKey;
   }
 
   public static Builder builder() {
@@ -69,7 +91,48 @@ public final class RawRsaKeyring implements Keyring {
   //# OnEncrypt MUST take [encryption materials](structures.md#encryption-
   //# materials) as input.
   public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    EncryptionMaterials materials = request.materials();
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //= type=implication
+    //# OnEncrypt MUST fail if this keyring does not have a specified [public
+    //# key](#public-key).
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //= type=implication
+    //# The keyring MUST NOT derive a public key from a
+    //# specified [private key](#private-key).
+    if (publicKey == null || publicKey.length == 0) {
+      throw new ValidationException("A RawRSAKeyring without a public key cannot provide OnEncrypt");
+    }
+    EdkWrapping.Wrap<Void> wrap = this::wrap;
+    EdkWrapping.GenerateAndWrap<Void> generateAndWrap = (suite, encryptionContext) -> {
+      //= spec/framework/raw-rsa-keyring.md#onencrypt
+      //# If the [encryption materials](structures.md#encryption-materials) do
+      //# not contain a plaintext data key, OnEncrypt MUST generate a random
+      //# plaintext data key and set it on the [encryption materials]
+      //# (structures.md#encryption-materials).
+      byte[] plaintextMaterial = Randoms.generate(suite.dataKeyLength());
+      return wrap(plaintextMaterial, suite, encryptionContext).generated(plaintextMaterial);
+    };
+    EdkWrapping.WrapResult<Void> result = EdkWrapping.wrap(materials, wrap, generateAndWrap);
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //# If RSA encryption was successful, OnEncrypt MUST return the input
+    //# [encryption materials](structures.md#encryption-materials), modified
+    //# in the following ways:
+    //# - The encrypted data key list has a new encrypted data key added,
+    //#   constructed as follows:
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //#  -  The [key provider ID](structures.md#key-provider-id) field is
+    //#     this keyring's [key namespace](keyring-interface.md#key-
+    //#     namespace).
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //#  -  The [key provider information](structures.md#key-provider-
+    //#     information) field is this keyring's [key name](keyring-
+    //#     interface.md#key-name).
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //#  -  The [ciphertext](structures.md#ciphertext) field is the
+    //#     ciphertext output by the RSA encryption of the plaintext data
+    //#     key.
+    return result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial));
   }
 
   @Override
@@ -79,7 +142,107 @@ public final class RawRsaKeyring implements Keyring {
   //# materials) and a list of [encrypted data keys]
   //# (structures.md#encrypted-data-key) as input.
   public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
-    throw new UnsupportedOperationException("not implemented yet");
+    DecryptionMaterials materials = request.materials();
+    List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
+    //= spec/framework/raw-rsa-keyring.md#ondecrypt
+    //= type=implication
+    //# OnDecrypt MUST fail if this keyring does not have a specified [private
+    //# key](#private-key).
+    if (privateKey == null || privateKey.length() == 0) {
+      // "OnEncrypt" is the Dafny-based MPL's wording.
+      throw new ValidationException("A RawRSAKeyring without a private key cannot provide OnEncrypt");
+    }
+    MaterialsRules.Decryption fields = MaterialsAccess.fields(materials);
+    //= spec/framework/raw-rsa-keyring.md#ondecrypt
+    //= type=implication
+    //# If the decryption materials already contain a plaintext data key, the
+    //# keyring MUST fail and MUST NOT modify the [decryption materials]
+    //# (structures.md#decryption-materials).
+    if (fields.plaintextDataKey != null || !MaterialsRules.isValid(fields)) {
+      throw new InvalidMaterialsException("Keyring received decryption materials that already contain a plaintext data key.");
+    }
+    List<Throwable> errors = new ArrayList<>();
+    //= spec/framework/raw-rsa-keyring.md#ondecrypt
+    //# The keyring MUST attempt to decrypt the input encrypted data keys, in
+    //# list order, until it successfully decrypts one.
+    for (int i = 0; i < encryptedDataKeys.size(); i++) {
+      EncryptedDataKey edk = encryptedDataKeys.get(i);
+      if (shouldDecrypt(edk)) {
+        EdkWrapping.UnwrapResult<Void> unwrapped;
+        try {
+          unwrapped = EdkWrapping.unwrap(edk.ciphertext(), materials, this::unwrap);
+        } catch (RuntimeException e) {
+          errors.add(e);
+          continue;
+        }
+        //= spec/framework/raw-rsa-keyring.md#ondecrypt
+        //# If any decryption succeeds, this keyring MUST immediately return the
+        //# input [decryption materials](structures.md#decryption-materials),
+        //# modified in the following ways:
+        //= spec/framework/raw-rsa-keyring.md#ondecrypt
+        //# - The output of RSA decryption is set as the decryption material's
+        //#   plaintext data key.
+        return unwrapped.addTo(materials);
+      }
+      errors.add(new ValidationException(KeyringNames.incorrectRawDataKeys(i, "RSAKeyring", edk.keyProviderId())));
+    }
+    //= spec/framework/raw-rsa-keyring.md#ondecrypt
+    //# If no decryption succeeds, the keyring MUST fail and MUST NOT modify
+    //# the [decryption materials](structures.md#decryption-materials).
+    throw new NoMatchingDataKeyException(
+      "Raw RSA Key was unable to decrypt any encrypted data key. The list of encountered Exceptions is available via `list`.",
+      errors
+    );
+  }
+
+  private EdkWrapping.Wrapped<Void> wrap(byte[] plaintextMaterial, AlgorithmSuite suite, EncryptionContext encryptionContext) {
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //# The keyring MUST attempt to encrypt the plaintext data key in the
+    //# [encryption materials](structures.md#encryption-materials) using RSA.
+    //# The keyring performs [RSA encryption](#rsa) with the
+    //# following specifics:
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //# - This keyring's [padding scheme](#supported-padding-schemes) is the RSA padding
+    //#   scheme.
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //# - This keyring's [public key](#public-key) is the RSA public key.
+    //= spec/framework/raw-rsa-keyring.md#onencrypt
+    //# - The plaintext data key is the plaintext input to RSA encryption.
+    return new EdkWrapping.Wrapped<>(Rsa.encrypt(paddingScheme, publicKey, plaintextMaterial), null);
+  }
+
+  private EdkWrapping.Unwrapped<Void> unwrap(byte[] wrappedMaterial, AlgorithmSuite suite, EncryptionContext encryptionContext) {
+    byte[] plaintext = SecretBytesAccess.apply(privateKey, key -> Rsa.decrypt(paddingScheme, key, wrappedMaterial));
+    if (plaintext.length != suite.dataKeyLength()) {
+      Bytes.zero(plaintext);
+      throw new ValidationException("Invalid plaintext length.");
+    }
+    return new EdkWrapping.Unwrapped<>(plaintext, null);
+  }
+
+  // The provider info must be the key name's UTF-8 bytes exactly.
+  //= spec/framework/raw-rsa-keyring.md#ondecrypt
+  //= type=implication
+  //# For each encrypted data key, the keyring MUST attempt to decrypt the
+  //# encrypted data key into plaintext using RSA if and only if the
+  //# following is true:
+  private boolean shouldDecrypt(EncryptedDataKey edk) {
+    byte[] info = edk.keyProviderInfo();
+    return (
+      //= spec/framework/raw-rsa-keyring.md#ondecrypt
+      //= type=implication
+      //# - The encrypted data key's [key provider information]
+      //#   (structures.md#key-provider-information). has a value equal to
+      //#   this keyring's [key name](keyring-interface.md#key-name).
+      Arrays.equals(info, keyNameBytes) &&
+      //= spec/framework/raw-rsa-keyring.md#ondecrypt
+      //= type=implication
+      //# - The encrypted data key's [key provider ID](structures.md#key-
+      //#   provider-id) has a value equal to this keyring's [key namespace]
+      //#   (keyring-interface.md#key-namespace).
+      edk.keyProviderId().equals(keyNamespace) &&
+      edk.ciphertext().length > 0
+    );
   }
 
   /**
@@ -140,7 +303,8 @@ public final class RawRsaKeyring implements Keyring {
      * @throws ValidationException if the key has no encoding
      */
     public Builder publicKey(PublicKey publicKey) {
-      throw new UnsupportedOperationException("not implemented yet");
+      this.publicKey = publicKey == null ? null : Pem.publicKey(publicKey, "publicKey");
+      return this;
     }
 
     /**
@@ -149,11 +313,25 @@ public final class RawRsaKeyring implements Keyring {
      * @throws ValidationException if the key has no encoding, for example a key held in a hardware module
      */
     public Builder privateKey(PrivateKey privateKey) {
-      throw new UnsupportedOperationException("not implemented yet");
+      this.privateKey = privateKey == null ? null : Pem.privateKey(privateKey, "privateKey");
+      return this;
     }
 
     public RawRsaKeyring build() {
-      throw new UnsupportedOperationException("not implemented yet");
+      KeyringNames.requireSet(keyNamespace, "keyNamespace");
+      KeyringNames.requireSet(keyName, "keyName");
+      KeyringNames.requireSet(paddingScheme, "paddingScheme");
+      //= spec/framework/raw-rsa-keyring.md#changelog
+      //= type=implication
+      //# Raw RSA keyring MUST NOT accept a key namespace of "aws-kms".
+      if (keyNamespace.equals("aws-kms")) {
+        throw new ValidationException("keyNamespace must not be `aws-kms`");
+      }
+      if (publicKey == null && privateKey == null) {
+        throw new ValidationException("A publicKey or a privateKey is required");
+      }
+      KeyringNames.parseNamespace(keyNamespace);
+      return new RawRsaKeyring(this, KeyringNames.parseName(keyName));
     }
   }
 }
