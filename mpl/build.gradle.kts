@@ -30,6 +30,17 @@ val jacksonVersion: String by project
 // The differential tests load it in an isolated class loader (ReferenceMpl).
 val referenceMpl: Configuration by configurations.creating
 
+// Usage examples, written as the ESDK and DB-ESDK (and their customers) would use the library.
+// They compile against the public API only; the tests run them against the in-process fake AWS endpoint.
+val examples: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().output + configurations.compileClasspath.get()
+    runtimeClasspath += output + compileClasspath
+}
+sourceSets.test {
+    compileClasspath += examples.output
+    runtimeClasspath += examples.output
+}
+
 dependencies {
     // The public API takes AWS SDK clients: a KmsClient (KMS keyrings, BranchKeyStore) and a DynamoDbClient (BranchKeyStore).
     api(platform("software.amazon.awssdk:bom:$awsSdkVersion"))

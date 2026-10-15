@@ -18,7 +18,7 @@ jobs:
             8
             17
       # Gradle runs on 17; the build's toolchain compiles and tests on 8.
-      - name: Build and test
+      - name: Build and test (differential tests, test vectors, examples)
         working-directory: mpl
         run: ./gradlew build
       - name: Check the copied model classes against their source
