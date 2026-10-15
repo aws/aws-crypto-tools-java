@@ -40,6 +40,12 @@ sourceSets.test {
     compileClasspath += examples.output
     runtimeClasspath += examples.output
 }
+// Differential tests against real AWS KMS and DynamoDB, on top of the test sources (adapter, reference oracle).
+// Compiled by `build`; run only by `integrationTest`, which needs MPL_IT_PROFILE and MPL_IT_RESOURCES.
+val integrationTest: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.test.get().output + sourceSets.test.get().compileClasspath
+    runtimeClasspath += output + compileClasspath + sourceSets.test.get().runtimeClasspath
+}
 
 dependencies {
     // The public API takes AWS SDK clients: a KmsClient (KMS keyrings, BranchKeyStore) and a DynamoDbClient (BranchKeyStore).
@@ -69,4 +75,25 @@ tasks.test {
     useJUnitPlatform()
     inputs.files(referenceMpl)
     systemProperty("mpl.reference.classpath", referenceMpl.asPath)
+}
+
+tasks.check {
+    dependsOn(integrationTest.classesTaskName)
+}
+
+tasks.register<Test>("integrationTest") {
+    description = "Runs the native and the reference MPL against real AWS. Needs MPL_IT_PROFILE and MPL_IT_RESOURCES."
+    group = "verification"
+    testClassesDirs = integrationTest.output.classesDirs
+    classpath = integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty("mpl.reference.classpath", referenceMpl.asPath)
+    val profile = System.getenv("MPL_IT_PROFILE")
+    onlyIf("MPL_IT_PROFILE is set") { profile != null }
+    // The default client suppliers and key store clients of both MPLs use the default credential chain.
+    if (profile != null) {
+        environment("AWS_PROFILE", profile)
+    }
+    // Real services change between runs; a cached result says nothing about them.
+    outputs.upToDateWhen { false }
 }
