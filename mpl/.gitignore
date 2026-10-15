@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+
+# jqwik cache
+.jqwik-database
+
+# Eclipse/IDE compiler output
+bin/
+
+# IDE settings
+.idea/
+
+# Duvet outputs
+.duvet/reports/
+.duvet/requirements/
+.duvet/snapshot.txt
