@@ -31,10 +31,18 @@ import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
+import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.cache.CacheEntry;
 import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
@@ -42,8 +50,6 @@ import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
 import software.amazon.cryptography.mpl.internal.cache.CacheClock;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
-import software.amazon.cryptography.mpl.OnDecryptRequest;
-import software.amazon.cryptography.mpl.OnEncryptRequest;
 
 // The native API: builder checks, accessors, exception kinds, and time-dependent cache use on a test clock.
 // Behavior against the reference is covered through the test adapter in materialproviders.HierarchicalKeyring*Test.
@@ -209,7 +215,7 @@ class AwsKmsHierarchicalKeyringTest {
     IllegalStateException failure = new IllegalStateException("cache failed");
     CryptographicMaterialsCache failing = new MapCache() {
       @Override
-      public Optional<CacheEntry> get(CacheKey key) {
+      public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
         throw failure;
       }
     };
@@ -238,7 +244,7 @@ class AwsKmsHierarchicalKeyringTest {
   @Test
   void decryptFailureKinds() {
     AwsKmsHierarchicalKeyring keyring = builder().build();
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build()).materials();
     DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
     NoMatchingDataKeyException none = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(Collections.emptyList()).build()));
     assertTrue(none.failures().isEmpty());
@@ -251,7 +257,7 @@ class AwsKmsHierarchicalKeyringTest {
     NoMatchingDataKeyException failed = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(tampered).build()));
     assertEquals(2, failed.failures().size());
     assertEquals("Received EDK Ciphertext of incorrect length.", failed.failures().get(1).getMessage());
-    assertTrue(keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
+    assertTrue(keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials().plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
   }
 
   @Test
@@ -268,20 +274,20 @@ class AwsKmsHierarchicalKeyringTest {
     CyclicBarrier allLookedUp = new CyclicBarrier(THREADS);
     CryptographicMaterialsCache missTogether = new CryptographicMaterialsCache() {
       @Override
-      public Optional<CacheEntry> get(CacheKey key) {
-        Optional<CacheEntry> entry = multiThreaded.get(key);
+      public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
+        GetCacheEntryResponse response = multiThreaded.getCacheEntry(request);
         await(allLookedUp);
-        return entry;
+        return response;
       }
 
       @Override
-      public void put(CacheKey key, CacheEntry entry) {
-        multiThreaded.put(key, entry);
+      public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+        return multiThreaded.putCacheEntry(request);
       }
 
       @Override
-      public void remove(CacheKey key) {
-        multiThreaded.remove(key);
+      public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
+        return multiThreaded.deleteCacheEntry(request);
       }
     };
     assertConcurrentReads(builder().cache(CacheType.shared(missTogether)).build(), THREADS);
@@ -290,10 +296,10 @@ class AwsKmsHierarchicalKeyringTest {
   // THREADS concurrent encryptions, then THREADS concurrent decryptions of their results, each phase making
   // expectedReads key store reads.
   private void assertConcurrentReads(AwsKmsHierarchicalKeyring keyring, int expectedReads) throws Exception {
-    List<EncryptionMaterials> encrypted = concurrently(i -> keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build()));
+    List<EncryptionMaterials> encrypted = concurrently(i -> keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build()).materials());
     assertEquals(2 * expectedReads, reads());
     DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
-    List<DecryptionMaterials> decrypted = concurrently(i -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.get(i).encryptedDataKeys()).build()));
+    List<DecryptionMaterials> decrypted = concurrently(i -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.get(i).encryptedDataKeys()).build()).materials());
     assertEquals(2 * expectedReads, reads());
     for (int i = 0; i < THREADS; i++) {
       assertTrue(decrypted.get(i).plaintextDataKey().get().contentEquals(encrypted.get(i).plaintextDataKey().get()));
@@ -369,18 +375,20 @@ class AwsKmsHierarchicalKeyringTest {
     final Map<CacheKey, CacheEntry> entries = new HashMap<>();
 
     @Override
-    public Optional<CacheEntry> get(CacheKey key) {
-      return Optional.ofNullable(entries.get(key));
+    public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
+      return GetCacheEntryResponse.builder().entry(entries.get(request.key())).build();
     }
 
     @Override
-    public void put(CacheKey key, CacheEntry entry) {
-      entries.put(key, entry);
+    public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+      entries.put(request.key(), request.entry());
+      return PutCacheEntryResponse.of();
     }
 
     @Override
-    public void remove(CacheKey key) {
-      entries.remove(key);
+    public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
+      entries.remove(request.key());
+      return DeleteCacheEntryResponse.of();
     }
   }
 }

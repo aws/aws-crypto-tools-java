@@ -14,7 +14,9 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
@@ -87,7 +89,7 @@ public final class RawAesKeyring implements Keyring {
   //= type=implication
   //# OnEncrypt MUST take [encryption materials](structures.md#encryption-
   //# materials) as input.
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     EdkWrapping.Wrap<byte[]> wrap = this::wrap;
     EdkWrapping.GenerateAndWrap<byte[]> generateAndWrap = (suite, encryptionContext) -> {
@@ -109,7 +111,7 @@ public final class RawAesKeyring implements Keyring {
     //= spec/framework/raw-aes-keyring.md#onencrypt
     //# OnEncrypt MUST output the modified [encryption materials]
     //# (structures.md#encryption-materials).
-    return result.addTo(materials, edk);
+    return OnEncryptResponse.of(result.addTo(materials, edk));
   }
 
   @Override
@@ -118,7 +120,7 @@ public final class RawAesKeyring implements Keyring {
   //# OnDecrypt MUST take [decryption materials](structures.md#decryption-
   //# materials) and a list of [encrypted data keys]
   //# (structures.md#encrypted-data-key) as input.
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     MaterialsRules.Decryption fields = MaterialsAccess.fields(materials);
@@ -155,7 +157,7 @@ public final class RawAesKeyring implements Keyring {
         //# If a decryption succeeds, this keyring MUST add the resulting
         //# plaintext data key to the decryption materials and return the
         //# modified materials.
-        return unwrapped.addTo(materials);
+        return OnDecryptResponse.of(unwrapped.addTo(materials));
       } else {
         errors.add(new ValidationException(KeyringNames.incorrectRawDataKeys(i, "AESKeyring", edk.keyProviderId())));
       }

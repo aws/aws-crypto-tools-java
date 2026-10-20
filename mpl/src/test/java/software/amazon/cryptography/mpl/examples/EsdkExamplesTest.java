@@ -34,10 +34,11 @@ import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 import software.amazon.cryptography.mpl.AlgorithmSuite;
 import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
 import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
@@ -47,8 +48,8 @@ import software.amazon.cryptography.mpl.examples.esdk.CustomClientSupplierExampl
 import software.amazon.cryptography.mpl.examples.esdk.CustomCmmExample;
 import software.amazon.cryptography.mpl.examples.esdk.CustomKeyringExample;
 import software.amazon.cryptography.mpl.examples.esdk.DiscoveryKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.ErrorHandlingExample;
 import software.amazon.cryptography.mpl.examples.esdk.ErrorHandlingExample.Outcome;
+import software.amazon.cryptography.mpl.examples.esdk.ErrorHandlingExample;
 import software.amazon.cryptography.mpl.examples.esdk.EscrowMultiKeyringExample;
 import software.amazon.cryptography.mpl.examples.esdk.EsdkLikeClient;
 import software.amazon.cryptography.mpl.examples.esdk.HierarchicalKeyringExample;
@@ -66,11 +67,10 @@ import software.amazon.cryptography.mpl.examples.esdk.integration.CryptoAlgorith
 import software.amazon.cryptography.mpl.examples.esdk.integration.EncryptionMaterialsHandler;
 import software.amazon.cryptography.mpl.examples.esdk.integration.KeyBlob;
 import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
-import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
 import software.amazon.cryptography.mpl.keyrings.ClientSupplier;
+import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
@@ -252,12 +252,12 @@ class EsdkExamplesTest {
     CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.of(keyring);
     CryptographicMaterialsManager wrongSuite = new CryptographicMaterialsManager() {
       @Override
-      public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+      public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
         return defaultCmm.getEncryptionMaterials(request);
       }
 
       @Override
-      public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+      public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
         return defaultCmm.decryptMaterials(
           DecryptMaterialsRequest
             .builder()
@@ -433,14 +433,15 @@ class EsdkExamplesTest {
     }
 
     @Override
-    public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+    public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
       encryptRequest = request;
-      encryption = underlying.getEncryptionMaterials(request);
-      return encryption;
+      GetEncryptionMaterialsResponse response = underlying.getEncryptionMaterials(request);
+      encryption = response.encryptionMaterials();
+      return response;
     }
 
     @Override
-    public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+    public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
       return underlying.decryptMaterials(request);
     }
   }

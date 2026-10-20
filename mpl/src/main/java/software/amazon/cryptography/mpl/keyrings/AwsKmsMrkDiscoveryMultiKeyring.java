@@ -9,7 +9,9 @@ import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.internal.KmsDataKeys;
 import software.amazon.cryptography.mpl.internal.KmsMultiKeyrings;
 
@@ -86,12 +88,12 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
 
   /** Always throws: discovery keyrings cannot encrypt. */
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     return built.keyring.onEncrypt(request);
   }
 
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     return built.keyring.onDecrypt(request);
   }
 

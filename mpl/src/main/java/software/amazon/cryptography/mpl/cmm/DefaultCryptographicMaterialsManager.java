@@ -9,10 +9,12 @@ import java.util.Objects;
 import software.amazon.cryptography.mpl.AlgorithmSuite;
 import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
+import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.Keyring;
@@ -110,7 +112,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
   //= reason=Whether each encrypted data key decrypts to the plaintext data key depends on the keyring, which this CMM cannot verify.
   //# - Every encrypted data key in this list MUST correspond to the above plaintext data key.
   @Override
-  public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+  public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
     //= spec/framework/default-cmm.md#get-encryption-materials
     //# If the encryption context included in the [encryption materials request](cmm-interface.md#encryption-materials-request)
     //# already contains the `aws-crypto-public-key` key,
@@ -173,7 +175,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# On each call to Get Encryption Materials,
     //# the default CMM MUST make a call to its [keyring's](#keyring)
     //# [On Encrypt](keyring-interface.md#onencrypt) operation.
-    EncryptionMaterials result = keyring.onEncrypt(OnEncryptRequest.builder().materials(materials).build());
+    EncryptionMaterials result = keyring.onEncrypt(OnEncryptRequest.builder().materials(materials).build()).materials();
     MaterialsRules.Encryption fields = MaterialsAccess.fields(result);
     //= spec/framework/cmm-interface.md#get-encryption-materials
     //# The encryption materials returned MUST include the following:
@@ -209,7 +211,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# [Encrypted Data Keys](structures.md#encrypted-data-keys)
     //# from the On Encrypt Response and include it
     //# in the [encryption materials](structures.md#encryption-materials) returned.
-    return result;
+    return GetEncryptionMaterialsResponse.of(result);
   }
 
   //= spec/framework/cmm-interface.md#decrypt-materials
@@ -242,7 +244,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
    *   if a reproduced value differs from the stored value of the same key
    */
   @Override
-  public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+  public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
     //= spec/framework/default-cmm.md#decrypt-materials
     //# The request MUST fail if the algorithm suite on the request is not
     //# supported by the [commitment policy](./commitment-policy.md#supported-commitment-policy-enum)
@@ -297,7 +299,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# On each call to Decrypt Materials,
     //# the default CMM MUST make a call to its [keyring's](#keyring)
     //# [On Decrypt](keyring-interface.md#ondecrypt) operation.
-    DecryptionMaterials result = keyring.onDecrypt(OnDecryptRequest.builder().materials(materials).encryptedDataKeys(request.encryptedDataKeys()).build());
+    DecryptionMaterials result = keyring.onDecrypt(OnDecryptRequest.builder().materials(materials).encryptedDataKeys(request.encryptedDataKeys()).build()).materials();
     //= spec/framework/cmm-interface.md#decrypt-materials
     //# The decryption materials returned MUST include the following:
     //
@@ -313,6 +315,6 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# The default CMM MUST obtain the Plaintext Data Key from
     //# the On Decrypt response and include it in the decrypt
     //# materials returned.
-    return result;
+    return DecryptMaterialsResponse.of(result);
   }
 }

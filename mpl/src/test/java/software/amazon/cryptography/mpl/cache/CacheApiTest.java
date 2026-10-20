@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.mpl.EncryptionContext;
@@ -315,24 +316,27 @@ class CacheApiTest {
       CryptographicMaterialsCache cache = CryptographicMaterialsCache.create(type);
       CacheEntry branch = CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000));
       CacheEntry beacon = CacheEntry.of(beaconKey(), now, now.plusSeconds(1000));
-      cache.put(key("a"), branch);
-      cache.put(key("b"), beacon);
-      assertSame(branch, cache.get(key("a")).get());
-      assertSame(beacon, cache.get(key("b")).get());
-      cache.remove(key("a"));
-      assertFalse(cache.get(key("a")).isPresent(), type.kind().toString());
-      cache.remove(key("a"));
+      put(cache, key("a"), branch);
+      put(cache, key("b"), beacon);
+      assertSame(branch, get(cache, key("a")).get());
+      assertSame(beacon, get(cache, key("b")).get());
+      cache.deleteCacheEntry(DeleteCacheEntryRequest.of(key("a")));
+      assertFalse(get(cache, key("a")).isPresent(), type.kind().toString());
+      cache.deleteCacheEntry(DeleteCacheEntryRequest.of(key("a")));
       // Expired: before this second.
-      cache.put(key("c"), CacheEntry.of(branchKey("c"), now, now.minusSeconds(2)));
-      assertFalse(cache.get(key("c")).isPresent(), type.kind().toString());
-      assertThrows(NullPointerException.class, () -> cache.get(null));
-      assertThrows(NullPointerException.class, () -> cache.put(null, branch));
-      assertThrows(NullPointerException.class, () -> cache.put(key("d"), null));
-      assertThrows(NullPointerException.class, () -> cache.remove(null));
+      put(cache, key("c"), CacheEntry.of(branchKey("c"), now, now.minusSeconds(2)));
+      assertFalse(get(cache, key("c")).isPresent(), type.kind().toString());
+      assertThrows(NullPointerException.class, () -> cache.getCacheEntry(null));
+      assertThrows(NullPointerException.class, () -> cache.putCacheEntry(null));
+      assertThrows(NullPointerException.class, () -> cache.deleteCacheEntry(null));
     }
+    assertThrows(ValidationException.class, () -> GetCacheEntryRequest.of(null));
+    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.of(null, CacheEntry.of(branchKey("a"), now, now)));
+    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.of(key("a"), null));
+    assertThrows(ValidationException.class, () -> DeleteCacheEntryRequest.of(null));
     CryptographicMaterialsCache none = CryptographicMaterialsCache.create(CacheType.noCache());
-    none.put(key("a"), CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000)));
-    assertFalse(none.get(key("a")).isPresent());
+    put(none, key("a"), CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000)));
+    assertFalse(get(none, key("a")).isPresent());
   }
 
   // Expiry has whole-second resolution: an entry is returned until the end of its expiry second.
@@ -351,10 +355,10 @@ class CacheApiTest {
       }
     };
     BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.singleThreaded(5), clock));
-    cache.put(key("a"), CacheEntry.of(branchKey("a"), Instant.EPOCH, Instant.ofEpochMilli(10_001)));
-    assertTrue(cache.get(key("a")).isPresent());
+    put(cache, key("a"), CacheEntry.of(branchKey("a"), Instant.EPOCH, Instant.ofEpochMilli(10_001)));
+    assertTrue(get(cache, key("a")).isPresent());
     wall[0] = 11_000;
-    assertFalse(cache.get(key("a")).isPresent());
+    assertFalse(get(cache, key("a")).isPresent());
   }
 
   // Register R13: a storm-tracking wait that outlives inFlightTtl is a retryable ThrottlingException.
@@ -384,10 +388,18 @@ class CacheApiTest {
       .timeUnits(TimeUnits.MILLISECONDS)
       .build();
     BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.stormTracking(settings), clock));
-    assertFalse(cache.get(key("a")).isPresent());
-    ThrottlingException thrown = assertThrows(ThrottlingException.class, () -> cache.get(key("b")));
+    assertFalse(get(cache, key("a")).isPresent());
+    ThrottlingException thrown = assertThrows(ThrottlingException.class, () -> get(cache, key("b")));
     assertEquals("Storm cache inFlightTTL exceeded.", thrown.getMessage());
     assertTrue(thrown.isRetryable());
+  }
+
+  private static Optional<CacheEntry> get(CryptographicMaterialsCache cache, CacheKey key) {
+    return cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
+  }
+
+  private static void put(CryptographicMaterialsCache cache, CacheKey key, CacheEntry entry) {
+    cache.putCacheEntry(PutCacheEntryRequest.of(key, entry));
   }
 
   private static CacheKey key(String id) {

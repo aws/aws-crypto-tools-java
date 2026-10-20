@@ -246,7 +246,7 @@ final class Operations {
     Keyring keyring = lookup(keyrings, Cbor.string(request, "keyringId"), "keyringId");
     EncryptionMaterials input = Wire.encryptionMaterials(Cbor.member(request, "materials"));
     try {
-      EncryptionMaterials output = keyring.onEncrypt(OnEncryptRequest.builder().materials(input).build());
+      EncryptionMaterials output = keyring.onEncrypt(OnEncryptRequest.builder().materials(input).build()).materials();
       try {
         ObjectNode response = Cbor.object();
         response.set("materials", Wire.encryptionMaterialsToWire(output));
@@ -265,7 +265,7 @@ final class Operations {
     try {
       DecryptionMaterials output = keyring.onDecrypt(
         OnDecryptRequest.builder().materials(input).encryptedDataKeys(Wire.edks(request, "encryptedDataKeys")).build()
-      );
+      ).materials();
       try {
         ObjectNode response = Cbor.object();
         response.set("materials", Wire.decryptionMaterialsToWire(output));
@@ -297,7 +297,7 @@ final class Operations {
     if (Cbor.present(request, "requiredEncryptionContextKeys")) {
       input.requiredEncryptionContextKeys(Cbor.stringList(request, "requiredEncryptionContextKeys"));
     }
-    EncryptionMaterials materials = cmm.getEncryptionMaterials(input.build());
+    EncryptionMaterials materials = cmm.getEncryptionMaterials(input.build()).encryptionMaterials();
     try {
       SecretBytes plaintextDataKey = materials
         .plaintextDataKey()
@@ -327,7 +327,7 @@ final class Operations {
     if (Cbor.present(request, "reproducedEncryptionContext")) {
       input.reproducedEncryptionContext(Wire.encryptionContext(request, "reproducedEncryptionContext"));
     }
-    DecryptionMaterials materials = cmm.decryptMaterials(input.build());
+    DecryptionMaterials materials = cmm.decryptMaterials(input.build()).decryptionMaterials();
     try {
       SecretBytes plaintextDataKey = materials
         .plaintextDataKey()

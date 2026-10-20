@@ -44,7 +44,7 @@ public final class CmmHandler {
     if (plaintextSize >= 0) {
       request.maxPlaintextLength(plaintextSize);
     }
-    return new EncryptionMaterialsHandler(cmm.getEncryptionMaterials(request.build()));
+    return new EncryptionMaterialsHandler(cmm.getEncryptionMaterials(request.build()).encryptionMaterials());
   }
 
   /**
@@ -71,6 +71,6 @@ public final class CmmHandler {
     if (reproducedContext != null) {
       request.reproducedEncryptionContext(reproducedContext);
     }
-    return new DecryptionMaterialsHandler(cmm.decryptMaterials(request.build()));
+    return new DecryptionMaterialsHandler(cmm.decryptMaterials(request.build()).decryptionMaterials());
   }
 }

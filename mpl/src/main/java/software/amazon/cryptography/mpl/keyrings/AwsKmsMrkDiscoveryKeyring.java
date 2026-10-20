@@ -11,7 +11,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
@@ -68,7 +70,7 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
 
   /** Always throws {@link ValidationException}. */
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     //= spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md#onencrypt
     //= type=implication
@@ -90,10 +92,10 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   //# materials) and a list of [encrypted data keys]
   //# (../structures.md#encrypted-data-key) as input.
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
-    return AwsKmsDiscoveryKeyring.decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, this::keyIdFor);
+    return OnDecryptResponse.of(AwsKmsDiscoveryKeyring.decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, this::keyIdFor));
   }
 
   // DiscoveryMatch and ToStringForRegion: a single-Region key must be in this Region; a multi-Region key is used through its replica here.

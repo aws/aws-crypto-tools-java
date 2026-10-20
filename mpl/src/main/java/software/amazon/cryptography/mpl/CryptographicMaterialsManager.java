@@ -31,13 +31,15 @@ package software.amazon.cryptography.mpl;
  *   <li>the encryption context and encrypted data keys fit the caller's limits, such as a maximum number of keys.
  * </ul>
  *
+ * <p>Each method takes a request object and returns a response object,
+ * so a later version can add fields to either without breaking managers that callers implement.
+ *
  * <p>The caller owns the returned materials and may {@code destroy()} them once the message is done.
  *
  * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/cmm-interface.md">CMM interface</a>.
  */
 public interface CryptographicMaterialsManager {
-  EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request);
+  GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request);
 
-  DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request);
-
+  DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request);
 }

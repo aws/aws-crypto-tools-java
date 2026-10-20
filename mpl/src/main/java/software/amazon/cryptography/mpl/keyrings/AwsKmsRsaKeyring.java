@@ -23,7 +23,9 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ServiceException;
@@ -121,7 +123,7 @@ public final class AwsKmsRsaKeyring implements Keyring {
    * <p>Fails without a public key, and for a suite with an asymmetric signature.
    */
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     if (publicKey == null) {
       throw new ValidationException("A AwsKmsRsaKeyring without a public key cannot provide OnEncrypt");
@@ -147,7 +149,7 @@ public final class AwsKmsRsaKeyring implements Keyring {
         }
       }
     );
-    return result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, Utf8.encode(kmsKeyId), result.wrappedMaterial));
+    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, Utf8.encode(kmsKeyId), result.wrappedMaterial)));
   }
 
   /**
@@ -158,7 +160,7 @@ public final class AwsKmsRsaKeyring implements Keyring {
    * a replica's; one whose provider info is not a KMS ARN fails the whole call.
    */
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     if (kmsClient == null) {
@@ -186,18 +188,20 @@ public final class AwsKmsRsaKeyring implements Keyring {
       throw new NoMatchingDataKeyException(KeyringNames.incorrectDataKeys(encryptedDataKeys, suite), Collections.emptyList());
     }
     byte[] digest = encryptionContextDigest(materials.encryptionContext());
-    return KmsDataKeys.firstSuccess(
-      candidates,
-      edk -> {
-        EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
-          edk.ciphertext(),
-          materials,
-          (wrapped, unwrapSuite, encryptionContext) -> new EdkWrapping.Unwrapped<>(unwrap(wrapped, unwrapSuite, digest), null)
-        );
-        return unwrapped.addTo(materials);
-      },
-      encryptedDataKeys,
-      suite
+    return OnDecryptResponse.of(
+      KmsDataKeys.firstSuccess(
+        candidates,
+        edk -> {
+          EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
+            edk.ciphertext(),
+            materials,
+            (wrapped, unwrapSuite, encryptionContext) -> new EdkWrapping.Unwrapped<>(unwrap(wrapped, unwrapSuite, digest), null)
+          );
+          return unwrapped.addTo(materials);
+        },
+        encryptedDataKeys,
+        suite
+      )
     );
   }
 

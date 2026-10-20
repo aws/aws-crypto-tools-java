@@ -32,7 +32,7 @@ public final class NativeCmm implements ICryptographicMaterialsManager {
     try {
       return GetEncryptionMaterialsOutput
         .builder()
-        .encryptionMaterials(Convert.materials(cmm.getEncryptionMaterials(Requests.request(input))))
+        .encryptionMaterials(Convert.materials(cmm.getEncryptionMaterials(Requests.request(input)).encryptionMaterials()))
         .build();
     } catch (ValidationException e) {
       if (fromCommitmentCheck(e)) {
@@ -49,7 +49,7 @@ public final class NativeCmm implements ICryptographicMaterialsManager {
     try {
       return DecryptMaterialsOutput
         .builder()
-        .decryptionMaterials(Convert.materials(cmm.decryptMaterials(Requests.request(input))))
+        .decryptionMaterials(Convert.materials(cmm.decryptMaterials(Requests.request(input)).decryptionMaterials()))
         .build();
     } catch (ValidationException e) {
       if (fromCommitmentCheck(e)) {

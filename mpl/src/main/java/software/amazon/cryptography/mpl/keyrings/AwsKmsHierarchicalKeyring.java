@@ -20,11 +20,15 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.cache.CacheEntry;
 import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.mpl.cache.StormTrackingCache;
 import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
@@ -156,7 +160,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   //= type=implication
   //# OnEncrypt MUST take [encryption materials]
   //# (../structures.md#encryption-materials) as input.
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     String id = branchKeyIdFor(materials.encryptionContext());
     byte[] idBytes = utf8(id, ENCODE_FAILURE);
@@ -191,11 +195,11 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //
     //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#onencrypt
     //# [ciphertext](../structures.md#ciphertext): MUST be serialized as the [hierarchical keyring ciphertext](#ciphertext)
-    return result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, idBytes, result.wrappedMaterial));
+    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, idBytes, result.wrappedMaterial)));
   }
 
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     MaterialsRules.Decryption fields = MaterialsAccess.fields(materials);
@@ -224,7 +228,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     List<Throwable> errors = new ArrayList<>();
     for (EncryptedDataKey edk : matching) {
       try {
-        return decrypt(materials, fields.suite, id, edk);
+        return OnDecryptResponse.of(decrypt(materials, fields.suite, id, edk));
       } catch (RuntimeException e) {
         errors.add(e);
       }
@@ -316,7 +320,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   // The cached branch key, unless it is missing or older than this keyring's TTL; then the key store's, cached.
   private BranchKeyMaterials branchKey(byte[] cacheId, KeyStoreRead read) {
     CacheKey key = CacheKey.of(cacheId);
-    Optional<CacheEntry> entry = cache.get(key);
+    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
     // now - creation <= ttlSeconds, without overflow: now and ttlSeconds are not negative.
     if (entry.isPresent() && entry.get().creationTime().getEpochSecond() >= nowSeconds() - ttlSeconds) {
       return entry.get().branchKeyMaterials().orElseThrow(() -> new InvalidMaterialsException("Invalid Material Type."));
@@ -327,7 +331,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     if (ttlSeconds >= Long.MAX_VALUE - now) {
       throw new ValidationException("INT64 Overflow when putting cache entry.");
     }
-    cache.put(key, CacheEntry.of(materials, Instant.ofEpochSecond(now), expiry(now + ttlSeconds)));
+    cache.putCacheEntry(PutCacheEntryRequest.of(key, CacheEntry.of(materials, Instant.ofEpochSecond(now), expiry(now + ttlSeconds))));
     return materials;
   }
 

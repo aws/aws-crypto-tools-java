@@ -63,6 +63,26 @@ class RequestsTest {
   }
 
   @Test
+  void responsesHoldTheMaterialsAndRequireThem() {
+    EncryptionMaterials encryption = EncryptionMaterials.builder(SUITE).build();
+    DecryptionMaterials decryption = DecryptionMaterials.builder(SUITE).build();
+    assertSame(encryption, OnEncryptResponse.of(encryption).toBuilder().build().materials());
+    assertSame(decryption, OnDecryptResponse.of(decryption).toBuilder().build().materials());
+    assertSame(encryption, GetEncryptionMaterialsResponse.of(encryption).toBuilder().build().encryptionMaterials());
+    assertSame(decryption, DecryptMaterialsResponse.of(decryption).toBuilder().build().decryptionMaterials());
+    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnEncryptResponse.of(null)).getMessage());
+    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnDecryptResponse.of(null)).getMessage());
+    assertEquals(
+      "Missing value for required field `encryptionMaterials`",
+      assertThrows(ValidationException.class, () -> GetEncryptionMaterialsResponse.of(null)).getMessage()
+    );
+    assertEquals(
+      "Missing value for required field `decryptionMaterials`",
+      assertThrows(ValidationException.class, () -> DecryptMaterialsResponse.of(null)).getMessage()
+    );
+  }
+
+  @Test
   void keyringRequestsShowNoSecrets() {
     EncryptionMaterials encryption = EncryptionMaterials.builder(SUITE).build().withPlaintextDataKey(SecretBytes.copyOf(new byte[32]));
     assertEquals("OnEncryptRequest[" + encryption + "]", OnEncryptRequest.builder().materials(encryption).build().toString());

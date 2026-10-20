@@ -5,9 +5,9 @@ package software.amazon.cryptography.materialproviders.internal;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptionMaterials;
+import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.mpl.internal.MaterialsAccess;
 
 /**
@@ -34,26 +34,26 @@ public final class CustomCmm implements CryptographicMaterialsManager {
   }
 
   @Override
-  public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+  public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
     try {
       software.amazon.cryptography.materialproviders.model.EncryptionMaterials output = cmm
         .GetEncryptionMaterials(Requests.input(request))
         .encryptionMaterials();
       Boundary.encryptionMaterials(output);
-      return MaterialsAccess.encryption(Convert.fields(output));
+      return GetEncryptionMaterialsResponse.of(MaterialsAccess.encryption(Convert.fields(output)));
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }
   }
 
   @Override
-  public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+  public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
     try {
       software.amazon.cryptography.materialproviders.model.DecryptionMaterials output = cmm
         .DecryptMaterials(Requests.input(request))
         .decryptionMaterials();
       Boundary.decryptionMaterials(output);
-      return MaterialsAccess.decryption(Convert.fields(output));
+      return DecryptMaterialsResponse.of(MaterialsAccess.decryption(Convert.fields(output)));
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }

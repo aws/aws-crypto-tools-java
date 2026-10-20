@@ -22,7 +22,7 @@ class MultiKeyringApiTest {
     assertEquals(children, multi.childKeyrings());
     EncryptionMaterials encrypted = multi.onEncrypt(
       OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()
-    );
+    ).materials();
     assertEquals(3, encrypted.encryptedDataKeys().size());
   }
 

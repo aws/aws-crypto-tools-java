@@ -58,7 +58,7 @@ class CanonicalBytesTest {
       .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
       .build();
     EncryptionContext context = EncryptionContext.of("tenant", "a", "\ud83d\ude00", "b");
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(context).build()).build());
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(context).build()).build()).materials();
     EncryptedDataKey edk = encrypted.encryptedDataKeys().get(0);
     byte[] info = edk.keyProviderInfo();
     byte[] iv = Arrays.copyOfRange(info, info.length - 12, info.length);

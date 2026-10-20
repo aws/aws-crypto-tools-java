@@ -15,7 +15,9 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -90,7 +92,7 @@ public final class RawRsaKeyring implements Keyring {
   //= type=implication
   //# OnEncrypt MUST take [encryption materials](structures.md#encryption-
   //# materials) as input.
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     //= spec/framework/raw-rsa-keyring.md#onencrypt
     //= type=implication
@@ -132,7 +134,7 @@ public final class RawRsaKeyring implements Keyring {
     //#  -  The [ciphertext](structures.md#ciphertext) field is the
     //#     ciphertext output by the RSA encryption of the plaintext data
     //#     key.
-    return result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial));
+    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial)));
   }
 
   @Override
@@ -141,7 +143,7 @@ public final class RawRsaKeyring implements Keyring {
   //# OnDecrypt MUST take [decryption materials](structures.md#decryption-
   //# materials) and a list of [encrypted data keys]
   //# (structures.md#encrypted-data-key) as input.
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     //= spec/framework/raw-rsa-keyring.md#ondecrypt
@@ -182,7 +184,7 @@ public final class RawRsaKeyring implements Keyring {
         //= spec/framework/raw-rsa-keyring.md#ondecrypt
         //# - The output of RSA decryption is set as the decryption material's
         //#   plaintext data key.
-        return unwrapped.addTo(materials);
+        return OnDecryptResponse.of(unwrapped.addTo(materials));
       }
       errors.add(new ValidationException(KeyringNames.incorrectRawDataKeys(i, "RSAKeyring", edk.keyProviderId())));
     }

@@ -3,7 +3,6 @@
 package software.amazon.cryptography.mpl.cache;
 
 import java.util.Objects;
-import java.util.Optional;
 import software.amazon.cryptography.mpl.internal.cache.BuiltInCache;
 import software.amazon.cryptography.mpl.internal.cache.CacheClock;
 import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
@@ -13,6 +12,9 @@ import software.amazon.cryptography.mpl.internal.cache.Caches;
  * Caches branch keys and beacon keys. Create one with {@link #create(CacheType)} to share it between keyrings
  * (pass it with {@link CacheType#shared}); implement this only for storage the built-in caches do not cover.
  * A cache used from several threads must be thread-safe; the built-in {@link CacheType#singleThreaded} cache is not.
+ *
+ * <p>Each method takes a request object and returns a response object,
+ * so a later version can add fields to either without breaking caches that callers implement.
  */
 //= spec/framework/cryptographic-materials-cache.md#overview
 //= type=implication
@@ -20,8 +22,8 @@ import software.amazon.cryptography.mpl.internal.cache.Caches;
 //# to store cryptographic materials for reuse.
 //# This document describes the interface that all CMCs MUST implement.
 public interface CryptographicMaterialsCache {
-  /** The entry for {@code key}, if present and not expired. */
-  Optional<CacheEntry> get(CacheKey key);
+  /** The entry for the request's key, if present and not expired; a miss is an empty response, not an exception. */
+  GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request);
 
   //= spec/framework/cryptographic-materials-cache.md#put-cache-entry
   //= type=implication
@@ -32,9 +34,9 @@ public interface CryptographicMaterialsCache {
   //= reason=Cache entries carry no usage metadata; the branch key and beacon key caches never read it.
   //# The cache entry MUST include all [usage metadata](#usage-metadata)
   //# since this information can not be updated after the put operation.
-  void put(CacheKey key, CacheEntry entry);
+  PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request);
 
-  void remove(CacheKey key);
+  DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request);
 
   /**
    * A built-in cache, or for {@link CacheType#shared} the cache it holds.

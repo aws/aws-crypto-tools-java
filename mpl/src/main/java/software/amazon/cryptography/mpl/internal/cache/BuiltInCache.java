@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.internal.cache;
 
-import java.util.Objects;
-import java.util.Optional;
 import software.amazon.cryptography.mpl.cache.CacheEntry;
-import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 
 /** The public cache interface over a built-in cache. */
 public final class BuiltInCache implements CryptographicMaterialsCache {
@@ -18,20 +21,20 @@ public final class BuiltInCache implements CryptographicMaterialsCache {
   }
 
   @Override
-  public Optional<CacheEntry> get(CacheKey key) {
-    Objects.requireNonNull(key, "key");
-    return Optional.ofNullable(engine.get(key).value());
+  public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
+    return GetCacheEntryResponse.builder().entry(engine.get(request.key()).value()).build();
   }
 
   @Override
-  public void put(CacheKey key, CacheEntry entry) {
-    Objects.requireNonNull(key, "key");
-    engine.put(key, entry, entry.expiryTime().getEpochSecond());
+  public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+    CacheEntry entry = request.entry();
+    engine.put(request.key(), entry, entry.expiryTime().getEpochSecond());
+    return PutCacheEntryResponse.of();
   }
 
   @Override
-  public void remove(CacheKey key) {
-    Objects.requireNonNull(key, "key");
-    engine.remove(key);
+  public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
+    engine.remove(request.key());
+    return DeleteCacheEntryResponse.of();
   }
 }

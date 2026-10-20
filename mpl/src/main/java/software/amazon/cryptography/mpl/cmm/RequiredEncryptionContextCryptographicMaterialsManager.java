@@ -11,10 +11,12 @@ import java.util.Map;
 import java.util.Objects;
 import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
+import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
@@ -55,7 +57,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
   }
 
   @Override
-  public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+  public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
     //= spec/framework/required-encryption-context-cmm.md#get-encryption-materials
     //# The encryption context on the [encryption materials request](./cmm-interface.md#encryption-materials-request)
     //# MUST contain a value for every key in the configured [required encryption context keys](#required-encryption-context-keys)
@@ -74,7 +76,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     //# The Required Encryption Context CMM MUST attempt to obtain [encryption materials](./structures.md#encryption-materials)
     //# by making a call to the [underlying CMM's](#underlying-cryptographic-materials-manager)
     //# [Get Encryption Materials](cmm-interface.md#get-encryption-materials).
-    EncryptionMaterials result = underlyingCmm.getEncryptionMaterials(request.toBuilder().requiredEncryptionContextKeys(keys).build());
+    EncryptionMaterials result = underlyingCmm.getEncryptionMaterials(request.toBuilder().requiredEncryptionContextKeys(keys).build()).encryptionMaterials();
     //= spec/framework/required-encryption-context-cmm.md#get-encryption-materials
     //# The obtained [encryption materials](./structures.md#encryption-materials) MUST
     //# have all configured [required encryption context keys](#required-encryption-context-keys)
@@ -103,7 +105,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     if (!result.requiredEncryptionContextKeys().containsAll(request.requiredEncryptionContextKeys())) {
       throw new InvalidMaterialsException("Keyring returned an invalid response");
     }
-    return result;
+    return GetEncryptionMaterialsResponse.of(result);
   }
 
   /**
@@ -113,7 +115,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
    * @throws ValidationException if the reproduced context is absent or lacks a required key
    */
   @Override
-  public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+  public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
     if (!request.reproducedEncryptionContext().isPresent()) {
       throw new ValidationException("No reproduced encryption context on decrypt.");
     }
@@ -144,7 +146,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     //# by making a call to the [underlying CMM's](#underlying-cryptographic-materials-manager)
     //# [decrypt materials](cmm-interface.md#decrypt-materials) interface
     //# with the unchanged [decrypt materials request](./cmm-interface.md#decrypt-materials-request).
-    DecryptionMaterials result = underlyingCmm.decryptMaterials(request);
+    DecryptionMaterials result = underlyingCmm.decryptMaterials(request).decryptionMaterials();
     EncryptionContext finalContext = result.encryptionContext();
     //= spec/framework/required-encryption-context-cmm.md#decrypt-materials
     //# The obtained [decryption materials](./structures.md#decryption-materials) MUST
@@ -170,7 +172,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     if (!MaterialsRules.isReadyForDecrypt(MaterialsAccess.fields(result))) {
       throw new InvalidMaterialsException("Keyring.OnDecrypt failed to decrypt the plaintext data key.");
     }
-    return result;
+    return DecryptMaterialsResponse.of(result);
   }
 
   /**

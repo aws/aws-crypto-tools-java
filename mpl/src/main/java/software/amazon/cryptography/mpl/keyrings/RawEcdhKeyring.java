@@ -10,7 +10,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -73,7 +75,7 @@ public final class RawEcdhKeyring implements Keyring {
 //= type=implication
 //# OnEncrypt MUST take [encryption materials](structures.md#encryption-materials) as input.
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     RawEcdhStaticConfigurations.Kind kind = keyAgreementScheme.kind();
     //= spec/framework/raw-ecdh-keyring.md#onencrypt
@@ -124,14 +126,14 @@ public final class RawEcdhKeyring implements Keyring {
       
       //= spec/framework/raw-ecdh-keyring.md#data-key-wrapping
       //# If the keyring successfully wraps the plaintext data key it MUST set it on the [encryption materials](structures.md#encryption-materials).
-      return result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.RAW_PROVIDER_ID, providerInfo, result.wrappedMaterial));
+      return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.RAW_PROVIDER_ID, providerInfo, result.wrappedMaterial)));
     } finally {
       Bytes.zero(sharedSecret);
     }
   }
 
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     //= spec/framework/raw-ecdh-keyring.md#ondecrypt
@@ -194,7 +196,7 @@ public final class RawEcdhKeyring implements Keyring {
       //= spec/framework/raw-ecdh-keyring.md#ondecrypt
       //# - MUST set the plaintext data key on the [decryption materials](./structures.md#decryption-materials)
       //# - MUST immediately return the modified [decryption materials](../structures.md#decryption-materials).
-      return unwrapped.addTo(materials);
+      return OnDecryptResponse.of(unwrapped.addTo(materials));
     }
     //= spec/framework/raw-ecdh-keyring.md#ondecrypt
     //# If OnDecrypt fails to successfully decrypt any encrypted data key,

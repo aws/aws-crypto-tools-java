@@ -8,11 +8,11 @@ import software.amazon.cryptography.materialproviders.IKeyring;
 import software.amazon.cryptography.materialproviders.model.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.model.OnDecryptInput;
 import software.amazon.cryptography.materialproviders.model.OnEncryptInput;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.internal.MaterialsAccess;
 
 /**
@@ -40,19 +40,19 @@ public final class CustomKeyring implements Keyring {
   }
 
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     OnEncryptInput input = OnEncryptInput.builder().materials(Convert.materials(request.materials())).build();
     try {
       software.amazon.cryptography.materialproviders.model.EncryptionMaterials output = keyring.OnEncrypt(input).materials();
       Boundary.encryptionMaterials(output);
-      return MaterialsAccess.encryption(Convert.fields(output));
+      return OnEncryptResponse.of(MaterialsAccess.encryption(Convert.fields(output)));
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }
   }
 
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     List<EncryptedDataKey> edks = new ArrayList<>();
     for (software.amazon.cryptography.mpl.EncryptedDataKey edk : request.encryptedDataKeys()) {
       edks.add(Convert.edk(edk));
@@ -61,7 +61,7 @@ public final class CustomKeyring implements Keyring {
     try {
       software.amazon.cryptography.materialproviders.model.DecryptionMaterials output = keyring.OnDecrypt(input).materials();
       Boundary.decryptionMaterials(output);
-      return MaterialsAccess.decryption(Convert.fields(output));
+      return OnDecryptResponse.of(MaterialsAccess.decryption(Convert.fields(output)));
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }

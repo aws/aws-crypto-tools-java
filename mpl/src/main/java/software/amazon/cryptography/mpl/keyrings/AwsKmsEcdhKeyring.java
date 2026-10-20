@@ -20,7 +20,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.exceptions.ServiceException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.internal.AwsErrors;
@@ -106,7 +108,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
 //= type=implication
 //# OnEncrypt MUST take [encryption materials](structures.md#encryption-materials) as input.
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     //= spec/framework/aws-kms/aws-kms-ecdh-keyring.md#onencrypt
     //= type=implication
@@ -141,7 +143,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
 
       //= spec/framework/raw-ecdh-keyring.md#data-key-wrapping
       //# If the keyring successfully wraps the plaintext data key it MUST set it on the [encryption materials](structures.md#encryption-materials).
-      return result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.KMS_PROVIDER_ID, providerInfo, result.wrappedMaterial));
+      return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.KMS_PROVIDER_ID, providerInfo, result.wrappedMaterial)));
     } finally {
       Bytes.zero(sharedSecret);
     }
@@ -153,7 +155,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
    * <p>Every {@code aws-kms-ecdh} and {@code raw-ecdh} key is parsed before any is tried; a malformed provider info fails the whole call.
    */
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     //= spec/framework/aws-kms/aws-kms-keyring.md#ondecrypt
     //= type=implication
     //# OnDecrypt MUST take [decryption materials]
@@ -190,7 +192,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
     //= spec/framework/aws-kms/aws-kms-ecdh-keyring.md#ondecrypt
     //# If OnDecrypt fails to successfully decrypt any encrypted data key,
     //# then it MUST yield an error that includes all the collected errors.
-    return KmsDataKeys.firstSuccess(candidates, candidate -> decrypt(materials, candidate), encryptedDataKeys, materials.algorithmSuite());
+    return OnDecryptResponse.of(KmsDataKeys.firstSuccess(candidates, candidate -> decrypt(materials, candidate), encryptedDataKeys, materials.algorithmSuite()));
   }
 
   private boolean isDiscovery() {

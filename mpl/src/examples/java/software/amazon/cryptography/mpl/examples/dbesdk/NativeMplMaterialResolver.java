@@ -78,7 +78,7 @@ public final class NativeMplMaterialResolver {
       .algorithmSuiteId(configuredSuite != null ? configuredSuite : POLICY.defaultSuite())
       .maxPlaintextLength(maxPlaintextLength)
       .build();
-    return cmmRequiring(v2Context).getEncryptionMaterials(request);
+    return cmmRequiring(v2Context).getEncryptionMaterials(request).encryptionMaterials();
   }
 
   /**
@@ -102,7 +102,7 @@ public final class NativeMplMaterialResolver {
       .encryptionContext(EncryptionContext.fromUtf8(storedContext))
       .reproducedEncryptionContext(EncryptionContext.fromUtf8(union(baseContext, v2Context)))
       .build();
-    return cmmRequiring(v2Context).decryptMaterials(request);
+    return cmmRequiring(v2Context).decryptMaterials(request).decryptionMaterials();
   }
 
   /** The MPL context as the DB-ESDK keeps it, in the UTF-8 byte order the header serializes in. */

@@ -12,7 +12,9 @@ import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
@@ -64,7 +66,7 @@ public final class MultiKeyring implements Keyring {
   //# This keyring MUST implement the [Generate Data Key](keyring-
   //# interface.md#generate-data-key) behavior during [OnEncrypt](keyring-
   //# interface.md#onencrypt).
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     boolean hasDataKey = materials.plaintextDataKey().isPresent();
     //= spec/framework/multi-keyring.md#onencrypt
@@ -98,7 +100,7 @@ public final class MultiKeyring implements Keyring {
       //= spec/framework/multi-keyring.md#onencrypt
       //# - If the generator keyring fails OnEncrypt, this OnEncrypt MUST also
       //# fail.
-      EncryptionMaterials generated = generator.onEncrypt(OnEncryptRequest.builder().materials(current).build());
+      EncryptionMaterials generated = generator.onEncrypt(OnEncryptRequest.builder().materials(current).build()).materials();
       //= spec/framework/multi-keyring.md#onencrypt
       //# - If the generator keyring returns encryption materials missing a
       //# plaintext data key, OnEncrypt MUST fail.
@@ -111,19 +113,21 @@ public final class MultiKeyring implements Keyring {
       current = generated;
     }
     for (Keyring child : childKeyrings) {
-      EncryptionMaterials next;
+      OnEncryptResponse response;
       try {
         //= spec/framework/multi-keyring.md#onencrypt
         //# Next, for each [keyring](keyring-interface.md) in this keyring's list
         //# of [child keyrings](#child-keyrings), the keyring MUST call [OnEncrypt]
         //# (keyring-interface.md#onencrypt).
-        next = child.onEncrypt(OnEncryptRequest.builder().materials(current).build());
+        response = child.onEncrypt(OnEncryptRequest.builder().materials(current).build());
       } catch (RuntimeException e) {
         //= spec/framework/multi-keyring.md#onencrypt
         //# If the child keyring's [OnEncrypt](keyring-
         //# interface.md#onencrypt) fails, this OnEncrypt MUST also fail.
         throw new InvalidMaterialsException("Child keyring failed to encrypt plaintext data key", e);
       }
+      // Read outside the try: a null response is a NullPointerException, not a child failure.
+      EncryptionMaterials next = response.materials();
       requireEncryptTransition(current, next, "Child keyring performed invalid transition on encryption materials");
       // Intermediate results are this keyring's own; the caller's materials are not.
       if (current != materials && current != next) {
@@ -136,11 +140,11 @@ public final class MultiKeyring implements Keyring {
     //# succeeded, this keyring MUST return the [encryption materials]
     //# (structures.md#encryption-materials) returned by the last OnEncrypt
     //# call.
-    return current;
+    return OnEncryptResponse.of(current);
   }
 
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     MaterialsRules.Decryption fields = MaterialsAccess.fields(materials);
     //= spec/framework/multi-keyring.md#ondecrypt
@@ -176,7 +180,7 @@ public final class MultiKeyring implements Keyring {
         //# interface.md#ondecrypt) using the unmodified [decryption materials]
         //# (structures.md#decryption-materials) and the input [encrypted data key]
         //# (structures.md#encrypted-data-key) list.
-        decrypted = keyring.onDecrypt(request);
+        decrypted = keyring.onDecrypt(request).materials();
         if (!MaterialsRules.isValidTransition(fields, MaterialsAccess.fields(decrypted))) {
           throw new InvalidMaterialsException("Keyring performed invalid material transition");
         }
@@ -194,7 +198,7 @@ public final class MultiKeyring implements Keyring {
       //# (structures.md#decryption-materials) containing a plaintext data key,
       //# the multi-keyring MUST immediately return the modified decryption
       //# materials.
-      return decrypted;
+      return OnDecryptResponse.of(decrypted);
     }
     //= spec/framework/multi-keyring.md#ondecrypt
     //= type=exception

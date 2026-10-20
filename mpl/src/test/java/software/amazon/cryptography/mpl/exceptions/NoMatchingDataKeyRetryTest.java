@@ -71,7 +71,7 @@ class NoMatchingDataKeyRetryTest {
       KmsClient kms = aws.kmsClient("retry", "us-west-2");
       Keyring keyring = AwsKmsKeyring.builder().kmsKeyId(aws.kms().createSymmetricKey("us-west-2")).kmsClient(kms).build();
       Keyring multi = MultiKeyring.builder().generator(keyring).build();
-      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build());
+      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
       DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
       List<EncryptedDataKey> edks = encrypted.encryptedDataKeys();
 

@@ -11,7 +11,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
 import software.amazon.cryptography.mpl.internal.KmsDataKeys;
@@ -63,9 +65,9 @@ public final class AwsKmsMrkKeyring implements Keyring {
   //= type=implication
   //# OnEncrypt MUST take [encryption materials](../structures.md#encryption-
   //# materials) as input.
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
-    return KmsDataKeys.onEncrypt(kmsClient, kmsKeyId, grantTokens, materials);
+    return OnEncryptResponse.of(KmsDataKeys.onEncrypt(kmsClient, kmsKeyId, grantTokens, materials));
   }
 
   /**
@@ -81,7 +83,7 @@ public final class AwsKmsMrkKeyring implements Keyring {
   //# OnDecrypt MUST take [decryption materials](../structures.md#decryption-
   //# materials) and a list of [encrypted data keys]
   //# (../structures.md#encrypted-data-key) as input.
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
     KmsDataKeys.requireNoPlaintextDataKey(materials);
@@ -106,11 +108,13 @@ public final class AwsKmsMrkKeyring implements Keyring {
         candidates.add(edk);
       }
     }
-    return KmsDataKeys.firstSuccess(
-      candidates,
-      edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
-      encryptedDataKeys,
-      materials.algorithmSuite()
+    return OnDecryptResponse.of(
+      KmsDataKeys.firstSuccess(
+        candidates,
+        edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
+        encryptedDataKeys,
+        materials.algorithmSuite()
+      )
     );
   }
 

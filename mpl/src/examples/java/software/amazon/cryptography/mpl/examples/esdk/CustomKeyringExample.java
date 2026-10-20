@@ -20,7 +20,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -74,7 +76,7 @@ public final class CustomKeyringExample {
     }
 
     @Override
-    public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+    public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
       EncryptionMaterials materials = request.materials();
       EncryptionMaterials withKey = materials;
       if (!materials.plaintextDataKey().isPresent()) {
@@ -94,11 +96,11 @@ public final class CustomKeyringExample {
         Arrays.fill(dataKey, (byte) 0);
       }
       byte[] ciphertext = ByteBuffer.allocate(iv.length + wrapped.length).put(iv).put(wrapped).array();
-      return withKey.withEncryptedDataKey(EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext));
+      return OnEncryptResponse.of(withKey.withEncryptedDataKey(EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext)));
     }
 
     @Override
-    public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+    public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
       DecryptionMaterials materials = request.materials();
       if (materials.plaintextDataKey().isPresent()) {
         throw new InvalidMaterialsException("Decryption materials already hold a data key");
@@ -114,7 +116,7 @@ public final class CustomKeyringExample {
         try {
           dataKey = gcm(Cipher.DECRYPT_MODE, Arrays.copyOf(ciphertext, 12), aad, Arrays.copyOfRange(ciphertext, 12, ciphertext.length));
           try (SecretBytes secret = SecretBytes.copyOf(dataKey)) {
-            return materials.withPlaintextDataKey(secret);
+            return OnDecryptResponse.of(materials.withPlaintextDataKey(secret));
           }
         } catch (IllegalStateException e) {
           failures.add(e);

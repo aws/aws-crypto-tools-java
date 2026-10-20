@@ -13,7 +13,9 @@ import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.internal.AwsArnParsing.AwsKmsIdentifier;
 import software.amazon.cryptography.mpl.internal.KeyringNames;
@@ -63,7 +65,7 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
 
   /** Always throws {@link ValidationException}. */
   @Override
-  public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+  public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
     //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#onencrypt
     //= type=implication
@@ -83,10 +85,10 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
   //# OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
   //# a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
   @Override
-  public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+  public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
-    return decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, arn -> passes(discoveryFilter, arn) ? arn.toString() : null);
+    return OnDecryptResponse.of(decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, arn -> passes(discoveryFilter, arn) ? arn.toString() : null));
   }
 
   //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt

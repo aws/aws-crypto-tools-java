@@ -175,7 +175,7 @@ class DefaultClientSupplierTest {
     DefaultClientSupplier supplier = ClientSupplier.defaultSupplier();
     AwsKmsMultiKeyring borrowing = AwsKmsMultiKeyring.builder().generator(key).clientSupplier(supplier).build();
     borrowing.close();
-    assertFalse(borrowing.onEncrypt(OnEncryptRequest.builder().materials(start).build()).encryptedDataKeys().isEmpty());
+    assertFalse(borrowing.onEncrypt(OnEncryptRequest.builder().materials(start).build()).materials().encryptedDataKeys().isEmpty());
     supplier.close();
   }
 

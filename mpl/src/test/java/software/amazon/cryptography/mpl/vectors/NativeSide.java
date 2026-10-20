@@ -15,6 +15,8 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
 import software.amazon.cryptography.mpl.Keyring;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
@@ -66,7 +68,7 @@ final class NativeSide implements Side {
         if (vector.requiredEncryptionContextKeys != null) {
           request.requiredEncryptionContextKeys(vector.requiredEncryptionContextKeys);
         }
-        EncryptionMaterials materials = cmm.getEncryptionMaterials(request.build());
+        EncryptionMaterials materials = cmm.getEncryptionMaterials(request.build()).encryptionMaterials();
         List<TestVectors.Edk> edks = new ArrayList<>();
         for (EncryptedDataKey edk : materials.encryptedDataKeys()) {
           edks.add(new TestVectors.Edk(edk.keyProviderId(), edk.keyProviderInfo(), edk.ciphertext()));
@@ -96,7 +98,7 @@ final class NativeSide implements Side {
         if (vector.reproducedEncryptionContext != null) {
           request.reproducedEncryptionContext(EncryptionContext.copyOf(vector.reproducedEncryptionContext));
         }
-        DecryptionMaterials materials = cmm.decryptMaterials(request.build());
+        DecryptionMaterials materials = cmm.decryptMaterials(request.build()).decryptionMaterials();
         return new Decrypted(
           materials.plaintextDataKey().map(SecretBytes::toByteArray).orElse(null),
           materials.symmetricSigningKey().map(SecretBytes::toByteArray).orElse(null),
@@ -283,7 +285,7 @@ final class NativeSide implements Side {
     }
 
     @Override
-    public EncryptionMaterials onEncrypt(OnEncryptRequest request) {
+    public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
       EncryptionMaterials materials = request.materials();
       EncryptionMaterials result = EncryptionMaterials
         .builder(material.algorithmSuite)
@@ -296,11 +298,11 @@ final class NativeSide implements Side {
       for (TestVectors.Edk edk : material.encryptedDataKeys) {
         result = result.withEncryptedDataKey(EncryptedDataKey.of(edk.keyProviderId, edk.keyProviderInfo, edk.ciphertext));
       }
-      return result;
+      return OnEncryptResponse.of(result);
     }
 
     @Override
-    public DecryptionMaterials onDecrypt(OnDecryptRequest request) {
+    public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
       DecryptionMaterials materials = request.materials();
       List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
       DecryptionMaterials result = DecryptionMaterials
@@ -309,7 +311,7 @@ final class NativeSide implements Side {
         .requiredEncryptionContextKeys(material.requiredEncryptionContextKeys)
         .build();
       Optional<byte[]> plaintextDataKey = Optional.ofNullable(material.plaintextDataKey);
-      return plaintextDataKey.isPresent() ? result.withPlaintextDataKey(SecretBytes.copyOf(plaintextDataKey.get())) : result;
+      return OnDecryptResponse.of(plaintextDataKey.isPresent() ? result.withPlaintextDataKey(SecretBytes.copyOf(plaintextDataKey.get())) : result);
     }
   }
 }

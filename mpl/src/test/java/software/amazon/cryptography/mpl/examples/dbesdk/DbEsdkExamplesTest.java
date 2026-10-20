@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -35,9 +34,14 @@ import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cache.CacheEntry;
-import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 import software.amazon.cryptography.mpl.examples.dbesdk.DbEsdkLikeItemEncryptor.ParsedHeader;
 import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -320,19 +324,19 @@ class DbEsdkExamplesTest {
     List<CacheEntry> puts = new ArrayList<>();
     CryptographicMaterialsCache cache = new CryptographicMaterialsCache() {
       @Override
-      public Optional<CacheEntry> get(CacheKey cacheKey) {
-        return backing.get(cacheKey);
+      public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
+        return backing.getCacheEntry(request);
       }
 
       @Override
-      public void put(CacheKey cacheKey, CacheEntry entry) {
-        puts.add(entry);
-        backing.put(cacheKey, entry);
+      public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+        puts.add(request.entry());
+        return backing.putCacheEntry(request);
       }
 
       @Override
-      public void remove(CacheKey cacheKey) {
-        backing.remove(cacheKey);
+      public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
+        return backing.deleteCacheEntry(request);
       }
     };
     // The built-in cache expires entries by the system clock, so the source's clock starts there.

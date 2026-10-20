@@ -154,7 +154,7 @@ class KmsKeyringsNativeApiTest {
     AwsKmsKeyring keyring = AwsKmsKeyring.builder().kmsKeyId(key).kmsClient(client).build();
     assertSame(failure, assertThrows(IllegalStateException.class, () -> keyring.onEncrypt(OnEncryptRequest.builder().materials(start).build())));
     // On decrypt it is collected with the other attempts' failures.
-    EncryptionMaterials encrypted = AwsKmsKeyring.builder().kmsKeyId(key).kmsClient(kms).build().onEncrypt(OnEncryptRequest.builder().materials(start).build());
+    EncryptionMaterials encrypted = AwsKmsKeyring.builder().kmsKeyId(key).kmsClient(kms).build().onEncrypt(OnEncryptRequest.builder().materials(start).build()).materials();
     DecryptionMaterials materials = DecryptionMaterials.builder(start.algorithmSuite()).encryptionContext(start.encryptionContext()).build();
     NoMatchingDataKeyException e = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(materials).encryptedDataKeys(encrypted.encryptedDataKeys()).build()));
     assertEquals(Collections.<Throwable>singletonList(failure), e.failures());
@@ -163,7 +163,7 @@ class KmsKeyringsNativeApiTest {
   @Test
   void decryptFailuresAreCollectedWithTheirKinds() {
     AwsKmsKeyring keyring = AwsKmsKeyring.builder().kmsKeyId(key).kmsClient(kms).build();
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start).build());
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start).build()).materials();
     DecryptionMaterials materials = DecryptionMaterials.builder(start.algorithmSuite()).encryptionContext(start.encryptionContext()).build();
     aws.kms().fail("Decrypt", null, ServiceError.accessDenied("no"));
     NoMatchingDataKeyException e = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(materials).encryptedDataKeys(encrypted.encryptedDataKeys()).build()));
@@ -260,7 +260,7 @@ class KmsKeyringsNativeApiTest {
     assertEquals(Collections.singletonList("t"), mrkDiscoveryMulti.grantTokens());
     // Closing a keyring with a caller's supplier closes nothing.
     multi.close();
-    assertFalse(multi.onEncrypt(OnEncryptRequest.builder().materials(start).build()).encryptedDataKeys().isEmpty());
+    assertFalse(multi.onEncrypt(OnEncryptRequest.builder().materials(start).build()).materials().encryptedDataKeys().isEmpty());
   }
 
   @Test

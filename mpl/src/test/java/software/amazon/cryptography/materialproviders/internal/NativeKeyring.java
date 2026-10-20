@@ -40,7 +40,7 @@ public final class NativeKeyring implements IKeyring {
     try {
       return OnEncryptOutput
         .builder()
-        .materials(Convert.materials(keyring.onEncrypt(OnEncryptRequest.builder().materials(MaterialsAccess.encryption(Convert.fields(input.materials()))).build())))
+        .materials(Convert.materials(keyring.onEncrypt(OnEncryptRequest.builder().materials(MaterialsAccess.encryption(Convert.fields(input.materials()))).build()).materials()))
         .build();
     } catch (RuntimeException e) {
       throw Errors.toOld(e);
@@ -59,7 +59,7 @@ public final class NativeKeyring implements IKeyring {
         .builder()
         .materials(Convert.materials(keyring.onDecrypt(
             OnDecryptRequest.builder().materials(MaterialsAccess.decryption(Convert.fields(input.materials()))).encryptedDataKeys(edks).build()
-          )))
+          ).materials()))
         .build();
     } catch (RuntimeException e) {
       if (isIncorrectDataKeysFailure(e)) {

@@ -9,10 +9,12 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.AlgorithmSuite;
 import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
+import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
 import software.amazon.cryptography.mpl.DecryptionMaterials;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
@@ -63,7 +65,7 @@ public final class CustomCmmExample {
     }
 
     @Override
-    public EncryptionMaterials getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
+    public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
       GetEncryptionMaterialsRequest.Builder stamped = request
         .toBuilder()
         .encryptionContext(request.encryptionContext().with(KEY, application));
@@ -76,7 +78,7 @@ public final class CustomCmmExample {
     }
 
     @Override
-    public DecryptionMaterials decryptMaterials(DecryptMaterialsRequest request) {
+    public DecryptMaterialsResponse decryptMaterials(DecryptMaterialsRequest request) {
       if (!application.equals(request.encryptionContext().get(KEY))) {
         throw new ValidationException("Message is not from " + application);
       }

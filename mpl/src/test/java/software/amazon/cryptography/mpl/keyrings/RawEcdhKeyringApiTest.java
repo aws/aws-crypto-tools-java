@@ -64,9 +64,9 @@ class RawEcdhKeyringApiTest {
     assertEquals(EcdhCurveSpec.ECC_NIST_P256, staticKeyring.curveSpec());
 
     for (RawEcdhKeyring encryptor : Arrays.asList(staticKeyring, keyring(ephemeralScheme))) {
-      EncryptionMaterials encrypted = encryptor.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(SUITE).encryptionContext(EncryptionContext.of("a", "b")).build()).build());
+      EncryptionMaterials encrypted = encryptor.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(SUITE).encryptionContext(EncryptionContext.of("a", "b")).build()).build()).materials();
       DecryptionMaterials start = DecryptionMaterials.builder(SUITE).encryptionContext(EncryptionContext.of("a", "b")).build();
-      DecryptionMaterials decrypted = discoveryKeyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.encryptedDataKeys()).build());
+      DecryptionMaterials decrypted = discoveryKeyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials();
       assertTrue(decrypted.plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
     }
   }

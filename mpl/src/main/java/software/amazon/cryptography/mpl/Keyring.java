@@ -17,8 +17,8 @@ package software.amazon.cryptography.mpl;
  * <p>The caller owns the materials a keyring returns, which hold their own copies of the secrets;
  * the materials passed in stay with whoever passed them.
  *
- * <p>Each method takes a request object,
- * so a later version can add request fields without breaking keyrings that callers implement.
+ * <p>Each method takes a request object and returns a response object,
+ * so a later version can add fields to either without breaking keyrings that callers implement.
  *
  * <p>Not {@link AutoCloseable}: most keyrings hold nothing to release.
  * The KMS multi and discovery multi keyrings can create their own clients; close those keyrings through their own type.
@@ -40,7 +40,7 @@ public interface Keyring {
   //# - [Encrypt data key](#encrypt-data-key)
   //# If this keyring attempted any of the above behaviors, and successfully completed those behaviors,
   //# it MUST output the modified [encryption materials](structures.md#encryption-materials).
-  EncryptionMaterials onEncrypt(OnEncryptRequest request);
+  OnEncryptResponse onEncrypt(OnEncryptRequest request);
 
   /**
    * Returns the request's materials with the plaintext data key from the first of its encrypted data keys
@@ -63,5 +63,5 @@ public interface Keyring {
   //# and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
   //#
   //# If this keyring attempted the above behavior, and succeeded, it MUST output the modified [decryption materials](structures.md#decryption-materials).
-  DecryptionMaterials onDecrypt(OnDecryptRequest request);
+  OnDecryptResponse onDecrypt(OnDecryptRequest request);
 }

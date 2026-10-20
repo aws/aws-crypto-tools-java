@@ -86,8 +86,8 @@ class KmsAsymmetricKeyringsNativeApiTest {
     assertSame(kms, keyring.kmsClient().get());
     assertEquals(tokens, keyring.grantTokens());
     assertThrows(UnsupportedOperationException.class, () -> keyring.grantTokens().add("t3"));
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build());
-    DecryptionMaterials decrypted = keyring.onDecrypt(OnDecryptRequest.builder().materials(decryptStart()).encryptedDataKeys(encrypted.encryptedDataKeys()).build());
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build()).materials();
+    DecryptionMaterials decrypted = keyring.onDecrypt(OnDecryptRequest.builder().materials(decryptStart()).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials();
     assertTrue(decrypted.plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
 
     AwsKmsRsaKeyring encryptOnly = AwsKmsRsaKeyring.builder().publicKey(pem).kmsKeyId(arn).encryptionAlgorithm(EncryptionAlgorithmSpec.RSAES_OAEP_SHA_1).build();
@@ -101,7 +101,7 @@ class KmsAsymmetricKeyringsNativeApiTest {
     String arn = aws.kms().createRsaKey(REGION, "RSA_2048");
     byte[] pem = aws.kms().publicKeyPem(arn).getBytes(StandardCharsets.UTF_8);
     AwsKmsRsaKeyring keyring = AwsKmsRsaKeyring.builder().publicKey(pem).kmsKeyId(arn).encryptionAlgorithm(EncryptionAlgorithmSpec.RSAES_OAEP_SHA_256).kmsClient(kms).build();
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build());
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build()).materials();
     assertMessage(ValidationException.class, "A publicKey or a kmsClient is required", () -> AwsKmsRsaKeyring.builder().kmsKeyId(arn).encryptionAlgorithm(EncryptionAlgorithmSpec.RSAES_OAEP_SHA_1).build());
     assertMessage(ValidationException.class, "Unsupported EncryptionAlgorithmSpec", () -> AwsKmsRsaKeyring.builder().kmsKeyId(arn).encryptionAlgorithm(EncryptionAlgorithmSpec.SM2_PKE).kmsClient(kms).build());
 
@@ -155,9 +155,9 @@ class KmsAsymmetricKeyringsNativeApiTest {
     for (KmsEcdhStaticConfigurations scheme : Arrays.asList(fetched, supplied)) {
       AwsKmsEcdhKeyring keyring = ecdh(scheme, null);
       assertEquals(Collections.emptyList(), keyring.grantTokens());
-      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build());
+      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(start()).build()).materials();
       for (AwsKmsEcdhKeyring decryptor : Arrays.asList(keyring, discoveryKeyring)) {
-        DecryptionMaterials decrypted = decryptor.onDecrypt(OnDecryptRequest.builder().materials(decryptStart()).encryptedDataKeys(encrypted.encryptedDataKeys()).build());
+        DecryptionMaterials decrypted = decryptor.onDecrypt(OnDecryptRequest.builder().materials(decryptStart()).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials();
         assertTrue(decrypted.plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
       }
     }

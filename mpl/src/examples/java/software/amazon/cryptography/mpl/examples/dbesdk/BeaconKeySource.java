@@ -23,6 +23,8 @@ import software.amazon.cryptography.mpl.cache.CacheEntry;
 import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 
@@ -98,7 +100,7 @@ public final class BeaconKeySource {
   public Map<String, SecretBytes> hmacKeys(String beaconKeyId) {
     // Per getKeysCache: a cache hit within this source's TTL, else the key store, then put with expiry now + TTL.
     CacheKey key = CacheKey.of(cacheIdentifier(beaconKeyId));
-    Optional<CacheEntry> entry = cache.get(key);
+    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
     long now = epochSeconds.getAsLong();
     if (entry.isPresent() && now - entry.get().creationTime().getEpochSecond() <= cacheTtlSeconds) {
       BeaconKeyMaterials cached = entry
@@ -115,7 +117,9 @@ public final class BeaconKeySource {
       for (String name : beaconNames) {
         keys.put(name, hmacKey(beaconKey, name));
       }
-      cache.put(key, CacheEntry.of(materials.toHmacKeysOnly(keys), Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + cacheTtlSeconds)));
+      cache.putCacheEntry(
+        PutCacheEntryRequest.of(key, CacheEntry.of(materials.toHmacKeysOnly(keys), Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + cacheTtlSeconds)))
+      );
     } catch (RuntimeException e) {
       keys.values().forEach(SecretBytes::destroy);
       throw e;

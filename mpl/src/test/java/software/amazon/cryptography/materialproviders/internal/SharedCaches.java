@@ -4,7 +4,6 @@ package software.amazon.cryptography.materialproviders.internal;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.Optional;
 import software.amazon.cryptography.materialproviders.ICryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.model.DeleteCacheEntryInput;
 import software.amazon.cryptography.materialproviders.model.EntryAlreadyExists;
@@ -15,6 +14,12 @@ import software.amazon.cryptography.materialproviders.model.Materials;
 import software.amazon.cryptography.materialproviders.model.PutCacheEntryInput;
 import software.amazon.cryptography.mpl.cache.CacheEntry;
 import software.amazon.cryptography.mpl.cache.CacheKey;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.DeleteCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 
 /**
  * Test adapter: an old-API cache given to a hierarchical keyring as {@code Shared}, as a native cache.
@@ -41,12 +46,12 @@ public final class SharedCaches {
     }
 
     @Override
-    public Optional<CacheEntry> get(CacheKey key) {
+    public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
       try {
-        GetCacheEntryOutput output = cache.GetCacheEntry(GetCacheEntryInput.builder().identifier(identifier(key)).build());
-        return Optional.of(toNative(output));
+        GetCacheEntryOutput output = cache.GetCacheEntry(GetCacheEntryInput.builder().identifier(identifier(request.key())).build());
+        return GetCacheEntryResponse.builder().entry(toNative(output)).build();
       } catch (EntryDoesNotExist e) {
-        return Optional.empty();
+        return GetCacheEntryResponse.builder().build();
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }
@@ -54,12 +59,13 @@ public final class SharedCaches {
 
     // The keyring puts only branch keys.
     @Override
-    public void put(CacheKey key, CacheEntry entry) {
+    public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+      CacheEntry entry = request.entry();
       try {
         cache.PutCacheEntry(
           PutCacheEntryInput
             .builder()
-            .identifier(identifier(key))
+            .identifier(identifier(request.key()))
             .materials(Materials.builder().BranchKey(CacheAdapter.toOld(entry.branchKeyMaterials().get())).build())
             .creationTime(entry.creationTime().getEpochSecond())
             .expiryTime(entry.expiryTime().getEpochSecond())
@@ -70,15 +76,17 @@ public final class SharedCaches {
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }
+      return PutCacheEntryResponse.of();
     }
 
     @Override
-    public void remove(CacheKey key) {
+    public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
       try {
-        cache.DeleteCacheEntry(DeleteCacheEntryInput.builder().identifier(identifier(key)).build());
+        cache.DeleteCacheEntry(DeleteCacheEntryInput.builder().identifier(identifier(request.key())).build());
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }
+      return DeleteCacheEntryResponse.of();
     }
 
     // The Dafny-based wrapper converted the result inside its try, so a result it could not convert failed like a thrown exception.
