@@ -34,10 +34,12 @@ import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptograph
  * {@link EncryptionContext#fromUtf8} and {@link EncryptedDataKey#ofUtf8} decode strictly, so bytes that are not UTF-8 fail
  * instead of turning into U+FFFD and silently changing the context.
  *
- * <p>Per StructuredEncryption EncryptStructure/DecryptStructure in the Dafny DB-ESDK:
+ * <p>Per the Dafny DB-ESDK's item encryptor (EncryptItem, DecryptItem) and StructuredEncryption (EncryptStructure, DecryptStructure):
  * the DBE commitment policy on every call, a suite id on every call (the configured one or the policy default),
- * {@code maxPlaintextLength}, and a Required Encryption Context CMM per call whose required keys are exactly
- * the version-2 (SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT) entries, in UTF-8 byte order.
+ * {@code maxPlaintextLength}, and two Required Encryption Context CMMs per call, each with its keys in UTF-8 byte order:
+ * the item encryptor's over every base context key, and around it StructuredEncryption's over the version-2
+ * (SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT) entries, if there are any.
+ * Every base and version-2 entry is therefore required, and the header stores none of them.
  */
 public final class NativeMplMaterialResolver {
 
@@ -60,7 +62,7 @@ public final class NativeMplMaterialResolver {
   }
 
   /**
-   * @param baseContext the item encryptor's context (table and key names, and in version 1 the key values); stored in the header
+   * @param baseContext the item encryptor's context (table and key names, and in version 1 the key values); required, so not stored
    * @param v2Context the SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT entries and the legend; required, so not stored
    * @param configuredSuite the table's suite, or null for the policy default
    * @param maxPlaintextLength {@code 2 * encryptedFieldCount + totalEncryptedValueBytes}
@@ -78,7 +80,7 @@ public final class NativeMplMaterialResolver {
       .algorithmSuiteId(configuredSuite != null ? configuredSuite : POLICY.defaultSuite())
       .maxPlaintextLength(maxPlaintextLength)
       .build();
-    return cmmRequiring(v2Context).getEncryptionMaterials(request).encryptionMaterials();
+    return cmmRequiring(baseContext, v2Context).getEncryptionMaterials(request).encryptionMaterials();
   }
 
   /**
@@ -102,7 +104,7 @@ public final class NativeMplMaterialResolver {
       .encryptionContext(EncryptionContext.fromUtf8(storedContext))
       .reproducedEncryptionContext(EncryptionContext.fromUtf8(union(baseContext, v2Context)))
       .build();
-    return cmmRequiring(v2Context).decryptMaterials(request).decryptionMaterials();
+    return cmmRequiring(baseContext, v2Context).decryptMaterials(request).decryptionMaterials();
   }
 
   /** The MPL context as the DB-ESDK keeps it, in the UTF-8 byte order the header serializes in. */
@@ -114,16 +116,19 @@ public final class NativeMplMaterialResolver {
     return bytes;
   }
 
-  // Without version-2 entries the configured manager is used unchanged, as in EncryptStructure.
-  private CryptographicMaterialsManager cmmRequiring(Map<String, byte[]> v2Context) {
-    if (v2Context.isEmpty()) {
-      return cmm;
-    }
+  // The item encryptor always requires its base context keys (DynamoDbItemEncryptor EncryptItem, DecryptItem).
+  // StructuredEncryption wraps that manager only when there are version-2 entries (EncryptStructure, DecryptStructure).
+  private CryptographicMaterialsManager cmmRequiring(Map<String, byte[]> baseContext, Map<String, byte[]> v2Context) {
+    CryptographicMaterialsManager itemEncryptor = requiring(cmm, baseContext);
+    return v2Context.isEmpty() ? itemEncryptor : requiring(itemEncryptor, v2Context);
+  }
+
+  private static CryptographicMaterialsManager requiring(CryptographicMaterialsManager underlying, Map<String, byte[]> context) {
     // EncryptionContext iterates in UTF-8 byte order, the order Dafny passes the required keys in.
-    List<String> requiredKeys = new ArrayList<>(EncryptionContext.fromUtf8(v2Context).keySet());
+    List<String> requiredKeys = new ArrayList<>(EncryptionContext.fromUtf8(context).keySet());
     return RequiredEncryptionContextCryptographicMaterialsManager
       .builder()
-      .underlyingCmm(cmm)
+      .underlyingCmm(underlying)
       .requiredEncryptionContextKeys(requiredKeys)
       .build();
   }

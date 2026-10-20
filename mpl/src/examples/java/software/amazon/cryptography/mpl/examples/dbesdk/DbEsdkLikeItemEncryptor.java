@@ -47,8 +47,8 @@ import software.amazon.cryptography.mpl.SecretBytes;
  *   <li>DBE suites and the DBE commitment policy;</li>
  *   <li>one recipient tag per encrypted data key, an HMAC under that key's symmetric signing key;</li>
  *   <li>for signing suites, an ECDSA footer signature with the materials' JCA keys;</li>
- *   <li>for SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT attributes, a Required Encryption Context CMM per call:
- *       the header does not store those entries, and decrypt rebuilds them from the item.</li>
+ *   <li>Required Encryption Context CMMs per call over the base context keys and the SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT entries:
+ *       the header stores none of those entries, and decrypt rebuilds them from the item.</li>
  * </ul>
  *
  * <p>An encrypted item is the plaintext item with ENCRYPT_AND_SIGN values replaced by base64 ciphertext,

@@ -43,7 +43,6 @@ import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
 import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 import software.amazon.cryptography.mpl.examples.dbesdk.DbEsdkLikeItemEncryptor.ParsedHeader;
-import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
 import software.amazon.cryptography.mpl.keyrings.AesWrappingAlg;
@@ -214,17 +213,16 @@ class DbEsdkExamplesTest {
   }
 
   @Test
-  void signAndIncludeAttributesAreAuthenticatedButNotStored() {
+  void headersStoreNoBaseOrSignAndIncludeEntries() {
     BranchKeyStore store = keyStore();
     Map<String, String> encrypted = RequiredEncryptionContextExample.encryptAndDecrypt(store);
     Map<String, String> stored = DbEsdkLikeItemEncryptor.parseHeader(encrypted).storedEncryptionContext();
-    assertEquals(ExampleItems.TABLE, stored.get(DbEsdkLikeItemEncryptor.TABLE_NAME));
-    assertEquals(ExampleItems.PARTITION_KEY, stored.get(DbEsdkLikeItemEncryptor.PARTITION_NAME));
-    // Version 2: key values are required entries too, so the header has only the names (and the signing suite's public key).
-    assertEquals(
-      new java.util.HashSet<>(Arrays.asList("aws-crypto-public-key", DbEsdkLikeItemEncryptor.TABLE_NAME, DbEsdkLikeItemEncryptor.PARTITION_NAME, DbEsdkLikeItemEncryptor.SORT_NAME)),
-      stored.keySet()
-    );
+    // As in the Dafny item encryptor, every base context and version-2 entry is required,
+    // so the header stores only the signing suite's public key.
+    assertEquals(Collections.singleton("aws-crypto-public-key"), stored.keySet());
+    // Version 1 (SIGN_ONLY key attributes): the base context also holds the key values, and they are required too.
+    Map<String, String> version1 = ExampleItems.roundTrip(ExampleItems.encryptor(aesKeyring()), ExampleItems.item("tenant"));
+    assertEquals(Collections.singleton("aws-crypto-public-key"), DbEsdkLikeItemEncryptor.parseHeader(version1).storedEncryptionContext().keySet());
 
     // The failure comes from the context alone: the branch key is the same.
     assertInstanceOf(NoMatchingDataKeyException.class, RequiredEncryptionContextExample.decryptAfterChangingSortKey(store));
@@ -255,7 +253,11 @@ class DbEsdkExamplesTest {
 
     EncryptionMaterials encryption = resolver.forEncrypt(base, v2, null, 10);
     assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384, encryption.algorithmSuite());
-    assertEquals(Arrays.asList("aws-crypto-attr.a", "aws-crypto-attr.b", "aws-crypto-legend"), encryption.requiredEncryptionContextKeys());
+    // StructuredEncryption's version-2 keys, then the item encryptor's base keys, as the nested managers add them.
+    assertEquals(
+      Arrays.asList("aws-crypto-attr.a", "aws-crypto-attr.b", "aws-crypto-legend", "aws-crypto-table-name"),
+      encryption.requiredEncryptionContextKeys()
+    );
     assertEquals(encryption.encryptedDataKeys().size(), encryption.symmetricSigningKeys().size());
     assertEquals(384, ((ECPrivateKey) encryption.signingPrivateKey().get()).getParams().getCurve().getField().getFieldSize());
 
@@ -407,11 +409,10 @@ class DbEsdkExamplesTest {
     otherTag.put(DbEsdkLikeItemEncryptor.FOOTER, java.util.Base64.getEncoder().encodeToString(footer));
     assertThrows(DbEsdkLikeItemEncryptor.TamperedItemException.class, () -> unsigned.decryptItem(otherTag));
 
-    // A changed key value disagrees with the stored context: the item was edited or moved.
+    // A changed key value changes the required context the data key was wrapped with: the item was edited or moved.
     Map<String, String> otherSortKey = new LinkedHashMap<>(encrypted);
     otherSortKey.put(ExampleItems.SORT_KEY, "1");
-    EncryptionContextMismatchException e = assertThrows(EncryptionContextMismatchException.class, () -> encryptor.decryptItem(otherSortKey));
-    assertEquals("Encryption context does not match reproduced encryption context.", e.getMessage());
+    assertThrows(NoMatchingDataKeyException.class, () -> encryptor.decryptItem(otherSortKey));
   }
 
   private BranchKeyStore keyStore() {
