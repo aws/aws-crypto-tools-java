@@ -27,8 +27,9 @@
  *       {@link software.amazon.cryptography.mpl.exceptions.MaterialProvidersException}; message text is not a contract.
  *       Misuse is reported the standard Java way: a null argument throws {@link NullPointerException}, and using a
  *       destroyed {@link software.amazon.cryptography.mpl.SecretBytes} throws {@link IllegalStateException}.
- *       Exception: the static methods of {@link software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations}
- *       and {@link software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations} report a null argument with
+ *       Exceptions: the static methods of {@link software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations}
+ *       and {@link software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations}, and the static {@code of(...)}
+ *       of every request and response type, which is short for its builder, report a null argument with
  *       {@link software.amazon.cryptography.mpl.exceptions.ValidationException}, as a builder reports a missing field.</li>
  * </ul>
  */

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
-import java.util.Objects;
 import java.util.Optional;
 
 /** Output of {@link CryptographicMaterialsCache#getCacheEntry}. Immutable. */
@@ -18,9 +17,9 @@ public final class GetCacheEntryResponse {
     return new Builder();
   }
 
-  /** {@code Optional.empty()} for a miss. */
-  public static GetCacheEntryResponse of(Optional<CacheEntry> entry) {
-    return builder().entry(Objects.requireNonNull(entry, "entry").orElse(null)).build();
+  /** The same as {@code builder().entry(entry).build()}: a null entry is a miss. */
+  public static GetCacheEntryResponse of(CacheEntry entry) {
+    return builder().entry(entry).build();
   }
 
   /** A builder holding this response's values. */

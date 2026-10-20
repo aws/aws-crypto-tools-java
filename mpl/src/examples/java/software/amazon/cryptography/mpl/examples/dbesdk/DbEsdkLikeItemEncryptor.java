@@ -161,7 +161,7 @@ public final class DbEsdkLikeItemEncryptor {
   /**
    * @throws TamperedItemException if the item does not authenticate
    * @throws software.amazon.cryptography.mpl.exceptions.MaterialProvidersException if no keyring can decrypt a data key,
-   *   or the context rebuilt from the item disagrees with the stored one
+   *   as when a key or SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT value changed after encryption
    */
   public Map<String, String> decryptItem(Map<String, String> encryptedItem) {
     byte[] header = Base64.getDecoder().decode(required(encryptedItem, HEADER));

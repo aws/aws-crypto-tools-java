@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
-import java.time.Duration;
-import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -13,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -29,6 +28,7 @@ import software.amazon.cryptography.mpl.internal.cache.BuiltInCache;
 import software.amazon.cryptography.mpl.internal.cache.CacheClock;
 import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
 import software.amazon.cryptography.mpl.internal.cache.Caches;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyMaterials;
 
@@ -266,14 +266,18 @@ class CacheApiTest {
     );
     assertEquals(maxMillis, withTime("sleep", maxMillis).sleep());
 
-    // The consistency rules compare times; the message shows them in the unit they are held in.
+    // The consistency rules compare the times, with StormTracker.dfy's message showing them as Durations.
     assertEquals(
-      "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=11 and gracePeriod=10. ",
-      assertThrows(ValidationException.class, () -> withTime("graceInterval", Duration.ofSeconds(11))).getMessage()
+      "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=PT10.001S and gracePeriod=PT10S. ",
+      assertThrows(ValidationException.class, () -> withTime("graceInterval", Duration.ofMillis(10_001))).getMessage()
     );
     assertEquals(
-      "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=10001 and gracePeriod=10000. ",
-      assertThrows(ValidationException.class, () -> withTime("graceInterval", Duration.ofMillis(10_001))).getMessage()
+      "For a StormCache : inFlightTTL must not exceed gracePeriod, yet configuration has inFlightTTL=PT11S and gracePeriod=PT10S. ",
+      assertThrows(ValidationException.class, () -> withTime("inFlightTtl", Duration.ofSeconds(11))).getMessage()
+    );
+    assertEquals(
+      "For a StormCache : ",
+      assertThrows(ValidationException.class, () -> StormTrackingCache.builder().entryCapacity(1).graceInterval(Duration.ofSeconds(2)).inFlightTtl(Duration.ofSeconds(1)).build()).getMessage()
     );
     withTime("graceInterval", Duration.ofSeconds(10));
   }

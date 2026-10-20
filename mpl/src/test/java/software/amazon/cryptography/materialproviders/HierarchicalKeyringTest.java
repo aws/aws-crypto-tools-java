@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.materialproviders;
 
-import java.time.Duration;
-import java.util.function.LongFunction;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,11 +12,13 @@ import static software.amazon.cryptography.materialproviders.KeyringTests.*;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.LongFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.keystore.KeyStore;
@@ -42,6 +41,7 @@ import software.amazon.cryptography.materialproviders.model.NoCache;
 import software.amazon.cryptography.materialproviders.model.SingleThreadedCache;
 import software.amazon.cryptography.materialproviders.model.StormTrackingCache;
 import software.amazon.cryptography.materialproviders.model.TimeUnits;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
  * Differential tests of the hierarchical keyring against the published Dafny-based MPL:
@@ -152,6 +152,59 @@ class HierarchicalKeyringTest {
               : "keyring"
           );
           assertEquals(message(expected), message(actual), units + " " + grace + ", ttl " + ttl);
+        }
+      }
+    }
+    // Millisecond configurations of whole seconds, which the native settings hold in seconds.
+    // Inconsistent settings fail on both sides; the native message shows Durations, so only the outcome is compared.
+    int[][] wholeSecondsInMillis = { { 5000, 1000, 1000 }, { 5000, 5000, 5000 }, { 5000, 6000, 1000 }, { 5000, 1000, 6000 }, { 5000, 2000, 1000 } };
+    for (int[] times : wholeSecondsInMillis) {
+      CacheType old = CacheType
+        .builder()
+        .StormTracking(
+          StormTrackingCache
+            .builder()
+            .entryCapacity(10)
+            .entryPruningTailSize(1)
+            .gracePeriod(times[0])
+            .graceInterval(times[1])
+            .fanOut(5)
+            .inFlightTTL(times[2])
+            .sleepMilli(5)
+            .timeUnits(TimeUnits.Milliseconds)
+            .build()
+        )
+        .build();
+      for (long ttl : new long[] { 4, 5, 6 }) {
+        CreateAwsKmsHierarchicalKeyringInput input = h.input(branchKey).ttlSeconds(ttl).cache(old).build();
+        String expected = ReferenceMpl.outcome(() -> ReferenceMpl.call(h.reference, "CreateAwsKmsHierarchicalKeyring", input) == null ? null : "keyring");
+        String actual = ReferenceMpl.outcome(() ->
+          AwsKmsHierarchicalKeyring
+              .builder()
+              .keyStore(input.keyStore().impl())
+              .branchKeyId(branchKey)
+              .ttl(Duration.ofSeconds(ttl))
+              .cache(
+                software.amazon.cryptography.mpl.cache.CacheType.stormTracking(
+                  software.amazon.cryptography.mpl.cache.StormTrackingCache
+                    .builder()
+                    .entryCapacity(10)
+                    .gracePeriod(Duration.ofMillis(times[0]))
+                    .graceInterval(Duration.ofMillis(times[1]))
+                    .fanOut(5)
+                    .inFlightTtl(Duration.ofMillis(times[2]))
+                    .sleep(Duration.ofMillis(5))
+                    .build()
+                )
+              )
+              .build() == null
+            ? null
+            : "keyring"
+        );
+        String where = Arrays.toString(times) + " ms, ttl " + ttl;
+        assertEquals(expected.equals("keyring"), actual.equals("keyring"), where + ": " + expected + " / " + actual);
+        if (message(expected).startsWith("When creating") && message(actual).startsWith("When creating")) {
+          assertEquals(message(expected), message(actual), where);
         }
       }
     }

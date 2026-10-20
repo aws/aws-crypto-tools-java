@@ -13,7 +13,8 @@ import software.amazon.cryptography.mpl.exceptions.ValidationException;
  * <p>The unit changes no cache behavior: {@link StormTracker} works in milliseconds, as StormTracker.dfy does.
  * It shows only in the numbers of the inconsistent-settings message and in the hierarchical keyring's TTL check,
  * which rounds a grace period in milliseconds down to whole seconds.
- * {@link StormTrackingCache} registers its conversions when it loads; the test adapter builds every old configuration here.
+ * These settings hold any configuration of the Dafny-based model, its unit included.
+ * {@link StormTrackingCache} registers its conversions when it loads.
  */
 public final class StormSettings {
 
@@ -73,21 +74,31 @@ public final class StormSettings {
     atLeastOne("inFlightTTL", inFlightTtl);
     atLeastOne("sleepMilli", sleepMilli);
     if (!(graceInterval <= gracePeriod && inFlightTtl <= gracePeriod && graceInterval <= inFlightTtl)) {
-      throw new ValidationException(inconsistentMessage(gracePeriod, graceInterval, inFlightTtl));
+      throw new ValidationException(
+        inconsistentMessage(graceInterval <= gracePeriod, inFlightTtl <= gracePeriod, String.valueOf(gracePeriod), String.valueOf(graceInterval), String.valueOf(inFlightTtl))
+      );
     }
     return new StormSettings(entryCapacity, entryPruningTailSize, gracePeriod, graceInterval, fanOut, inFlightTtl, sleepMilli, seconds);
   }
 
-  // Text from StormTracker.dfy BadCacheMsg. It names only the first two rules,
-  // so graceInterval > inFlightTtl alone yields just the prefix.
-  private static String inconsistentMessage(int gracePeriod, int graceInterval, int inFlightTtl) {
+  /**
+   * Text from StormTracker.dfy BadCacheMsg, with the times as given.
+   * It names only the first two rules, so graceInterval &gt; inFlightTtl alone yields just the prefix.
+   */
+  public static String inconsistentMessage(
+    boolean intervalWithinPeriod,
+    boolean inFlightWithinPeriod,
+    String gracePeriod,
+    String graceInterval,
+    String inFlightTtl
+  ) {
     String message = "For a StormCache : ";
-    if (!(graceInterval <= gracePeriod)) {
+    if (!intervalWithinPeriod) {
       message +=
         "graceInterval must not exceed gracePeriod, yet configuration has graceInterval=" + graceInterval +
         " and gracePeriod=" + gracePeriod + ". ";
     }
-    if (!(inFlightTtl <= gracePeriod)) {
+    if (!inFlightWithinPeriod) {
       message +=
         "inFlightTTL must not exceed gracePeriod, yet configuration has inFlightTTL=" + inFlightTtl +
         " and gracePeriod=" + gracePeriod + ". ";

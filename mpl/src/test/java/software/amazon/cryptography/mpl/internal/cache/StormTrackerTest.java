@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.internal.cache;
 
-import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static software.amazon.cryptography.mpl.internal.cache.LocalCacheTest.key;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -134,7 +134,8 @@ class StormTrackerTest {
 
   @Test
   void gracePeriodBoundary() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().gracePeriod(Duration.ofMillis(2000)).graceInterval(Duration.ofMillis(1000)).inFlightTtl(Duration.ofMillis(1000)).build(), clock);
+    // The Dafny-based settings' Milliseconds unit.
+    StormTracker<String> st = new StormTracker<>(StormSettings.create(1000, 1, 2000, 1000, 20, 1000, 20, false).toPublic(), clock);
     st.put(key("a"), "a", 100);
     assertEquals(State.FULL, poll(st, "a", 97_999));
     assertEquals(State.FETCH, poll(st, "a", 98_000));
@@ -142,7 +143,7 @@ class StormTrackerTest {
 
   @Test
   void secondsMultiplyByAThousand() {
-    // The Dafny-based settings' Seconds unit: gracePeriodBoundary's times, in seconds.
+    // The Dafny-based settings' Seconds unit: gracePeriodBoundary's grace period and interval, in seconds.
     StormTrackingCache seconds = StormSettings.create(1000, 1, 2, 1, 20, 2, 20, true).toPublic();
     StormTracker<String> st = new StormTracker<>(seconds, clock);
     st.put(key("a"), "a", 100);

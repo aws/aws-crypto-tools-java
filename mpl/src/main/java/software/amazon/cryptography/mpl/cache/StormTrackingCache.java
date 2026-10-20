@@ -182,6 +182,13 @@ public final class StormTrackingCache {
       StormSettings.atLeastOne("fanOut", fanOut);
       long inFlightTtlMillis = millis("inFlightTtl", inFlightTtl);
       long sleepMillis = millis("sleep", sleep);
+      boolean intervalWithinPeriod = graceInterval.compareTo(gracePeriod) <= 0;
+      boolean inFlightWithinPeriod = inFlightTtl.compareTo(gracePeriod) <= 0;
+      if (!(intervalWithinPeriod && inFlightWithinPeriod && graceInterval.compareTo(inFlightTtl) <= 0)) {
+        throw new ValidationException(
+          StormSettings.inconsistentMessage(intervalWithinPeriod, inFlightWithinPeriod, gracePeriod.toString(), graceInterval.toString(), inFlightTtl.toString())
+        );
+      }
       if (sleep.compareTo(MAX_IN_MILLIS) > 0) {
         throw new ValidationException("`sleep` must be at most " + Integer.MAX_VALUE + " milliseconds");
       }

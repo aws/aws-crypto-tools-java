@@ -366,6 +366,7 @@ class BranchKeyStoreTest {
     store.versionKey(b -> b.branchKeyIdentifier(id));
     assertNotEquals(active.branchKeyVersion(), store.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials().branchKeyVersion());
     assertEquals(id, store.getBeaconKey(b -> b.branchKeyIdentifier(id)).beaconKeyMaterials().beaconKeyIdentifier());
+    assertEquals(store.createKeyStore().tableArn(), store.createKeyStore(b -> {}).tableArn());
     assertSame(store.getKeyStoreInfo(), store.getKeyStoreInfo(b -> {}));
     assertSame(store.getKeyStoreInfo(), store.getKeyStoreInfo(GetKeyStoreInfoRequest.builder().build()));
     assertThrows(NullPointerException.class, () -> store.createKey((java.util.function.Consumer<CreateKeyRequest.Builder>) null));

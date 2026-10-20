@@ -387,6 +387,7 @@ class DbEsdkExamplesTest {
   void standInRejectsTamperedItems() {
     DbEsdkLikeItemEncryptor encryptor = ExampleItems.encryptor(aesKeyring());
     Map<String, String> encrypted = encryptor.encryptItem(ExampleItems.item("tamper"));
+    assertEquals(ExampleItems.item("tamper"), encryptor.decryptItem(encrypted));
 
     Map<String, String> otherCiphertext = new LinkedHashMap<>(encrypted);
     otherCiphertext.put(ExampleItems.SENSITIVE, encryptor.encryptItem(ExampleItems.item("tamper")).get(ExampleItems.SENSITIVE));

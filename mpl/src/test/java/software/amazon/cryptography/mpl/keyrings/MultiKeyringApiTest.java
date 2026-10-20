@@ -3,14 +3,25 @@
 package software.amazon.cryptography.mpl.keyrings;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.mpl.AlgorithmSuite;
+import software.amazon.cryptography.mpl.DecryptionMaterials;
+import software.amazon.cryptography.mpl.EncryptedDataKey;
 import software.amazon.cryptography.mpl.EncryptionMaterials;
+import software.amazon.cryptography.mpl.Keyring;
+import software.amazon.cryptography.mpl.OnDecryptRequest;
+import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.mpl.OnEncryptResponse;
 import software.amazon.cryptography.mpl.SecretBytes;
+import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 
 class MultiKeyringApiTest {
 
@@ -24,6 +35,38 @@ class MultiKeyringApiTest {
       OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()
     ).materials();
     assertEquals(3, encrypted.encryptedDataKeys().size());
+  }
+
+  // Both MPLs fail when a keyring returns null. On encrypt the native multi keyring throws NullPointerException, where
+  // Dafny reported the child failure (an exception kind, R1); on decrypt both count it as that keyring's failure.
+  @Test
+  void aKeyringReturningNullFails() {
+    Keyring returnsNull = new Keyring() {
+      @Override
+      public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
+        return null;
+      }
+
+      @Override
+      public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
+        return null;
+      }
+    };
+    EncryptionMaterials start = EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
+    OnEncryptRequest encrypt = OnEncryptRequest.builder().materials(start).build();
+    assertThrows(NullPointerException.class, () -> MultiKeyring.builder().generator(returnsNull).build().onEncrypt(encrypt));
+    MultiKeyring nullChild = MultiKeyring.builder().generator(aes("g")).childKeyrings(Collections.singletonList(returnsNull)).build();
+    assertThrows(NullPointerException.class, () -> nullChild.onEncrypt(encrypt));
+
+    List<EncryptedDataKey> edks = aes("g").onEncrypt(encrypt).materials().encryptedDataKeys();
+    OnDecryptRequest decrypt = OnDecryptRequest
+      .builder()
+      .materials(DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build())
+      .encryptedDataKeys(edks)
+      .build();
+    assertTrue(MultiKeyring.builder().generator(returnsNull).childKeyrings(Collections.singletonList(aes("g"))).build().onDecrypt(decrypt).materials().plaintextDataKey().isPresent());
+    NoMatchingDataKeyException none = assertThrows(NoMatchingDataKeyException.class, () -> MultiKeyring.builder().generator(returnsNull).build().onDecrypt(decrypt));
+    assertInstanceOf(NullPointerException.class, none.failures().get(0));
   }
 
   private static RawAesKeyring aes(String name) {
