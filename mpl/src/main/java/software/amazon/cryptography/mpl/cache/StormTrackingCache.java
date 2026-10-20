@@ -2,43 +2,41 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
+import java.time.Duration;
 import java.util.Objects;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 
 /**
  * Settings for a storm-tracking cache: as an entry nears expiry, one caller at a time refreshes it while
- * others keep using it. Times are in {@link #timeUnits()} units. Immutable.
+ * others keep using it. Immutable.
+ *
+ * <p>The cache counts the grace period, grace interval, and in-flight TTL in milliseconds,
+ * and entry expiry in whole seconds.
  *
  * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/storm-tracking-cryptographic-materials-cache.md">storm tracking cryptographic materials cache</a>.
  */
 public final class StormTrackingCache {
 
   public static final int DEFAULT_ENTRY_PRUNING_TAIL_SIZE = 1;
-  public static final int DEFAULT_GRACE_PERIOD = 10;
-  public static final int DEFAULT_GRACE_INTERVAL = 1;
+  public static final Duration DEFAULT_GRACE_PERIOD = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_GRACE_INTERVAL = Duration.ofSeconds(1);
   public static final int DEFAULT_FAN_OUT = 20;
-  public static final int DEFAULT_IN_FLIGHT_TTL = 10;
-  public static final int DEFAULT_SLEEP_MILLI = 20;
-  public static final TimeUnits DEFAULT_TIME_UNITS = TimeUnits.SECONDS;
+  public static final Duration DEFAULT_IN_FLIGHT_TTL = Duration.ofSeconds(10);
+  public static final Duration DEFAULT_SLEEP = Duration.ofMillis(20);
 
-  private final int entryCapacity;
-  private final int entryPruningTailSize;
-  private final int gracePeriod;
-  private final int graceInterval;
-  private final int fanOut;
-  private final int inFlightTtl;
-  private final int sleepMilli;
-  private final TimeUnits timeUnits;
+  // The largest count the Dafny-based settings hold (a CountingNumber), as seconds and as milliseconds.
+  private static final Duration MAX_IN_SECONDS = Duration.ofSeconds(Integer.MAX_VALUE);
+  private static final Duration MAX_IN_MILLIS = Duration.ofMillis(Integer.MAX_VALUE);
 
-  private StormTrackingCache(Builder builder) {
-    this.entryCapacity = builder.entryCapacity;
-    this.entryPruningTailSize = builder.entryPruningTailSize;
-    this.gracePeriod = builder.gracePeriod;
-    this.graceInterval = builder.graceInterval;
-    this.fanOut = builder.fanOut;
-    this.inFlightTtl = builder.inFlightTtl;
-    this.sleepMilli = builder.sleepMilli;
-    this.timeUnits = builder.timeUnits;
+  static {
+    StormSettings.register(StormTrackingCache::new, cache -> cache.settings);
+  }
+
+  private final StormSettings settings;
+
+  private StormTrackingCache(StormSettings settings) {
+    this.settings = settings;
   }
 
   public static Builder builder() {
@@ -46,35 +44,31 @@ public final class StormTrackingCache {
   }
 
   public int entryCapacity() {
-    return entryCapacity;
+    return settings.entryCapacity;
   }
 
   public int entryPruningTailSize() {
-    return entryPruningTailSize;
+    return settings.entryPruningTailSize;
   }
 
-  public int gracePeriod() {
-    return gracePeriod;
+  public Duration gracePeriod() {
+    return Duration.ofMillis(settings.gracePeriodMillis());
   }
 
-  public int graceInterval() {
-    return graceInterval;
+  public Duration graceInterval() {
+    return Duration.ofMillis(settings.graceIntervalMillis());
   }
 
   public int fanOut() {
-    return fanOut;
+    return settings.fanOut;
   }
 
-  public int inFlightTtl() {
-    return inFlightTtl;
+  public Duration inFlightTtl() {
+    return Duration.ofMillis(settings.inFlightTtlMillis());
   }
 
-  public int sleepMilli() {
-    return sleepMilli;
-  }
-
-  public TimeUnits timeUnits() {
-    return timeUnits;
+  public Duration sleep() {
+    return Duration.ofMillis(settings.sleepMilli);
   }
 
   @Override
@@ -84,46 +78,54 @@ public final class StormTrackingCache {
     }
     StormTrackingCache that = (StormTrackingCache) other;
     return (
-      entryCapacity == that.entryCapacity &&
-      entryPruningTailSize == that.entryPruningTailSize &&
-      gracePeriod == that.gracePeriod &&
-      graceInterval == that.graceInterval &&
-      fanOut == that.fanOut &&
-      inFlightTtl == that.inFlightTtl &&
-      sleepMilli == that.sleepMilli &&
-      timeUnits == that.timeUnits
+      entryCapacity() == that.entryCapacity() &&
+      entryPruningTailSize() == that.entryPruningTailSize() &&
+      gracePeriod().equals(that.gracePeriod()) &&
+      graceInterval().equals(that.graceInterval()) &&
+      fanOut() == that.fanOut() &&
+      inFlightTtl().equals(that.inFlightTtl()) &&
+      sleep().equals(that.sleep())
     );
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(entryCapacity, entryPruningTailSize, gracePeriod, graceInterval, fanOut, inFlightTtl, sleepMilli, timeUnits);
+    return Objects.hash(entryCapacity(), entryPruningTailSize(), gracePeriod(), graceInterval(), fanOut(), inFlightTtl(), sleep());
   }
 
   @Override
   public String toString() {
     return (
-      "StormTrackingCache[entryCapacity=" + entryCapacity + ", entryPruningTailSize=" + entryPruningTailSize +
-      ", gracePeriod=" + gracePeriod + ", graceInterval=" + graceInterval + ", fanOut=" + fanOut +
-      ", inFlightTtl=" + inFlightTtl + ", sleepMilli=" + sleepMilli + ", timeUnits=" + timeUnits + "]"
+      "StormTrackingCache[entryCapacity=" + entryCapacity() + ", entryPruningTailSize=" + entryPruningTailSize() +
+      ", gracePeriod=" + gracePeriod() + ", graceInterval=" + graceInterval() + ", fanOut=" + fanOut() +
+      ", inFlightTtl=" + inFlightTtl() + ", sleep=" + sleep() + "]"
     );
   }
 
   /**
    * Not thread-safe. Requires {@code entryCapacity}; the rest default to the {@code DEFAULT_} constants.
-   * Every number must be at least 1.
-   * {@link #build()} checks graceInterval &lt;= gracePeriod, inFlightTtl &lt;= gracePeriod, and graceInterval &lt;= inFlightTtl.
+   *
+   * <p>{@link #build()} throws {@link ValidationException} unless:
+   * <ul>
+   *   <li>every count is at least 1, and every time is positive and a whole number of milliseconds;
+   *   <li>graceInterval &lt;= gracePeriod, inFlightTtl &lt;= gracePeriod, and graceInterval &lt;= inFlightTtl;
+   *   <li>gracePeriod, graceInterval, and inFlightTtl are either all whole seconds of at most
+   *       {@link Integer#MAX_VALUE} seconds, or all at most {@link Integer#MAX_VALUE} milliseconds;
+   *   <li>sleep is at most {@link Integer#MAX_VALUE} milliseconds.
+   * </ul>
+   * These are the values the Dafny-based MPL's {@code StormTrackingCache} can hold.
+   * Times that are all whole seconds are held as its {@code Seconds} time unit, any others as {@code Milliseconds};
+   * the cache behaves the same either way.
    */
   public static final class Builder {
 
     private Integer entryCapacity;
     private int entryPruningTailSize = DEFAULT_ENTRY_PRUNING_TAIL_SIZE;
-    private int gracePeriod = DEFAULT_GRACE_PERIOD;
-    private int graceInterval = DEFAULT_GRACE_INTERVAL;
+    private Duration gracePeriod = DEFAULT_GRACE_PERIOD;
+    private Duration graceInterval = DEFAULT_GRACE_INTERVAL;
     private int fanOut = DEFAULT_FAN_OUT;
-    private int inFlightTtl = DEFAULT_IN_FLIGHT_TTL;
-    private int sleepMilli = DEFAULT_SLEEP_MILLI;
-    private TimeUnits timeUnits = DEFAULT_TIME_UNITS;
+    private Duration inFlightTtl = DEFAULT_IN_FLIGHT_TTL;
+    private Duration sleep = DEFAULT_SLEEP;
 
     private Builder() {}
 
@@ -139,14 +141,14 @@ public final class StormTrackingCache {
     }
 
     /** How long before expiry refreshing starts. */
-    public Builder gracePeriod(int gracePeriod) {
-      this.gracePeriod = gracePeriod;
+    public Builder gracePeriod(Duration gracePeriod) {
+      this.gracePeriod = Objects.requireNonNull(gracePeriod, "gracePeriod");
       return this;
     }
 
     /** How often, within the grace period, another refresh may start. */
-    public Builder graceInterval(int graceInterval) {
-      this.graceInterval = graceInterval;
+    public Builder graceInterval(Duration graceInterval) {
+      this.graceInterval = Objects.requireNonNull(graceInterval, "graceInterval");
       return this;
     }
 
@@ -157,67 +159,66 @@ public final class StormTrackingCache {
     }
 
     /** How long a refresh may take before another caller may start one. */
-    public Builder inFlightTtl(int inFlightTtl) {
-      this.inFlightTtl = inFlightTtl;
+    public Builder inFlightTtl(Duration inFlightTtl) {
+      this.inFlightTtl = Objects.requireNonNull(inFlightTtl, "inFlightTtl");
       return this;
     }
 
-    /** How long a waiting caller sleeps between checks, in milliseconds. */
-    public Builder sleepMilli(int sleepMilli) {
-      this.sleepMilli = sleepMilli;
+    /** How long a waiting caller sleeps between checks. */
+    public Builder sleep(Duration sleep) {
+      this.sleep = Objects.requireNonNull(sleep, "sleep");
       return this;
     }
 
-    /**
-     * The unit of {@code gracePeriod}, {@code graceInterval}, and {@code inFlightTtl}; default {@link TimeUnits#SECONDS}.
-     * {@link CacheType#defaultCache} uses {@link TimeUnits#MILLISECONDS}, so copying its numbers here without its unit
-     * makes every period 1000 times longer. With milliseconds a hierarchical keyring checks its TTL against the grace period
-     * in whole seconds, rounded down.
-     */
-    public Builder timeUnits(TimeUnits timeUnits) {
-      this.timeUnits = Objects.requireNonNull(timeUnits, "timeUnits");
-      return this;
-    }
-
-    /** @throws ValidationException if a number is below 1 or the times are inconsistent */
+    /** @throws ValidationException for the settings listed on {@link Builder} */
     public StormTrackingCache build() {
       if (entryCapacity == null) {
         throw new ValidationException("Missing value for required field `entryCapacity`");
       }
-      atLeastOne("entryCapacity", entryCapacity);
-      atLeastOne("entryPruningTailSize", entryPruningTailSize);
-      atLeastOne("gracePeriod", gracePeriod);
-      atLeastOne("graceInterval", graceInterval);
-      atLeastOne("fanOut", fanOut);
-      atLeastOne("inFlightTTL", inFlightTtl);
-      atLeastOne("sleepMilli", sleepMilli);
-      if (!(graceInterval <= gracePeriod && inFlightTtl <= gracePeriod && graceInterval <= inFlightTtl)) {
-        throw new ValidationException(inconsistentMessage());
+      StormSettings.atLeastOne("entryCapacity", entryCapacity);
+      StormSettings.atLeastOne("entryPruningTailSize", entryPruningTailSize);
+      long gracePeriodMillis = millis("gracePeriod", gracePeriod);
+      long graceIntervalMillis = millis("graceInterval", graceInterval);
+      StormSettings.atLeastOne("fanOut", fanOut);
+      long inFlightTtlMillis = millis("inFlightTtl", inFlightTtl);
+      long sleepMillis = millis("sleep", sleep);
+      if (sleep.compareTo(MAX_IN_MILLIS) > 0) {
+        throw new ValidationException("`sleep` must be at most " + Integer.MAX_VALUE + " milliseconds");
       }
-      return new StormTrackingCache(this);
+      boolean seconds = gracePeriodMillis % 1000 == 0 && graceIntervalMillis % 1000 == 0 && inFlightTtlMillis % 1000 == 0;
+      Duration max = seconds ? MAX_IN_SECONDS : MAX_IN_MILLIS;
+      if (gracePeriod.compareTo(max) > 0 || graceInterval.compareTo(max) > 0 || inFlightTtl.compareTo(max) > 0) {
+        throw new ValidationException(
+          "gracePeriod, graceInterval, and inFlightTtl must be whole seconds of at most " + Integer.MAX_VALUE +
+          " seconds, or at most " + Integer.MAX_VALUE + " milliseconds; they are " + gracePeriod + ", " + graceInterval +
+          ", and " + inFlightTtl
+        );
+      }
+      long unit = seconds ? 1000 : 1;
+      return new StormTrackingCache(
+        StormSettings.create(
+          entryCapacity,
+          entryPruningTailSize,
+          (int) (gracePeriodMillis / unit),
+          (int) (graceIntervalMillis / unit),
+          fanOut,
+          (int) (inFlightTtlMillis / unit),
+          (int) sleepMillis,
+          seconds
+        )
+      );
     }
 
-    // Text from StormTracker.dfy BadCacheMsg. It names only the first two rules,
-    // so graceInterval > inFlightTtl alone yields just the prefix.
-    private String inconsistentMessage() {
-      String message = "For a StormCache : ";
-      if (!(graceInterval <= gracePeriod)) {
-        message +=
-          "graceInterval must not exceed gracePeriod, yet configuration has graceInterval=" + graceInterval +
-          " and gracePeriod=" + gracePeriod + ". ";
+    // Positive whole milliseconds. A time too long for either unit, which Duration.toMillis may not convert,
+    // is Long.MAX_VALUE: not whole seconds, and the range checks in build() reject it.
+    private static long millis(String field, Duration time) {
+      if (time.isNegative() || time.isZero()) {
+        throw new ValidationException("`" + field + "` must be positive");
       }
-      if (!(inFlightTtl <= gracePeriod)) {
-        message +=
-          "inFlightTTL must not exceed gracePeriod, yet configuration has inFlightTTL=" + inFlightTtl +
-          " and gracePeriod=" + gracePeriod + ". ";
+      if (time.getNano() % 1_000_000 != 0) {
+        throw new ValidationException("`" + field + "` must be a whole number of milliseconds");
       }
-      return message;
-    }
-  }
-
-  static void atLeastOne(String field, int value) {
-    if (value < 1) {
-      throw new ValidationException("`" + field + "` must be greater than or equal to 1");
+      return time.compareTo(MAX_IN_SECONDS) > 0 ? Long.MAX_VALUE : time.toMillis();
     }
   }
 }

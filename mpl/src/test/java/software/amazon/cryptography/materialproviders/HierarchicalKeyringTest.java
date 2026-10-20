@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.materialproviders;
 
+import java.time.Duration;
+import java.util.function.LongFunction;
+import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -115,6 +118,48 @@ class HierarchicalKeyringTest {
     // The reference accepted a zero TTL at least once (with a cache it does not check), so the difference is real.
     assertTrue(zeroTtlReference.stream().anyMatch(outcome -> !outcome.startsWith("throws")), zeroTtlReference.toString());
     supplier.assertSameReceived();
+  }
+
+  // The public API takes times as Durations and has no time unit. Each old configuration in create(), given as the
+  // equivalent Durations, builds a keyring exactly when the reference does, and otherwise fails with its message.
+  @Test
+  void durationSettingsMatchTheReferenceInEitherUnit() {
+    for (TimeUnits units : new TimeUnits[] { TimeUnits.Seconds, TimeUnits.Milliseconds }) {
+      LongFunction<Duration> unit = units == TimeUnits.Seconds ? Duration::ofSeconds : Duration::ofMillis;
+      for (int grace : new int[] { 1, 5, 999, 1000, 5999 }) {
+        software.amazon.cryptography.mpl.cache.StormTrackingCache settings = software.amazon.cryptography.mpl.cache.StormTrackingCache
+          .builder()
+          .entryCapacity(10)
+          .entryPruningTailSize(1)
+          .gracePeriod(unit.apply(grace))
+          .graceInterval(unit.apply(1))
+          .fanOut(5)
+          .inFlightTtl(unit.apply(1))
+          .sleep(Duration.ofMillis(5))
+          .build();
+        for (long ttl : new long[] { 1, 4, 5, 6, 998, 999, 1000 }) {
+          CreateAwsKmsHierarchicalKeyringInput input = h.input(branchKey).ttlSeconds(ttl).cache(storm(grace, units)).build();
+          String expected = ReferenceMpl.outcome(() -> ReferenceMpl.call(h.reference, "CreateAwsKmsHierarchicalKeyring", input) == null ? null : "keyring");
+          String actual = ReferenceMpl.outcome(() ->
+            AwsKmsHierarchicalKeyring
+                .builder()
+                .keyStore(input.keyStore().impl())
+                .branchKeyId(branchKey)
+                .ttl(Duration.ofSeconds(ttl))
+                .cache(software.amazon.cryptography.mpl.cache.CacheType.stormTracking(settings))
+                .build() == null
+              ? null
+              : "keyring"
+          );
+          assertEquals(message(expected), message(actual), units + " " + grace + ", ttl " + ttl);
+        }
+      }
+    }
+  }
+
+  // "keyring", or the message of the exception; the two MPLs throw different exception classes.
+  private static String message(String outcome) {
+    return outcome.startsWith("throws ") ? outcome.substring(outcome.indexOf(": ") + 2) : outcome;
   }
 
   // Storm-tracking settings that pass the consistency check: graceInterval <= inFlightTTL <= gracePeriod.

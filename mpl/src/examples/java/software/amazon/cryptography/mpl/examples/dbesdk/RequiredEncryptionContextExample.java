@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.examples.dbesdk;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import software.amazon.cryptography.mpl.examples.dbesdk.DbEsdkLikeItemEncryptor.CryptoAction;
@@ -59,7 +60,7 @@ public final class RequiredEncryptionContextExample {
     // The MPL supplier sees the whole encryption context, including the SIGN_AND_INCLUDE entries.
     BranchKeyIdSupplier byTenant = request ->
       GetBranchKeyIdResponse.of(branchKeyIds.get(request.encryptionContext().get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT)));
-    AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyIdSupplier(byTenant).ttlSeconds(600).build();
+    AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyIdSupplier(byTenant).ttl(Duration.ofMinutes(10)).build();
 
     Map<String, CryptoAction> actions = ExampleItems.actions();
     actions.put(ExampleItems.PARTITION_KEY, CryptoAction.SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT);

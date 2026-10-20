@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.examples.dbesdk;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import software.amazon.cryptography.mpl.cache.CacheType;
@@ -51,7 +52,7 @@ public final class SharedCacheExample {
       .builder()
       .keyStore(keyStore)
       .branchKeyId(branchKeyId)
-      .ttlSeconds(600)
+      .ttl(Duration.ofMinutes(10))
       .cache(shared)
       // Without the same partition id, keyrings sharing a cache do not share entries.
       .partitionId("shared-cache-example")

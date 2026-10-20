@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.cache;
 
+import java.time.Duration;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -57,19 +59,12 @@ class CacheApiTest {
     assertEquals(3, multi.entryPruningTailSize);
     assertEquals(3, CacheSpec.of(CacheType.singleThreaded(8, 3)).entryPruningTailSize);
     assertEquals(1, CacheSpec.of(CacheType.multiThreaded(8)).entryPruningTailSize);
-    // StormTracker.dfy DefaultStorm, in milliseconds.
-    StormTrackingCache defaults = StormTrackingCache
-      .builder()
-      .entryCapacity(9)
-      .entryPruningTailSize(1)
-      .gracePeriod(10_000)
-      .graceInterval(1000)
-      .fanOut(20)
-      .inFlightTtl(10_000)
-      .sleepMilli(20)
-      .timeUnits(TimeUnits.MILLISECONDS)
-      .build();
-    assertEquals(defaults, CacheSpec.of(CacheType.defaultCache(9)).stormTracking);
+    // StormTracker.dfy DefaultStorm, in milliseconds. The builder's defaults are the same times, held in seconds.
+    StormTrackingCache dafnyDefault = CacheSpec.of(CacheType.defaultCache(9)).stormTracking;
+    assertEquals(StormSettings.create(9, 1, 10_000, 1000, 20, 10_000, 20, false).toPublic(), dafnyDefault);
+    assertFalse(StormSettings.of(dafnyDefault).seconds);
+    assertEquals(StormTrackingCache.builder().entryCapacity(9).build(), dafnyDefault);
+    assertTrue(StormSettings.of(StormTrackingCache.builder().entryCapacity(9).build()).seconds);
     StormTrackingCache settings = StormTrackingCache.builder().entryCapacity(4).build();
     assertSame(settings, CacheSpec.of(CacheType.stormTracking(settings)).stormTracking);
     assertNull(CacheSpec.of(CacheType.noCache()).stormTracking);
@@ -107,36 +102,26 @@ class CacheApiTest {
     assertEquals(StormTrackingCache.DEFAULT_GRACE_INTERVAL, settings.graceInterval());
     assertEquals(StormTrackingCache.DEFAULT_FAN_OUT, settings.fanOut());
     assertEquals(StormTrackingCache.DEFAULT_IN_FLIGHT_TTL, settings.inFlightTtl());
-    assertEquals(StormTrackingCache.DEFAULT_SLEEP_MILLI, settings.sleepMilli());
-    assertEquals(TimeUnits.SECONDS, settings.timeUnits());
+    assertEquals(StormTrackingCache.DEFAULT_SLEEP, settings.sleep());
+    // StormTracker.dfy DefaultStorm.
     assertEquals(
-      Arrays.asList(1, 10, 1, 20, 10, 20),
-      Arrays.asList(
+      Arrays.<Object>asList(1, Duration.ofSeconds(10), Duration.ofSeconds(1), 20, Duration.ofSeconds(10), Duration.ofMillis(20)),
+      Arrays.<Object>asList(
         StormTrackingCache.DEFAULT_ENTRY_PRUNING_TAIL_SIZE,
         StormTrackingCache.DEFAULT_GRACE_PERIOD,
         StormTrackingCache.DEFAULT_GRACE_INTERVAL,
         StormTrackingCache.DEFAULT_FAN_OUT,
         StormTrackingCache.DEFAULT_IN_FLIGHT_TTL,
-        StormTrackingCache.DEFAULT_SLEEP_MILLI
+        StormTrackingCache.DEFAULT_SLEEP
       )
     );
   }
 
   @Test
   void stormTrackingSettersAndValueSemantics() {
-    StormTrackingCache settings = StormTrackingCache
-      .builder()
-      .entryCapacity(2)
-      .entryPruningTailSize(3)
-      .gracePeriod(9)
-      .graceInterval(4)
-      .fanOut(6)
-      .inFlightTtl(7)
-      .sleepMilli(8)
-      .timeUnits(TimeUnits.MILLISECONDS)
-      .build();
+    StormTrackingCache settings = storm(2, 3, 9, 4, 6, 7, 8);
     assertEquals(
-      Arrays.<Object>asList(2, 3, 9, 4, 6, 7, 8, TimeUnits.MILLISECONDS),
+      Arrays.<Object>asList(2, 3, Duration.ofMillis(9), Duration.ofMillis(4), 6, Duration.ofMillis(7), Duration.ofMillis(8)),
       Arrays.<Object>asList(
         settings.entryCapacity(),
         settings.entryPruningTailSize(),
@@ -144,80 +129,68 @@ class CacheApiTest {
         settings.graceInterval(),
         settings.fanOut(),
         settings.inFlightTtl(),
-        settings.sleepMilli(),
-        settings.timeUnits()
+        settings.sleep()
       )
     );
     assertEquals(
-      "StormTrackingCache[entryCapacity=2, entryPruningTailSize=3, gracePeriod=9, graceInterval=4, fanOut=6, inFlightTtl=7, " +
-      "sleepMilli=8, timeUnits=MILLISECONDS]",
+      "StormTrackingCache[entryCapacity=2, entryPruningTailSize=3, gracePeriod=PT0.009S, graceInterval=PT0.004S, fanOut=6, " +
+      "inFlightTtl=PT0.007S, sleep=PT0.008S]",
       settings.toString()
     );
-    StormTrackingCache same = StormTrackingCache
-      .builder()
-      .entryCapacity(2)
-      .entryPruningTailSize(3)
-      .gracePeriod(9)
-      .graceInterval(4)
-      .fanOut(6)
-      .inFlightTtl(7)
-      .sleepMilli(8)
-      .timeUnits(TimeUnits.MILLISECONDS)
-      .build();
+    StormTrackingCache same = storm(2, 3, 9, 4, 6, 7, 8);
     assertEquals(settings, same);
     assertEquals(settings.hashCode(), same.hashCode());
     assertNotEquals(settings, "settings");
     List<StormTrackingCache> different = Arrays.asList(
-      StormTrackingCache.builder().entryCapacity(1).entryPruningTailSize(3).gracePeriod(9).graceInterval(4).fanOut(6).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(1).gracePeriod(9).graceInterval(4).fanOut(6).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(8).graceInterval(4).fanOut(6).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(9).graceInterval(3).fanOut(6).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(9).graceInterval(4).fanOut(5).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(9).graceInterval(4).fanOut(6).inFlightTtl(6).sleepMilli(8).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(9).graceInterval(4).fanOut(6).inFlightTtl(7).sleepMilli(9).timeUnits(TimeUnits.MILLISECONDS).build(),
-      StormTrackingCache.builder().entryCapacity(2).entryPruningTailSize(3).gracePeriod(9).graceInterval(4).fanOut(6).inFlightTtl(7).sleepMilli(8).timeUnits(TimeUnits.SECONDS).build()
+      storm(1, 3, 9, 4, 6, 7, 8),
+      storm(2, 1, 9, 4, 6, 7, 8),
+      storm(2, 3, 8, 4, 6, 7, 8),
+      storm(2, 3, 9, 3, 6, 7, 8),
+      storm(2, 3, 9, 4, 5, 7, 8),
+      storm(2, 3, 9, 4, 6, 6, 8),
+      storm(2, 3, 9, 4, 6, 7, 9)
     );
     for (StormTrackingCache other : different) {
       assertNotEquals(settings, other);
     }
+    // Equal times are equal settings whichever unit holds them.
+    assertEquals(StormSettings.create(2, 3, 9000, 4000, 6, 7000, 8, false).toPublic(), StormSettings.create(2, 3, 9, 4, 6, 7, 8, true).toPublic());
   }
 
+  // Times in milliseconds.
+  private static StormTrackingCache storm(int capacity, int tail, long gracePeriod, long graceInterval, int fanOut, long inFlightTtl, long sleep) {
+    return StormTrackingCache
+      .builder()
+      .entryCapacity(capacity)
+      .entryPruningTailSize(tail)
+      .gracePeriod(Duration.ofMillis(gracePeriod))
+      .graceInterval(Duration.ofMillis(graceInterval))
+      .fanOut(fanOut)
+      .inFlightTtl(Duration.ofMillis(inFlightTtl))
+      .sleep(Duration.ofMillis(sleep))
+      .build();
+  }
+
+  // The Dafny-based settings' checks, which the test adapter reaches for every old configuration.
   @Test
-  void stormTrackingValidation() {
-    assertEquals(
-      "Missing value for required field `entryCapacity`",
-      assertThrows(ValidationException.class, () -> StormTrackingCache.builder().build()).getMessage()
-    );
+  void stormSettingsValidation() {
     String[] fields = { "entryCapacity", "entryPruningTailSize", "gracePeriod", "graceInterval", "fanOut", "inFlightTTL", "sleepMilli" };
-    for (String field : fields) {
+    for (int field = 0; field < fields.length; field++) {
       for (int value : new int[] { 0, -1 }) {
-        StormTrackingCache.Builder builder = StormTrackingCache.builder().entryCapacity(1);
-        switch (field) {
-          case "entryCapacity":
-            builder.entryCapacity(value);
-            break;
-          case "entryPruningTailSize":
-            builder.entryPruningTailSize(value);
-            break;
-          case "gracePeriod":
-            builder.gracePeriod(value);
-            break;
-          case "graceInterval":
-            builder.graceInterval(value);
-            break;
-          case "fanOut":
-            builder.fanOut(value);
-            break;
-          case "inFlightTTL":
-            builder.inFlightTtl(value);
-            break;
-          default:
-            builder.sleepMilli(value);
+        int[] numbers = { 1, 1, 10, 1, 1, 10, 1 };
+        numbers[field] = value;
+        if (field == 2) {
+          numbers[3] = numbers[5] = value;
         }
-        assertEquals("`" + field + "` must be greater than or equal to 1", assertThrows(ValidationException.class, builder::build).getMessage());
+        assertEquals(
+          "`" + fields[field] + "` must be greater than or equal to 1",
+          assertThrows(
+            ValidationException.class,
+            () -> StormSettings.create(numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5], numbers[6], true)
+          ).getMessage()
+        );
       }
     }
-    assertThrows(NullPointerException.class, () -> StormTrackingCache.builder().timeUnits(null));
     // The consistency rules and StormTracker.dfy BadCacheMsg.
     assertEquals(
       "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=11 and gracePeriod=10. ",
@@ -234,17 +207,90 @@ class CacheApiTest {
     );
     assertEquals("For a StormCache : ", inconsistent(10, 3, 2));
     // Equal values are consistent.
-    StormTrackingCache.builder().entryCapacity(1).gracePeriod(5).graceInterval(5).inFlightTtl(5).build();
+    StormSettings.create(1, 1, 5, 5, 1, 5, 1, true);
+    // The hierarchical keyring's TTL check rounds a grace period in milliseconds down to seconds.
+    assertEquals(5, StormSettings.create(1, 1, 5999, 1, 1, 1, 1, false).gracePeriodSeconds());
+    assertEquals(5, StormSettings.create(1, 1, 5, 1, 1, 1, 1, true).gracePeriodSeconds());
   }
 
   private static String inconsistent(int gracePeriod, int graceInterval, int inFlightTtl) {
-    StormTrackingCache.Builder builder = StormTrackingCache
-      .builder()
-      .entryCapacity(1)
-      .gracePeriod(gracePeriod)
-      .graceInterval(graceInterval)
-      .inFlightTtl(inFlightTtl);
-    return assertThrows(ValidationException.class, builder::build).getMessage();
+    return assertThrows(ValidationException.class, () -> StormSettings.create(1, 1, gracePeriod, graceInterval, 1, inFlightTtl, 1, true)).getMessage();
+  }
+
+  @Test
+  void stormTrackingBuilderValidation() {
+    assertEquals(
+      "Missing value for required field `entryCapacity`",
+      assertThrows(ValidationException.class, () -> StormTrackingCache.builder().build()).getMessage()
+    );
+    assertEquals(
+      "`fanOut` must be greater than or equal to 1",
+      assertThrows(ValidationException.class, () -> StormTrackingCache.builder().entryCapacity(1).fanOut(0).build()).getMessage()
+    );
+    String[] times = { "gracePeriod", "graceInterval", "inFlightTtl", "sleep" };
+    for (String field : times) {
+      for (Duration time : Arrays.asList(Duration.ZERO, Duration.ofMillis(-1))) {
+        assertEquals("`" + field + "` must be positive", assertThrows(ValidationException.class, () -> withTime(field, time)).getMessage());
+      }
+      assertEquals(
+        "`" + field + "` must be a whole number of milliseconds",
+        assertThrows(ValidationException.class, () -> withTime(field, Duration.ofNanos(1_500_000))).getMessage()
+      );
+    }
+    assertThrows(NullPointerException.class, () -> StormTrackingCache.builder().gracePeriod(null));
+    assertThrows(NullPointerException.class, () -> StormTrackingCache.builder().graceInterval(null));
+    assertThrows(NullPointerException.class, () -> StormTrackingCache.builder().inFlightTtl(null));
+    assertThrows(NullPointerException.class, () -> StormTrackingCache.builder().sleep(null));
+
+    // Whole seconds are held in seconds, up to Integer.MAX_VALUE of them; any other times in milliseconds, up to Integer.MAX_VALUE.
+    Duration maxSeconds = Duration.ofSeconds(Integer.MAX_VALUE);
+    StormTrackingCache longest = StormTrackingCache.builder().entryCapacity(1).gracePeriod(maxSeconds).graceInterval(maxSeconds).inFlightTtl(maxSeconds).build();
+    assertEquals(maxSeconds, longest.gracePeriod());
+    assertTrue(StormSettings.of(longest).seconds);
+    Duration maxMillis = Duration.ofMillis(Integer.MAX_VALUE);
+    StormTrackingCache fine = StormTrackingCache.builder().entryCapacity(1).gracePeriod(maxMillis).graceInterval(Duration.ofMillis(1500)).inFlightTtl(Duration.ofMillis(1500)).build();
+    assertEquals(maxMillis, fine.gracePeriod());
+    assertFalse(StormSettings.of(fine).seconds);
+    assertEquals(Integer.MAX_VALUE, StormSettings.of(fine).gracePeriod);
+    String range = "gracePeriod, graceInterval, and inFlightTtl must be whole seconds of at most 2147483647 seconds, or at most 2147483647 milliseconds";
+    for (StormTrackingCache.Builder unrepresentable : Arrays.asList(
+      StormTrackingCache.builder().entryCapacity(1).gracePeriod(maxSeconds.plusSeconds(1)).graceInterval(maxSeconds).inFlightTtl(maxSeconds),
+      StormTrackingCache.builder().entryCapacity(1).gracePeriod(maxMillis.plusMillis(1)).graceInterval(Duration.ofMillis(1500)),
+      StormTrackingCache.builder().entryCapacity(1).gracePeriod(Duration.ofSeconds(Long.MAX_VALUE)).graceInterval(maxSeconds).inFlightTtl(maxSeconds)
+    )) {
+      assertTrue(assertThrows(ValidationException.class, unrepresentable::build).getMessage().startsWith(range));
+    }
+    assertEquals(
+      "`sleep` must be at most 2147483647 milliseconds",
+      assertThrows(ValidationException.class, () -> withTime("sleep", maxMillis.plusMillis(1))).getMessage()
+    );
+    assertEquals(maxMillis, withTime("sleep", maxMillis).sleep());
+
+    // The consistency rules compare times; the message shows them in the unit they are held in.
+    assertEquals(
+      "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=11 and gracePeriod=10. ",
+      assertThrows(ValidationException.class, () -> withTime("graceInterval", Duration.ofSeconds(11))).getMessage()
+    );
+    assertEquals(
+      "For a StormCache : graceInterval must not exceed gracePeriod, yet configuration has graceInterval=10001 and gracePeriod=10000. ",
+      assertThrows(ValidationException.class, () -> withTime("graceInterval", Duration.ofMillis(10_001))).getMessage()
+    );
+    withTime("graceInterval", Duration.ofSeconds(10));
+  }
+
+  // Default settings with one time replaced; graceInterval and inFlightTtl follow a shorter grace period.
+  private static StormTrackingCache withTime(String field, Duration time) {
+    StormTrackingCache.Builder builder = StormTrackingCache.builder().entryCapacity(1);
+    switch (field) {
+      case "gracePeriod":
+        return builder.gracePeriod(time).graceInterval(time).inFlightTtl(time).build();
+      case "graceInterval":
+        return builder.graceInterval(time).build();
+      case "inFlightTtl":
+        return builder.inFlightTtl(time).build();
+      default:
+        return builder.sleep(time).build();
+    }
   }
 
   @Test
@@ -380,12 +426,11 @@ class CacheApiTest {
     StormTrackingCache settings = StormTrackingCache
       .builder()
       .entryCapacity(5)
-      .gracePeriod(1000)
-      .graceInterval(1)
-      .inFlightTtl(5)
+      .gracePeriod(Duration.ofMillis(1000))
+      .graceInterval(Duration.ofMillis(1))
+      .inFlightTtl(Duration.ofMillis(5))
       .fanOut(1)
-      .sleepMilli(1)
-      .timeUnits(TimeUnits.MILLISECONDS)
+      .sleep(Duration.ofMillis(1))
       .build();
     BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.stormTracking(settings), clock));
     assertFalse(get(cache, key("a")).isPresent());

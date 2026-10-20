@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.function.Predicate;
 import software.amazon.cryptography.mpl.cache.CacheKey;
 import software.amazon.cryptography.mpl.cache.StormTrackingCache;
-import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.exceptions.ThrottlingException;
 
 /**
@@ -45,15 +44,15 @@ public final class StormTracker<V> implements CacheEngine<V> {
   // Long.MIN_VALUE lets the first prune run whatever the monotonic clock's origin.
   private long lastPrune = Long.MIN_VALUE;
 
-  public StormTracker(StormTrackingCache settings, CacheClock clock) {
-    long unit = settings.timeUnits() == TimeUnits.SECONDS ? 1000 : 1;
-    this.wrapped = new LocalCache<>(settings.entryCapacity(), settings.entryPruningTailSize(), clock);
+  public StormTracker(StormTrackingCache cache, CacheClock clock) {
+    StormSettings settings = StormSettings.of(cache);
+    this.wrapped = new LocalCache<>(settings.entryCapacity, settings.entryPruningTailSize, clock);
     this.clock = clock;
-    this.gracePeriod = settings.gracePeriod() * unit;
-    this.graceInterval = settings.graceInterval() * unit;
-    this.inFlightTtl = settings.inFlightTtl() * unit;
-    this.sleepMilli = settings.sleepMilli();
-    this.fanOut = settings.fanOut();
+    this.gracePeriod = settings.gracePeriodMillis();
+    this.graceInterval = settings.graceIntervalMillis();
+    this.inFlightTtl = settings.inFlightTtlMillis();
+    this.sleepMilli = settings.sleepMilli;
+    this.fanOut = settings.fanOut;
   }
 
   @Override

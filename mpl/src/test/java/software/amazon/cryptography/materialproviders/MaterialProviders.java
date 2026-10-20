@@ -3,6 +3,7 @@
 package software.amazon.cryptography.materialproviders;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -280,7 +281,7 @@ public class MaterialProviders {
       AwsKmsHierarchicalKeyring.Builder builder = AwsKmsHierarchicalKeyring
         .builder()
         .keyStore(input.keyStore().impl())
-        .ttlSeconds(input.ttlSeconds())
+        .ttl(Duration.ofSeconds(input.ttlSeconds()))
         .branchKeyId(input.branchKeyId())
         .branchKeyIdSupplier(input.branchKeyIdSupplier() == null ? null : CustomBranchKeyIdSupplier.of(input.branchKeyIdSupplier()))
         .partitionId(input.partitionId());

@@ -4,6 +4,7 @@ package software.amazon.cryptography.mpl.cache;
 
 import java.util.Objects;
 import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 
 /**
  * Which cache a hierarchical keyring uses: a private cache it builds from these settings, or a shared instance.
@@ -39,23 +40,13 @@ public abstract class CacheType {
   private CacheType() {}
 
   /**
-   * A storm-tracking cache with default tuning and {@code entryCapacity} entries, timed in milliseconds:
-   * a 10-second grace period, 1-second grace interval, fan-out 20, and 10-second in-flight TTL.
-   * {@link StormTrackingCache.Builder}'s defaults give the same durations in {@link TimeUnits#SECONDS} (10, 1, and 10).
+   * A storm-tracking cache with default tuning and {@code entryCapacity} entries:
+   * a 10-second grace period, 1-second grace interval, fan-out 20, 10-second in-flight TTL, and 20-millisecond sleep,
+   * the same as {@link StormTrackingCache.Builder}'s defaults.
    */
   public static CacheType defaultCache(int entryCapacity) {
-    // StormTracker.dfy DefaultStorm: the default tuning, expressed in milliseconds.
-    StormTrackingCache settings = StormTrackingCache
-      .builder()
-      .entryCapacity(entryCapacity)
-      .entryPruningTailSize(1)
-      .gracePeriod(10 * 1000)
-      .graceInterval(1 * 1000)
-      .fanOut(20)
-      .inFlightTtl(10 * 1000)
-      .sleepMilli(20)
-      .timeUnits(TimeUnits.MILLISECONDS)
-      .build();
+    // StormTracker.dfy DefaultStorm, with its times in milliseconds.
+    StormTrackingCache settings = StormSettings.create(entryCapacity, 1, 10 * 1000, 1 * 1000, 20, 10 * 1000, 20, false).toPublic();
     return new Variant(CacheSpec.stormTracking(Kind.DEFAULT, settings));
   }
 
@@ -106,8 +97,8 @@ public abstract class CacheType {
   public abstract Kind kind();
 
   private static CacheType local(Kind kind, int entryCapacity, int entryPruningTailSize) {
-    StormTrackingCache.atLeastOne("entryCapacity", entryCapacity);
-    StormTrackingCache.atLeastOne("entryPruningTailSize", entryPruningTailSize);
+    StormSettings.atLeastOne("entryCapacity", entryCapacity);
+    StormSettings.atLeastOne("entryPruningTailSize", entryPruningTailSize);
     return new Variant(CacheSpec.local(kind, entryCapacity, entryPruningTailSize));
   }
 

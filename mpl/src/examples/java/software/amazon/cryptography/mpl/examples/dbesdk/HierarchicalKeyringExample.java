@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.examples.dbesdk;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +66,7 @@ public final class HierarchicalKeyringExample {
         .keyStore(keyStore)
         .branchKeyIdSupplier(DdbKeyBranchKeyIdSupplier.asBranchKeyIdSupplier(byTenant))
         // How long a branch key is used before the keyring asks KMS again.
-        .ttlSeconds(600)
+        .ttl(Duration.ofMinutes(10))
         // How many branch keys the keyring holds.
         .cache(CacheType.defaultCache(100))
         .build();

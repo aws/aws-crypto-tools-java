@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.examples.esdk;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -73,7 +74,7 @@ public final class SharedCacheExample {
       .builder()
       .keyStore(keyStore)
       .branchKeyId(branchKeyId)
-      .ttlSeconds(600)
+      .ttl(Duration.ofMinutes(10))
       .cache(cache)
       .partitionId(partitionId)
       .build();

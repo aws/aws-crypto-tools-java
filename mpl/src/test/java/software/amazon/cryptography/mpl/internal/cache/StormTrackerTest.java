@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.internal.cache;
 
+import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -14,7 +15,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import software.amazon.cryptography.mpl.cache.StormTrackingCache;
-import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.exceptions.ThrottlingException;
 
 // StormTracker.dfy and StormTrackingCMC.java behavior on an injected clock.
@@ -38,12 +38,11 @@ class StormTrackerTest {
       .builder()
       .entryCapacity(1000)
       .entryPruningTailSize(1)
-      .gracePeriod(10 * 1000)
-      .graceInterval(1 * 1000)
+      .gracePeriod(Duration.ofMillis(10 * 1000))
+      .graceInterval(Duration.ofMillis(1 * 1000))
       .fanOut(20)
-      .inFlightTtl(10 * 1000)
-      .sleepMilli(20)
-      .timeUnits(TimeUnits.MILLISECONDS);
+      .inFlightTtl(Duration.ofMillis(10 * 1000))
+      .sleep(Duration.ofMillis(20));
   }
 
   @Test
@@ -70,7 +69,7 @@ class StormTrackerTest {
 
   @Test
   void dafnyStormTrackerPruneTTL() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(3).fanOut(3).inFlightTtl(5).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(3)).fanOut(3).inFlightTtl(Duration.ofMillis(5)).build(), clock);
     assertEquals(State.FETCH, poll(st, "one", 10000));
     assertEquals(State.FETCH, poll(st, "two", 10000));
     assertEquals(State.FETCH, poll(st, "three", 10000));
@@ -83,7 +82,7 @@ class StormTrackerTest {
 
   @Test
   void dafnyStormTrackerGraceInterval() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(3).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(3)).build(), clock);
     assertEquals(State.FETCH, poll(st, "one", 10000));
     assertEquals(State.WAIT, poll(st, "one", 10000));
     assertEquals(State.WAIT, poll(st, "one", 10001));
@@ -93,7 +92,7 @@ class StormTrackerTest {
 
   @Test
   void dafnyFullStormTrackerGraceInterval() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(2).inFlightTtl(3).gracePeriod(5).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(2)).inFlightTtl(Duration.ofMillis(3)).gracePeriod(Duration.ofMillis(5)).build(), clock);
     // Live until millisecond 10999.
     st.put(key("one"), "one", 10000 / 1000);
     assertEquals(State.FETCH, poll(st, "one", 11000 - 5));
@@ -113,8 +112,8 @@ class StormTrackerTest {
     StormTrackingCache config = defaultStorm().build();
     long expiryTime = 100100;
     // Expiry is stored in seconds, so one millisecond earlier is not before the grace period; a second is.
-    long beforeGracePeriod = expiryTime - config.gracePeriod() - 1000;
-    long insideGracePeriod = expiryTime - config.gracePeriod() + 1;
+    long beforeGracePeriod = expiryTime - config.gracePeriod().toMillis() - 1000;
+    long insideGracePeriod = expiryTime - config.gracePeriod().toMillis() + 1;
     StormTracker<String> st = new StormTracker<>(config, clock);
     st.put(key("one"), "one", expiryTime / 1000);
     assertEquals(State.FULL, poll(st, "one", beforeGracePeriod));
@@ -124,7 +123,7 @@ class StormTrackerTest {
 
   @Test
   void dafnyEmptyStormTrackerTtlAndInterval() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(2).inFlightTtl(3).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(2)).inFlightTtl(Duration.ofMillis(3)).build(), clock);
     assertEquals(State.FETCH, poll(st, "one", 10000));
     assertEquals(State.WAIT, poll(st, "one", 10000));
     assertEquals(State.WAIT, poll(st, "one", 10001));
@@ -135,7 +134,7 @@ class StormTrackerTest {
 
   @Test
   void gracePeriodBoundary() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().gracePeriod(2000).graceInterval(1000).inFlightTtl(1000).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().gracePeriod(Duration.ofMillis(2000)).graceInterval(Duration.ofMillis(1000)).inFlightTtl(Duration.ofMillis(1000)).build(), clock);
     st.put(key("a"), "a", 100);
     assertEquals(State.FULL, poll(st, "a", 97_999));
     assertEquals(State.FETCH, poll(st, "a", 98_000));
@@ -143,7 +142,8 @@ class StormTrackerTest {
 
   @Test
   void secondsMultiplyByAThousand() {
-    StormTrackingCache seconds = defaultStorm().gracePeriod(2).graceInterval(1).inFlightTtl(2).timeUnits(TimeUnits.SECONDS).build();
+    // The Dafny-based settings' Seconds unit: gracePeriodBoundary's times, in seconds.
+    StormTrackingCache seconds = StormSettings.create(1000, 1, 2, 1, 20, 2, 20, true).toPublic();
     StormTracker<String> st = new StormTracker<>(seconds, clock);
     st.put(key("a"), "a", 100);
     assertEquals(State.FULL, poll(st, "a", 97_999));
@@ -202,7 +202,7 @@ class StormTrackerTest {
   // In-flight keys are pruned only when fanOut is reached, so a prune below fanOut cannot use up the once-a-second window.
   @Test
   void pruningWaitsForFanOut() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(500).inFlightTtl(500).fanOut(2).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(500)).inFlightTtl(Duration.ofMillis(500)).fanOut(2).build(), clock);
     assertEquals(State.FETCH, poll(st, "a", 10_000));
     assertEquals(State.FETCH, poll(st, "b", 10_500));
     // fanOut reached: a has been in flight for 900 ms, so the prune frees its slot.
@@ -212,10 +212,10 @@ class StormTrackerTest {
   // A key in flight for exactly inFlightTtl is pruned.
   @Test
   void pruningRemovesKeysAtInFlightTtl() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(500).inFlightTtl(500).fanOut(1).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(500)).inFlightTtl(Duration.ofMillis(500)).fanOut(1).build(), clock);
     assertEquals(State.FETCH, poll(st, "a", 10_000));
     assertEquals(State.WAIT, poll(st, "b", 10_499));
-    StormTracker<String> second = new StormTracker<>(defaultStorm().graceInterval(500).inFlightTtl(500).fanOut(1).build(), clock);
+    StormTracker<String> second = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(500)).inFlightTtl(Duration.ofMillis(500)).fanOut(1).build(), clock);
     assertEquals(State.FETCH, poll(second, "a", 10_000));
     assertEquals(State.FETCH, poll(second, "b", 10_500));
   }
@@ -223,7 +223,7 @@ class StormTrackerTest {
   // The first prune runs whatever the monotonic clock reads, even less than a second.
   @Test
   void firstPruneRunsNearTheClockOrigin() {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(5).inFlightTtl(5).fanOut(1).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(5)).inFlightTtl(Duration.ofMillis(5)).fanOut(1).build(), clock);
     assertEquals(State.FETCH, poll(st, "a", 100));
     assertEquals(State.FETCH, poll(st, "b", 200));
   }
@@ -276,7 +276,7 @@ class StormTrackerTest {
   // Slots free up only by the once-a-second prune here, after the wait limit.
   @Test
   void waitingEndsWithThrottlingAfterInFlightTtl() throws Exception {
-    StormTrackingCache settings = defaultStorm().gracePeriod(100).graceInterval(100).inFlightTtl(100).fanOut(1).sleepMilli(1).build();
+    StormTrackingCache settings = defaultStorm().gracePeriod(Duration.ofMillis(100)).graceInterval(Duration.ofMillis(100)).inFlightTtl(Duration.ofMillis(100)).fanOut(1).sleep(Duration.ofMillis(1)).build();
     StormTracker<String> st = new StormTracker<>(settings, clock);
     assertEquals(State.FETCH, poll(st, "b", 10_000));
     clock.set(10_050);
@@ -312,7 +312,7 @@ class StormTrackerTest {
   // F1: a waiter wakes when the entry is put, not after its sleep (an hour here).
   @Test
   void putWakesWaiters() throws Exception {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().sleepMilli(3_600_000).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().sleep(Duration.ofMillis(3_600_000)).build(), clock);
     clock.set(10_000);
     st.get(key("a"));
     Waiter waiter = new Waiter(st, "a");
@@ -324,7 +324,7 @@ class StormTrackerTest {
 
   @Test
   void removeWakesWaitersToFetch() throws Exception {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().sleepMilli(3_600_000).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().sleep(Duration.ofMillis(3_600_000)).build(), clock);
     clock.set(10_000);
     st.get(key("a"));
     Waiter waiter = new Waiter(st, "a");
@@ -336,7 +336,7 @@ class StormTrackerTest {
 
   @Test
   void aWaiterSeesTimePassWithoutASignal() throws Exception {
-    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(1000).sleepMilli(1).build(), clock);
+    StormTracker<String> st = new StormTracker<>(defaultStorm().graceInterval(Duration.ofMillis(1000)).sleep(Duration.ofMillis(1)).build(), clock);
     clock.set(10_000);
     st.get(key("a"));
     Waiter waiter = new Waiter(st, "a");

@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import software.amazon.cryptography.keystore.model.BeaconKeyMaterials;
@@ -21,11 +20,12 @@ import software.amazon.cryptography.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.model.MultiThreadedCache;
 import software.amazon.cryptography.materialproviders.model.SingleThreadedCache;
 import software.amazon.cryptography.materialproviders.model.StormTrackingCache;
+import software.amazon.cryptography.materialproviders.model.TimeUnits;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
-import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 
 /**
  * Test adapter: converts the old cache model to the native one,
@@ -74,20 +74,19 @@ public final class CacheAdapter {
       return software.amazon.cryptography.mpl.cache.CacheType.multiThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
     }
     if (old.StormTracking() != null) {
+      // Through the internal settings, which hold any old configuration, its time unit included.
       StormTrackingCache c = old.StormTracking();
-      software.amazon.cryptography.mpl.cache.StormTrackingCache.Builder builder = software.amazon.cryptography.mpl.cache.StormTrackingCache
-        .builder()
-        .entryCapacity(c.entryCapacity())
-        .entryPruningTailSize(tailSize(c.entryPruningTailSize()))
-        .gracePeriod(c.gracePeriod())
-        .graceInterval(c.graceInterval())
-        .fanOut(c.fanOut())
-        .inFlightTtl(c.inFlightTTL())
-        .sleepMilli(c.sleepMilli());
-      if (c.timeUnits() != null) {
-        builder.timeUnits(TimeUnits.valueOf(c.timeUnits().name().toUpperCase(Locale.ROOT)));
-      }
-      return software.amazon.cryptography.mpl.cache.CacheType.stormTracking(builder.build());
+      StormSettings settings = StormSettings.create(
+        c.entryCapacity(),
+        tailSize(c.entryPruningTailSize()),
+        c.gracePeriod(),
+        c.graceInterval(),
+        c.fanOut(),
+        c.inFlightTTL(),
+        c.sleepMilli(),
+        c.timeUnits() != TimeUnits.Milliseconds
+      );
+      return software.amazon.cryptography.mpl.cache.CacheType.stormTracking(settings.toPublic());
     }
     return software.amazon.cryptography.mpl.cache.CacheType.shared(sharedCache.apply(old.Shared()));
   }

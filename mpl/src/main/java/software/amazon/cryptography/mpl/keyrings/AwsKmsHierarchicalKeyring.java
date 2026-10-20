@@ -7,6 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,8 +30,6 @@ import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
-import software.amazon.cryptography.mpl.cache.StormTrackingCache;
-import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.exceptions.CryptographicException;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -45,6 +44,7 @@ import software.amazon.cryptography.mpl.internal.cache.BuiltInCache;
 import software.amazon.cryptography.mpl.internal.cache.CacheClock;
 import software.amazon.cryptography.mpl.internal.cache.CacheSpec;
 import software.amazon.cryptography.mpl.internal.cache.Caches;
+import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 import software.amazon.cryptography.mpl.internal.primitives.AesGcm;
 import software.amazon.cryptography.mpl.internal.primitives.Bytes;
 import software.amazon.cryptography.mpl.internal.primitives.DigestAlgorithm;
@@ -65,7 +65,7 @@ import software.amazon.cryptography.mpl.keystore.GetBranchKeyVersionRequest;
  * The AES key is derived from the branch key and the salt (NIST SP 800-108 counter mode, HMAC-SHA-256);
  * the AAD is {@code "aws-kms-hierarchy" || branch key id || version bytes || canonical encryption context}.
  *
- * <p>A cached branch key is used while it is at most {@code ttlSeconds} old, even when another keyring sharing the cache
+ * <p>A cached branch key is used while it is at most {@code ttl} old, counted in whole seconds, even when another keyring sharing the cache
  * cached it with a longer TTL.
  *
  * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/aws-kms/aws-kms-hierarchical-keyring.md">AWS KMS hierarchical keyring</a>.
@@ -114,7 +114,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     this.branchKeyId = builder.branchKeyId;
     this.branchKeyIdSupplier = builder.branchKeyIdSupplier;
     this.keyStore = builder.keyStore;
-    this.ttlSeconds = builder.ttlSeconds;
+    this.ttlSeconds = builder.ttl.getSeconds();
     this.cacheType = builder.cache;
     this.partitionId = builder.partitionId;
     this.cache = cache;
@@ -142,9 +142,9 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     return keyStore;
   }
 
-  /** How long a cached branch key is used, in seconds; greater than zero. See {@link CacheType} for the check against the cache. */
-  public long ttlSeconds() {
-    return ttlSeconds;
+  /** How long a cached branch key is used: a positive whole number of seconds. See {@link CacheType} for the check against the cache. */
+  public Duration ttl() {
+    return Duration.ofSeconds(ttlSeconds);
   }
 
   /** Where branch keys are cached; default {@code CacheType.defaultCache(1000)}. */
@@ -475,7 +475,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
   /**
    * Not thread-safe.
-   * Requires {@code keyStore}, {@code ttlSeconds}.
+   * Requires {@code keyStore}, {@code ttl}.
    * {@link #build()} throws {@link software.amazon.cryptography.mpl.exceptions.ValidationException} for invalid settings.
    */
   public static final class Builder {
@@ -483,8 +483,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     private String branchKeyId;
     private BranchKeyIdSupplier branchKeyIdSupplier;
     private BranchKeyStore keyStore;
-    private long ttlSeconds;
-    private boolean ttlSecondsSet;
+    private Duration ttl;
     private CacheType cache;
     private String partitionId;
     private CacheClock clock = CacheClock.SYSTEM;
@@ -509,16 +508,18 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       return this;
     }
 
-    /** How long a cached branch key is used, in seconds; greater than zero. See {@link CacheType} for the check against the cache. */
-    public Builder ttlSeconds(long ttlSeconds) {
-      this.ttlSeconds = ttlSeconds;
-      this.ttlSecondsSet = true;
+    /**
+     * How long a cached branch key is used: a positive whole number of seconds, such as {@code Duration.ofMinutes(10)}.
+     * {@link #build()} rejects any other value, including null. See {@link CacheType} for the check against the cache.
+     */
+    public Builder ttl(Duration ttl) {
+      this.ttl = ttl;
       return this;
     }
 
     /**
      * Where branch keys are cached; default {@code CacheType.defaultCache(1000)}.
-     * Without this setting {@link #build()} requires {@code ttlSeconds} above the default 10-second grace period;
+     * Without this setting {@link #build()} requires {@code ttl} above the default 10-second grace period;
      * with {@code CacheType.defaultCache} given explicitly it does not (see {@link CacheType}).
      */
     public Builder cache(CacheType cache) {
@@ -546,18 +547,23 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#initialization
       //= type=implication
       //# - MUST provide a cache limit TTL
-      if (!ttlSecondsSet) {
-        throw new ValidationException("Missing value for required field `ttlSeconds`");
+      if (ttl == null) {
+        throw new ValidationException("Missing value for required field `ttl`");
       }
-      if (ttlSeconds < 0) {
-        throw new ValidationException("`ttlSeconds` must be greater than or equal to 0");
+      if (ttl.isNegative()) {
+        throw new ValidationException("`ttl` must be greater than or equal to 0");
       }
       //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#cache-limit-ttl
       //# This value MUST be greater than zero.
-      if (ttlSeconds == 0) {
-        throw new ValidationException("`ttlSeconds` must be greater than 0");
+      if (ttl.isZero()) {
+        throw new ValidationException("`ttl` must be greater than 0");
       }
-      CryptographicMaterialsCache built = cache();
+      // The keyring and the Dafny model count the TTL in whole seconds.
+      if (ttl.getNano() != 0) {
+        throw new ValidationException("`ttl` must be a whole number of seconds");
+      }
+      long ttlSeconds = ttl.getSeconds();
+      CryptographicMaterialsCache built = cache(ttlSeconds);
       byte[] partitionIdBytes = partitionIdBytes();
       byte[] logicalKeyStoreNameBytes = utf8(
         keyStore.getKeyStoreInfo().logicalKeyStoreName(),
@@ -576,15 +582,14 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     }
 
     // CheckCache, then the cache: the shared instance, or a new one of the configured or default type.
-    private CryptographicMaterialsCache cache() {
+    private CryptographicMaterialsCache cache(long ttlSeconds) {
       if (cache == null) {
-        checkGracePeriod(DEFAULT_GRACE_PERIOD_SECONDS);
+        checkGracePeriod(ttlSeconds, DEFAULT_GRACE_PERIOD_SECONDS);
         return new BuiltInCache(Caches.engine(CacheType.defaultCache(1000), clock));
       }
       CacheSpec spec = CacheSpec.of(cache);
       if (spec.kind == CacheType.Kind.STORM_TRACKING) {
-        StormTrackingCache storm = spec.stormTracking;
-        checkGracePeriod(storm.timeUnits() == TimeUnits.SECONDS ? storm.gracePeriod() : storm.gracePeriod() / 1000);
+        checkGracePeriod(ttlSeconds, StormSettings.of(spec.stormTracking).gracePeriodSeconds());
       }
       if (spec.kind == CacheType.Kind.SHARED) {
         return spec.shared;
@@ -592,7 +597,8 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       return new BuiltInCache(Caches.engine(cache, clock));
     }
 
-    private void checkGracePeriod(long gracePeriod) {
+    // The message names ttlSeconds, the Dafny field, as the Dafny-based keyring's does.
+    private static void checkGracePeriod(long ttlSeconds, long gracePeriod) {
       if (ttlSeconds <= gracePeriod) {
         throw new ValidationException(
           "When creating an AwsKmsHierarchicalKeyring with a StormCache, " +

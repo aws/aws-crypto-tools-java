@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.vectors;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -138,7 +139,7 @@ final class NativeSide implements Side {
     }
     if (description instanceof KeyDescription.Hierarchy) {
       KeyMaterial.StaticBranchKey branchKey = need(material, KeyMaterial.StaticBranchKey.class, "Not type: StaticKeyStoreInformation");
-      return AwsKmsHierarchicalKeyring.builder().branchKeyId(branchKey.keyIdentifier).keyStore(env.keyStore()).ttlSeconds(11).build();
+      return AwsKmsHierarchicalKeyring.builder().branchKeyId(branchKey.keyIdentifier).keyStore(env.keyStore()).ttl(Duration.ofSeconds(11)).build();
     }
     if (description instanceof KeyDescription.KmsMrkDiscovery) {
       KeyDescription.KmsMrkDiscovery discovery = (KeyDescription.KmsMrkDiscovery) description;

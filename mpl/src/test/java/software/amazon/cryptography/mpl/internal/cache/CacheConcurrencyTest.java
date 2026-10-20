@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.internal.cache;
 
+import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static software.amazon.cryptography.mpl.internal.cache.LocalCacheTest.key;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.cache.StormTrackingCache;
-import software.amazon.cryptography.mpl.cache.TimeUnits;
 import software.amazon.cryptography.mpl.exceptions.ThrottlingException;
 
 // Many threads on the thread-safe caches.
@@ -190,10 +190,10 @@ class CacheConcurrencyTest {
     // On the system clock with 5 ms windows: a caller for a key nobody puts again waits at most 5 ms.
     StormTrackingCache shortWindows = settings()
       .entryCapacity(entryCapacity)
-      .gracePeriod(5)
-      .graceInterval(5)
-      .inFlightTtl(5)
-      .sleepMilli(1)
+      .gracePeriod(Duration.ofMillis(5))
+      .graceInterval(Duration.ofMillis(5))
+      .inFlightTtl(Duration.ofMillis(5))
+      .sleep(Duration.ofMillis(1))
       .build();
     caches.add(new StormTracker<>(shortWindows, CacheClock.SYSTEM));
     return caches;
@@ -204,11 +204,10 @@ class CacheConcurrencyTest {
     return StormTrackingCache
       .builder()
       .entryCapacity(100)
-      .gracePeriod(10_000)
-      .graceInterval(10_000)
-      .inFlightTtl(10_000)
+      .gracePeriod(Duration.ofMillis(10_000))
+      .graceInterval(Duration.ofMillis(10_000))
+      .inFlightTtl(Duration.ofMillis(10_000))
       .fanOut(20)
-      .sleepMilli(5)
-      .timeUnits(TimeUnits.MILLISECONDS);
+      .sleep(Duration.ofMillis(5));
   }
 }

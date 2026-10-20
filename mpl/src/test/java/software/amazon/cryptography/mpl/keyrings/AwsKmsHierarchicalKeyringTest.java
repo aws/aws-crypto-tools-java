@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.time.Duration;
+import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -81,7 +83,7 @@ class AwsKmsHierarchicalKeyringTest {
   }
 
   private AwsKmsHierarchicalKeyring.Builder builder() {
-    return AwsKmsHierarchicalKeyring.builder().keyStore(store).branchKeyId(branchKey).ttlSeconds(600);
+    return AwsKmsHierarchicalKeyring.builder().keyStore(store).branchKeyId(branchKey).ttl(Duration.ofSeconds(600));
   }
 
   //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#initialization
@@ -99,20 +101,20 @@ class AwsKmsHierarchicalKeyringTest {
   void builderChecks() {
     assertEquals(
       "Missing value for required field `keyStore`",
-      assertThrows(ValidationException.class, () -> AwsKmsHierarchicalKeyring.builder().ttlSeconds(1).build()).getMessage()
+      assertThrows(ValidationException.class, () -> AwsKmsHierarchicalKeyring.builder().ttl(Duration.ofSeconds(1)).build()).getMessage()
     );
     assertEquals(
-      "Missing value for required field `ttlSeconds`",
+      "Missing value for required field `ttl`",
       assertThrows(ValidationException.class, () -> AwsKmsHierarchicalKeyring.builder().keyStore(store).build()).getMessage()
     );
     assertEquals(
-      "`ttlSeconds` must be greater than or equal to 0",
-      assertThrows(ValidationException.class, () -> builder().ttlSeconds(-1).build()).getMessage()
+      "`ttl` must be greater than or equal to 0",
+      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(-1)).build()).getMessage()
     );
     assertEquals(
       "When creating an AwsKmsHierarchicalKeyring with a StormCache, the ttlSeconds of the KeyRing must be greater than " +
       "the gracePeriod of the StormCache yet the ttlSeconds is 10 and the gracePeriod is 10.",
-      assertThrows(ValidationException.class, () -> builder().ttlSeconds(10).build()).getMessage()
+      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(10)).build()).getMessage()
     );
     assertEquals(
       "Could not UTF-8 Encode Partition ID: Could not encode input to Dafny Bytes.",
@@ -139,23 +141,34 @@ class AwsKmsHierarchicalKeyringTest {
       assertThrows(ValidationException.class, () -> builder().branchKeyId(null).build()).getMessage()
     );
     assertEquals(
-      "`ttlSeconds` must be greater than 0",
-      assertThrows(ValidationException.class, () -> builder().ttlSeconds(0).cache(CacheType.noCache()).build()).getMessage()
+      "`ttl` must be greater than 0",
+      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(0)).cache(CacheType.noCache()).build()).getMessage()
     );
-    builder().ttlSeconds(1).cache(CacheType.noCache()).build();
+    for (Duration fraction : Arrays.asList(Duration.ofMillis(1500), Duration.ofNanos(1), Duration.ofSeconds(5, 1))) {
+      assertEquals(
+        "`ttl` must be a whole number of seconds",
+        assertThrows(ValidationException.class, () -> builder().ttl(fraction).cache(CacheType.noCache()).build()).getMessage()
+      );
+    }
+    assertEquals(
+      "Missing value for required field `ttl`",
+      assertThrows(ValidationException.class, () -> builder().ttl(null).build()).getMessage()
+    );
+    builder().ttl(Duration.ofSeconds(1)).cache(CacheType.noCache()).build();
+    assertEquals(Duration.ofSeconds(Long.MAX_VALUE), builder().ttl(Duration.ofSeconds(Long.MAX_VALUE)).build().ttl());
   }
 
   @Test
   void accessors() {
     BranchKeyIdSupplier supplier = request -> GetBranchKeyIdResponse.of(branchKey);
     CacheType cache = CacheType.multiThreaded(5);
-    AwsKmsHierarchicalKeyring configured = builder().branchKeyId(null).branchKeyIdSupplier(supplier).cache(cache).partitionId("p").ttlSeconds(7).build();
+    AwsKmsHierarchicalKeyring configured = builder().branchKeyId(null).branchKeyIdSupplier(supplier).cache(cache).partitionId("p").ttl(Duration.ofSeconds(7)).build();
     assertSame(store, configured.keyStore());
     assertEquals(Optional.empty(), configured.branchKeyId());
     assertSame(supplier, configured.branchKeyIdSupplier().get());
     assertSame(cache, configured.cache().get());
     assertEquals(Optional.of("p"), configured.partitionId());
-    assertEquals(7, configured.ttlSeconds());
+    assertEquals(Duration.ofSeconds(7), configured.ttl());
     AwsKmsHierarchicalKeyring defaults = builder().build();
     assertEquals(Optional.of(branchKey), defaults.branchKeyId());
     assertFalse(defaults.branchKeyIdSupplier().isPresent());
@@ -167,7 +180,7 @@ class AwsKmsHierarchicalKeyringTest {
   void theTtlBoundsAnEntrysAgeWhateverItsExpiry() {
     TestClock clock = new TestClock(1_000_999);
     MapCache cache = new MapCache();
-    AwsKmsHierarchicalKeyring keyring = builder().ttlSeconds(5).cache(CacheType.shared(cache)).clock(clock).build();
+    AwsKmsHierarchicalKeyring keyring = builder().ttl(Duration.ofSeconds(5)).cache(CacheType.shared(cache)).clock(clock).build();
     keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
     assertEquals(2, reads());
     CacheEntry entry = cache.entries.values().iterator().next();
@@ -191,9 +204,9 @@ class AwsKmsHierarchicalKeyringTest {
     TestClock clock = new TestClock(1_000_000);
     MapCache cache = new MapCache();
     // now = 1000 s: now + ttl = Long.MAX_VALUE - 1 is the largest sum that passes.
-    builder().ttlSeconds(Long.MAX_VALUE - 1001).cache(CacheType.shared(cache)).clock(clock).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1001)).cache(CacheType.shared(cache)).clock(clock).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
     assertEquals(Instant.MAX, cache.entries.values().iterator().next().expiryTime());
-    AwsKmsHierarchicalKeyring overflow = builder().ttlSeconds(Long.MAX_VALUE - 1000).cache(CacheType.shared(new MapCache())).clock(clock).build();
+    AwsKmsHierarchicalKeyring overflow = builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1000)).cache(CacheType.shared(new MapCache())).clock(clock).build();
     assertEquals("INT64 Overflow when putting cache entry.", assertThrows(ValidationException.class, () -> overflow.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage());
   }
 

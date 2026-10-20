@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.examples.esdk;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -69,7 +70,7 @@ public final class HierarchicalKeyringExample {
         .builder()
         .keyStore(keyStore)
         .branchKeyIdSupplier(byTenant)
-        .ttlSeconds(600)
+        .ttl(Duration.ofMinutes(10))
         .cache(CacheType.defaultCache(100))
         .build();
 
@@ -80,7 +81,7 @@ public final class HierarchicalKeyringExample {
       byte[] ciphertextB = crypto.encryptData(keyring, EXAMPLE_DATA, contextB);
 
       // A keyring fixed to tenant A's branch key cannot read tenant B's message.
-      Keyring onlyA = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyId(branchKeyIdA).ttlSeconds(600).build();
+      Keyring onlyA = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyId(branchKeyIdA).ttl(Duration.ofMinutes(10)).build();
       Expect.failure(NoMatchingDataKeyException.class, () -> crypto.decryptData(onlyA, ciphertextB));
       Expect.equal(EXAMPLE_DATA, crypto.decryptData(onlyA, ciphertextA).getResult());
       Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertextB).getResult());
@@ -95,7 +96,7 @@ public final class HierarchicalKeyringExample {
         .builder()
         .keyStore(keyStore)
         .branchKeyIdSupplier(byTenant)
-        .ttlSeconds(600)
+        .ttl(Duration.ofMinutes(10))
         .cache(CacheType.noCache())
         .build();
       byte[] afterRotation = crypto.encryptData(uncached, EXAMPLE_DATA, contextA);

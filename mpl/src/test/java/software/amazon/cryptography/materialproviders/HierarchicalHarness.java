@@ -102,7 +102,7 @@ final class HierarchicalHarness implements AutoCloseable {
     String expected = ReferenceMpl.outcome(() -> created(ReferenceMpl.call(reference, "CreateAwsKmsHierarchicalKeyring", input)));
     String actual = ReferenceMpl.outcome(() -> created(KeyringTests.MPL.CreateAwsKmsHierarchicalKeyring(input)));
     assertEquals(
-      "throws software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException: `ttlSeconds` must be greater than 0",
+      "throws software.amazon.cryptography.materialproviders.model.AwsCryptographicMaterialProvidersException: `ttl` must be greater than 0",
       actual,
       () -> describe(input)
     );
