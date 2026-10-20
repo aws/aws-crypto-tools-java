@@ -1,6 +1,6 @@
 # Native Java MPL: API summary and migration path
 
-Status: draft for planning, 2026-10-20. Unreviewed: the API can still change after team review.
+Status: draft for planning, 2026-10-20 (updated for request/response objects and Duration). Unreviewed: the API can still change after team review.
 
 - **Current API:** the Dafny-based MPL for Java, 1.11.1, package `software.amazon.cryptography.materialproviders`, the `keystore` package, and `primitives`.
 - **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven, package `software.amazon.cryptography.mpl`, Java 8, no Dafny runtime.
@@ -13,7 +13,7 @@ Status: draft for planning, 2026-10-20. Unreviewed: the API can still change aft
 | New package `software.amazon.cryptography.mpl`, which can sit on the classpath next to the Dafny MPL | Wire format: EDKs, the canonical encryption context, key store items. Existing data decrypts; nothing is re-encrypted. |
 | No `MaterialProviders` factory client and no `*Input`/`*Output` wrappers; every component has `builder()` | Pass/fail for every input (four approved exceptions, sec. 4) |
 | Enums for closed sets, immutable values, secrets as `SecretBytes`, `Optional` instead of null | Defaults, KMS and DynamoDB calls, cache behavior |
-| One unchecked exception root with `kind()` and `isRetryable()` | Member names and enum constants (only casing changes: `ALG_AES_256_...`, `ttlSeconds`, `ddbTableName`) |
+| One unchecked exception root with `kind()` and `isRetryable()` | Member names and enum constants (only casing changes: `ALG_AES_256_...`, `branchKeyIdentifier`, `ddbTableName`) |
 
 ## 2. API names: current vs native
 
@@ -53,18 +53,18 @@ Status: draft for planning, 2026-10-20. Unreviewed: the API can still change aft
 |---|---|
 | `KeyStore.builder().KeyStoreConfig(KeyStoreConfig...)` | `BranchKeyStore.builder()` (same members; `AutoCloseable`) |
 | `KMSConfiguration` | `KmsConfiguration.kmsKeyArn(..)`, `kmsMrKeyArn(..)`, `discovery()`, `mrDiscovery(region)` |
-| `CreateKeyStore(CreateKeyStoreInput)` | `createKeyStore()` returns the table ARN |
-| `CreateKey(CreateKeyInput)` | `createKey()`, `createKey(EncryptionContext)`, `createKey(String, EncryptionContext)` return the id |
-| `VersionKey`, `GetActiveBranchKey`, `GetBranchKeyVersion`, `GetBeaconKey`, `GetKeyStoreInfo` | `versionKey(id)`, `getActiveBranchKey(id)`, `getBranchKeyVersion(id, version)`, `getBeaconKey(id)`, `getKeyStoreInfo()` |
+| `CreateKeyStore(CreateKeyStoreInput)` | `createKeyStore()` → `CreateKeyStoreResponse.tableArn()` |
+| `CreateKey(CreateKeyInput)` | `createKey()` or `createKey(b -> b.branchKeyIdentifier(id).encryptionContext(ec))` → `CreateKeyResponse.branchKeyIdentifier()` |
+| `VersionKey`, `GetActiveBranchKey`, `GetBranchKeyVersion`, `GetBeaconKey`, `GetKeyStoreInfo` | `versionKey`, `getActiveBranchKey`, `getBranchKeyVersion`, `getBeaconKey`, `getKeyStoreInfo`, each taking `XRequest` (or `Consumer<XRequest.Builder>`) and returning `XResponse` |
 
 ### Interfaces customers implement
 
 | Current | Native |
 |---|---|
-| `IKeyring`: `OnEncrypt(OnEncryptInput)`, `OnDecrypt(OnDecryptInput)` | `Keyring`: `onEncrypt(OnEncryptRequest)`, `onDecrypt(OnDecryptRequest)`, returning materials |
-| `ICryptographicMaterialsManager` | `CryptographicMaterialsManager`: `getEncryptionMaterials(GetEncryptionMaterialsRequest)`, `decryptMaterials(DecryptMaterialsRequest)` |
-| `ICryptographicMaterialsCache` (4 operations) | `CryptographicMaterialsCache`: `get` (returns `Optional`), `put`, `remove` |
-| `IBranchKeyIdSupplier`: `GetBranchKeyId(GetBranchKeyIdInput)` | `BranchKeyIdSupplier`: `String getBranchKeyId(EncryptionContext)` (lambda) |
+| `IKeyring`: `OnEncrypt(OnEncryptInput)`, `OnDecrypt(OnDecryptInput)` | `Keyring`: `onEncrypt(OnEncryptRequest)` → `OnEncryptResponse`, `onDecrypt(OnDecryptRequest)` → `OnDecryptResponse` |
+| `ICryptographicMaterialsManager` | `CryptographicMaterialsManager`: `getEncryptionMaterials(GetEncryptionMaterialsRequest)` → `GetEncryptionMaterialsResponse`, `decryptMaterials(DecryptMaterialsRequest)` → `DecryptMaterialsResponse` |
+| `ICryptographicMaterialsCache` (4 operations) | `CryptographicMaterialsCache`: `getCacheEntry`, `putCacheEntry`, `deleteCacheEntry`, each with request/response (a miss is an empty `entry()`) |
+| `IBranchKeyIdSupplier`: `GetBranchKeyId(GetBranchKeyIdInput)` | `BranchKeyIdSupplier`: `GetBranchKeyIdResponse getBranchKeyId(GetBranchKeyIdRequest)` (lambda) |
 | `IClientSupplier`: `GetClient(GetClientInput)` | `ClientSupplier`: `KmsClient getClient(String region)` (lambda) |
 
 ### Values
@@ -76,7 +76,7 @@ Status: draft for planning, 2026-10-20. Unreviewed: the API can still change aft
 | `Map<String,String>` encryption context | `EncryptionContext` (immutable `Map<String,String>`) |
 | `ByteBuffer` keys and secrets | `byte[]` (copied) and `SecretBytes` |
 | `CacheType` union (`Default`, `No`, `SingleThreaded`, `MultiThreaded`, `StormTracking`, `Shared`) | `CacheType.defaultCache(n)`, `noCache()`, `singleThreaded(..)`, `multiThreaded(..)`, `stormTracking(..)`, `shared(cache)` |
-| `TimeUnits.Seconds` / `Milliseconds` | `TimeUnits.SECONDS` / `MILLISECONDS` |
+| `ttlSeconds(long)`, storm-tracking `int` times + `TimeUnits` | `java.time.Duration`: `ttl(Duration)`; `gracePeriod`, `graceInterval`, `inFlightTtl`, `sleep`; `TimeUnits` removed |
 
 ### Exceptions
 
@@ -86,7 +86,7 @@ Status: draft for planning, 2026-10-20. Unreviewed: the API can still change aft
 | `CollectionOfErrors` | `NoMatchingDataKeyException` (`failures()` lists each attempt) |
 | `InvalidEncryptionMaterials`, `InvalidDecryptionMaterials`, `*Transition` | `InvalidMaterialsException` |
 | `InFlightTTLExceeded` | `ThrottlingException` (retryable) |
-| `EntryDoesNotExist` | `Optional.empty()` from `get` |
+| `EntryDoesNotExist` | empty `GetCacheEntryResponse.entry()` |
 | `KeyStoreException` | The subclass for the failure's kind |
 | `OpaqueError` | Removed: exceptions thrown by customer code pass through unchanged |
 | `KmsException` / `DynamoDbException` rethrown as-is | `AccessDeniedException`, `ThrottlingException`, `ResourceNotFoundException`, `ServiceException` or `DispatchException`, with the SDK exception as cause (`findCause(KmsException.class)`) |
@@ -141,10 +141,10 @@ The prototype's results:
 1. Add the native MPL dependency (Maven coordinates are still open). The Dafny MPL can stay alongside it during the move.
 2. Change imports from `software.amazon.cryptography.materialproviders.*` and `...keystore.*` to `software.amazon.cryptography.mpl.*`.
 3. Replace `matProv.CreateX(CreateXInput.builder()...build())` with `X.builder()...build()`, using the member names from the tables above.
-4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas.
+4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas, e.g. `req -> GetBranchKeyIdResponse.of(pick(req.encryptionContext()))`.
 5. Port custom `IKeyring` and `ICryptographicMaterialsManager` implementations:
    - change the method names to lower case;
-   - return the materials directly;
+   - return `OnEncryptResponse.of(materials)` / `OnDecryptResponse.of(materials)` (CMMs: the matching `...Response.of`);
    - use `materials.with...` instead of mutating the materials.
 6. Update exception handling:
    - catch `MaterialProvidersException`, or a specific subclass;
@@ -159,14 +159,14 @@ The prototype's results:
 | R31 | `DiscoveryFilter.of` rejects an empty account list or partition | Breaking, proposed (pending team review) |
 | R22 | No global BouncyCastle provider registration | Breaking, proposed (pending team review) |
 | R11 | ECDH rejects a public key with x = 0 | Breaking, needs security sign-off |
-| R46 | Hierarchical keyring rejects `ttlSeconds(0)` (the spec requires it) | Breaking, proposed (pending team review) |
+| R46 | Hierarchical keyring rejects a zero `ttl` (the spec requires it) | Breaking, proposed (pending team review) |
 | R9, R10 | Discovery filter matching fixed; some decryptions that failed now succeed | Non-breaking |
-| R3, R4 | Cache miss is `Optional.empty()`; cache usage counters removed | API shape only |
+| R3, R4 | Cache miss is an empty response, not an exception; cache usage counters removed | API shape only |
 
 ## 5. Open before release
 
 1. Maven artifact name.
 2. Whether DynamoDB stays a compile dependency.
-3. Alignment with the native Rust MPL: request/response objects for every operation, `Duration` for times, and the cache selection shape.
+3. Cache selection shape (`CacheType` versus passing a cache object, as the native Rust MPL does); request/response objects and `Duration` are already adopted.
 4. Three spec-versus-Dafny questions for the MPL owners: raw AES namespaces starting with `aws-kms`, the default suite under `FORBID_ENCRYPT_ALLOW_DECRYPT`, and verification key length checks.
 5. Security sign-off for R11.
