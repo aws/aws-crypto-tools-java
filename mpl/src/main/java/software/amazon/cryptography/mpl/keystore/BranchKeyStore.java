@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.EncryptionContext;
@@ -22,6 +23,10 @@ import software.amazon.cryptography.mpl.internal.primitives.Bytes;
  * Branch keys, the versioned keys the hierarchical keyring wraps data keys with, stored in a DynamoDB table
  * and protected by a KMS key. Thread-safe.
  * Clients passed to the builder are not closed; clients the store creates are closed by {@link #close()}.
+ *
+ * <p>Each operation takes a request object and returns a response object.
+ * Every operation also accepts a {@code Consumer} of the request's builder, as the AWS SDK for Java 2.x does:
+ * {@code store.createKey(b -> b.branchKeyIdentifier(id).encryptionContext(context))}.
  *
  * <p>Reads are eventually consistent, and {@link #versionKey} does not detect a concurrent {@code versionKey}:
  * the last write of the ACTIVE item wins.
@@ -43,10 +48,10 @@ import software.amazon.cryptography.mpl.internal.primitives.Bytes;
 //#- [GetBeaconKey](#getbeaconkey)
 public final class BranchKeyStore implements AutoCloseable {
 
-  private final KeyStoreInfo info;
+  private final GetKeyStoreInfoResponse info;
   private final KeyStoreOperations operations;
 
-  private BranchKeyStore(KeyStoreInfo info, KeyStoreOperations operations) {
+  private BranchKeyStore(GetKeyStoreInfoResponse info, KeyStoreOperations operations) {
     this.info = info;
     this.operations = operations;
   }
@@ -64,25 +69,29 @@ public final class BranchKeyStore implements AutoCloseable {
    * @throws software.amazon.cryptography.mpl.exceptions.ValidationException
    *   if the table exists without the key store's key schema
    */
-  public String createKeyStore() {
-    return operations.createKeyStore();
+  public CreateKeyStoreResponse createKeyStore(CreateKeyStoreRequest request) {
+    Objects.requireNonNull(request, "request");
+    return CreateKeyStoreResponse.of(operations.createKeyStore());
   }
 
-  /** Creates a branch key with a random id and returns the id. */
-  public String createKey() {
-    return operations.createKey(null, null);
+  /** The same as {@code createKeyStore(CreateKeyStoreRequest.builder().build())}. */
+  public CreateKeyStoreResponse createKeyStore() {
+    return createKeyStore(CreateKeyStoreRequest.builder().build());
   }
 
-  /** Creates a branch key with a random id and a custom encryption context, and returns the id. */
-  public String createKey(EncryptionContext encryptionContext) {
-    return operations.createKey(null, Objects.requireNonNull(encryptionContext, "encryptionContext"));
+  /** {@link #createKeyStore(CreateKeyStoreRequest)} with a request built by {@code request}. */
+  public CreateKeyStoreResponse createKeyStore(Consumer<CreateKeyStoreRequest.Builder> request) {
+    CreateKeyStoreRequest.Builder builder = CreateKeyStoreRequest.builder();
+    request.accept(builder);
+    return createKeyStore(builder.build());
   }
 
   /**
-   * Creates a branch key with the caller's id and custom encryption context, and returns the id.
+   * Creates a branch key and returns its id: the request's id, or a random one.
+   * The request's encryption context, if any, is bound into the key.
    *
    * @throws software.amazon.cryptography.mpl.exceptions.ValidationException
-   *   if the id is empty or the encryption context is empty
+   *   if the request has an id without a non-empty encryption context, or an empty id
    * @throws software.amazon.cryptography.mpl.exceptions.ConflictException if the id already exists
    */
   //= spec/framework/branch-key-store.md#createkey
@@ -90,25 +99,44 @@ public final class BranchKeyStore implements AutoCloseable {
   //# The CreateKey caller MUST provide:
   //# - An optional branch key id
   //# - An optional encryption context
-  public String createKey(String branchKeyIdentifier, EncryptionContext encryptionContext) {
-    return operations.createKey(
-      Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"),
-      Objects.requireNonNull(encryptionContext, "encryptionContext")
-    );
+  public CreateKeyResponse createKey(CreateKeyRequest request) {
+    String id = request.branchKeyIdentifier().orElse(null);
+    EncryptionContext encryptionContext = request.encryptionContext().orElse(null);
+    return CreateKeyResponse.of(operations.createKey(id, encryptionContext));
+  }
+
+  /** Creates a branch key with a random id and no encryption context of the caller's. */
+  public CreateKeyResponse createKey() {
+    return createKey(CreateKeyRequest.builder().build());
+  }
+
+  /** {@link #createKey(CreateKeyRequest)} with a request built by {@code request}. */
+  public CreateKeyResponse createKey(Consumer<CreateKeyRequest.Builder> request) {
+    CreateKeyRequest.Builder builder = CreateKeyRequest.builder();
+    request.accept(builder);
+    return createKey(builder.build());
   }
 
   /** Makes a new version of the branch key active; earlier versions stay available for decryption. */
   //= spec/framework/branch-key-store.md#versionkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
-  public void versionKey(String branchKeyIdentifier) {
-    operations.versionKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"));
+  public VersionKeyResponse versionKey(VersionKeyRequest request) {
+    operations.versionKey(request.branchKeyIdentifier());
+    return VersionKeyResponse.of();
+  }
+
+  /** {@link #versionKey(VersionKeyRequest)} with a request built by {@code request}. */
+  public VersionKeyResponse versionKey(Consumer<VersionKeyRequest.Builder> request) {
+    VersionKeyRequest.Builder builder = VersionKeyRequest.builder();
+    request.accept(builder);
+    return versionKey(builder.build());
   }
 
   //= spec/framework/branch-key-store.md#getactivebranchkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
-  public BranchKeyMaterials getActiveBranchKey(String branchKeyIdentifier) {
+  public GetActiveBranchKeyResponse getActiveBranchKey(GetActiveBranchKeyRequest request) {
     //= spec/framework/branch-key-store.md#getactivebranchkey
     //= type=implication
     //# This GetActiveBranchKey MUST construct [branch key materials](./structures.md#branch-key-materials)
@@ -117,7 +145,14 @@ public final class BranchKeyStore implements AutoCloseable {
     //= spec/framework/branch-key-store.md#getactivebranchkey
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
-    return branchKeyMaterials(operations.getActiveBranchKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier")));
+    return GetActiveBranchKeyResponse.of(branchKeyMaterials(operations.getActiveBranchKey(request.branchKeyIdentifier())));
+  }
+
+  /** {@link #getActiveBranchKey(GetActiveBranchKeyRequest)} with a request built by {@code request}. */
+  public GetActiveBranchKeyResponse getActiveBranchKey(Consumer<GetActiveBranchKeyRequest.Builder> request) {
+    GetActiveBranchKeyRequest.Builder builder = GetActiveBranchKeyRequest.builder();
+    request.accept(builder);
+    return getActiveBranchKey(builder.build());
   }
 
   //= spec/framework/branch-key-store.md#getbranchkeyversion
@@ -127,7 +162,7 @@ public final class BranchKeyStore implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getbranchkeyversion
   //= type=implication
   //# - MUST supply a `branchKeyVersion`
-  public BranchKeyMaterials getBranchKeyVersion(String branchKeyIdentifier, String branchKeyVersion) {
+  public GetBranchKeyVersionResponse getBranchKeyVersion(GetBranchKeyVersionRequest request) {
     //= spec/framework/branch-key-store.md#getbranchkeyversion
     //= type=implication
     //# This GetBranchKeyVersion MUST construct [branch key materials](./structures.md#branch-key-materials)
@@ -136,19 +171,23 @@ public final class BranchKeyStore implements AutoCloseable {
     //= spec/framework/branch-key-store.md#getbranchkeyversion
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
-    return branchKeyMaterials(
-      operations.getBranchKeyVersion(
-        Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"),
-        Objects.requireNonNull(branchKeyVersion, "branchKeyVersion")
-      )
+    return GetBranchKeyVersionResponse.of(
+      branchKeyMaterials(operations.getBranchKeyVersion(request.branchKeyIdentifier(), request.branchKeyVersion()))
     );
+  }
+
+  /** {@link #getBranchKeyVersion(GetBranchKeyVersionRequest)} with a request built by {@code request}. */
+  public GetBranchKeyVersionResponse getBranchKeyVersion(Consumer<GetBranchKeyVersionRequest.Builder> request) {
+    GetBranchKeyVersionRequest.Builder builder = GetBranchKeyVersionRequest.builder();
+    request.accept(builder);
+    return getBranchKeyVersion(builder.build());
   }
 
   //= spec/framework/branch-key-store.md#getbeaconkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
-  public BeaconKeyMaterials getBeaconKey(String branchKeyIdentifier) {
-    UnwrappedKey unwrapped = operations.getBeaconKey(Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier"));
+  public GetBeaconKeyResponse getBeaconKey(GetBeaconKeyRequest request) {
+    UnwrappedKey unwrapped = operations.getBeaconKey(request.branchKeyIdentifier());
     try {
       EncryptionContext context = EncryptionContext.copyOf(unwrapped.encryptionContext());
       //= spec/framework/branch-key-store.md#getbeaconkey
@@ -159,17 +198,39 @@ public final class BranchKeyStore implements AutoCloseable {
       //= spec/framework/branch-key-store.md#getbeaconkey
       //= type=implication
       //# This operation MUST return the constructed [beacon key materials](./structures.md#beacon-key-materials).
-      return KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap());
+      return GetBeaconKeyResponse.of(
+        KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap())
+      );
     } finally {
       Bytes.zero(unwrapped.key());
     }
   }
 
+  /** {@link #getBeaconKey(GetBeaconKeyRequest)} with a request built by {@code request}. */
+  public GetBeaconKeyResponse getBeaconKey(Consumer<GetBeaconKeyRequest.Builder> request) {
+    GetBeaconKeyRequest.Builder builder = GetBeaconKeyRequest.builder();
+    request.accept(builder);
+    return getBeaconKey(builder.build());
+  }
+
   //= spec/framework/branch-key-store.md#getkeystoreinfo
   //= type=implication
   //# This operation MUST return the keystore information in this keystore configuration.
-  public KeyStoreInfo getKeyStoreInfo() {
+  public GetKeyStoreInfoResponse getKeyStoreInfo(GetKeyStoreInfoRequest request) {
+    Objects.requireNonNull(request, "request");
     return info;
+  }
+
+  /** The same as {@code getKeyStoreInfo(GetKeyStoreInfoRequest.builder().build())}. */
+  public GetKeyStoreInfoResponse getKeyStoreInfo() {
+    return info;
+  }
+
+  /** {@link #getKeyStoreInfo(GetKeyStoreInfoRequest)} with a request built by {@code request}. */
+  public GetKeyStoreInfoResponse getKeyStoreInfo(Consumer<GetKeyStoreInfoRequest.Builder> request) {
+    GetKeyStoreInfoRequest.Builder builder = GetKeyStoreInfoRequest.builder();
+    request.accept(builder);
+    return getKeyStoreInfo(builder.build());
   }
 
   @Override
@@ -235,7 +296,7 @@ public final class BranchKeyStore implements AutoCloseable {
       return this;
     }
 
-    /** Identifies this store in {@link KeyStoreInfo}; default: a random id. */
+    /** Identifies this store in {@link GetKeyStoreInfoResponse}; default: a random id. */
     public Builder id(String id) {
       this.id = id;
       return this;
@@ -291,7 +352,7 @@ public final class BranchKeyStore implements AutoCloseable {
       //= spec/framework/branch-key-store.md#getkeystoreinfo
       //= type=implication
       //# This MUST include:
-      KeyStoreInfo info = new KeyStoreInfo(keyStoreId, ddbTableName, logicalKeyStoreName, grantTokens, kmsConfiguration);
+      GetKeyStoreInfoResponse info = new GetKeyStoreInfoResponse(keyStoreId, ddbTableName, logicalKeyStoreName, grantTokens, kmsConfiguration);
       return new BranchKeyStore(info, operations);
     }
   }

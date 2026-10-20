@@ -92,7 +92,7 @@ class RealExamplesIT {
   void esdkKeyStoreExamples() {
     HierarchicalKeyringExample.encryptAndDecrypt(RealAws.TABLE, RealAws.LOGICAL_NAME, aws.sym, kms, ddb);
     try (BranchKeyStore store = store()) {
-      String branchKey = store.createKey();
+      String branchKey = store.createKey().branchKeyIdentifier();
       System.out.println("created branch key " + branchKey);
       SharedCacheExample.encryptAndDecrypt(RealAws.TABLE, RealAws.LOGICAL_NAME, "partition", aws.sym, branchKey, kms, ddb);
     }
@@ -152,11 +152,11 @@ class RealExamplesIT {
     );
     assertEquals(2, tenants.size());
     try (BranchKeyStore store = store()) {
-      String first = store.createKey();
+      String first = store.createKey().branchKeyIdentifier();
       System.out.println("created branch key " + first);
       String beacon = SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321");
       assertEquals(beacon, SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321"));
-      String second = store.createKey();
+      String second = store.createKey().branchKeyIdentifier();
       System.out.println("created branch key " + second);
       Map<String, String> perTenant = SearchableEncryptionExample.multiKeyStoreBeacons(store, first, second, "4321");
       assertEquals(beacon, perTenant.get(first));

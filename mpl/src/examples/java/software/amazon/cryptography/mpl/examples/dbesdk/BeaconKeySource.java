@@ -27,6 +27,7 @@ import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
+import software.amazon.cryptography.mpl.keystore.GetBeaconKeyRequest;
 
 /**
  * Integration example: the DB-ESDK's beacon key source on the native MPL, per SearchInfo.dfy and ConfigToInfo.dfy
@@ -110,7 +111,7 @@ public final class BeaconKeySource {
         .orElseThrow(() -> new IllegalStateException("Invalid Material Type."));
       return copies(cached.hmacKeys());
     }
-    BeaconKeyMaterials materials = keyStore.getBeaconKey(beaconKeyId);
+    BeaconKeyMaterials materials = keyStore.getBeaconKey(GetBeaconKeyRequest.of(beaconKeyId)).beaconKeyMaterials();
     SecretBytes beaconKey = materials.beaconKey().orElseThrow(() -> new IllegalStateException("beacon key unexpectedly empty"));
     Map<String, SecretBytes> keys = new LinkedHashMap<>();
     try {

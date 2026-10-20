@@ -21,6 +21,10 @@ import software.amazon.cryptography.keystore.model.VersionKeyInput;
 import software.amazon.cryptography.keystore.model.VersionKeyOutput;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
+import software.amazon.cryptography.mpl.keystore.GetActiveBranchKeyRequest;
+import software.amazon.cryptography.mpl.keystore.GetBeaconKeyRequest;
+import software.amazon.cryptography.mpl.keystore.GetBranchKeyVersionRequest;
+import software.amazon.cryptography.mpl.keystore.VersionKeyRequest;
 
 /** Test adapter: the Dafny-shaped key store client on top of {@link BranchKeyStore}. */
 public class KeyStore {
@@ -45,26 +49,21 @@ public class KeyStore {
   public CreateKeyOutput CreateKey(CreateKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     EncryptionContext encryptionContext = KeyStoreConvert.encryptionContext(input.encryptionContext());
-    String created = call(() -> {
-      if (branchKeyIdentifier != null) {
-        return store.createKey(branchKeyIdentifier, encryptionContext == null ? EncryptionContext.empty() : encryptionContext);
-      }
-      return encryptionContext == null ? store.createKey() : store.createKey(encryptionContext);
-    });
+    String created = call(() -> store.createKey(b -> b.branchKeyIdentifier(branchKeyIdentifier).encryptionContext(encryptionContext)).branchKeyIdentifier());
     return CreateKeyOutput.builder().branchKeyIdentifier(created).build();
   }
 
   /** Create the DynamoDB table that backs this Key Store; if it exists, validate it is configured as expected. */
   public CreateKeyStoreOutput CreateKeyStore(CreateKeyStoreInput input) {
     Objects.requireNonNull(input);
-    return CreateKeyStoreOutput.builder().tableArn(call(store::createKeyStore)).build();
+    return CreateKeyStoreOutput.builder().tableArn(call(() -> store.createKeyStore().tableArn())).build();
   }
 
   /** Get the ACTIVE version for a particular Branch Key from the Key Store. */
   public GetActiveBranchKeyOutput GetActiveBranchKey(GetActiveBranchKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetActiveBranchKeyOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(branchKeyIdentifier))))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of(branchKeyIdentifier)).branchKeyMaterials())))
       .build();
   }
 
@@ -72,7 +71,7 @@ public class KeyStore {
   public GetBeaconKeyOutput GetBeaconKey(GetBeaconKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetBeaconKeyOutput.builder()
-      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(branchKeyIdentifier))))
+      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(GetBeaconKeyRequest.of(branchKeyIdentifier)).beaconKeyMaterials())))
       .build();
   }
 
@@ -81,7 +80,7 @@ public class KeyStore {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     String branchKeyVersion = input.branchKeyVersion();
     return GetBranchKeyVersionOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(branchKeyIdentifier, branchKeyVersion))))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(GetBranchKeyVersionRequest.of(branchKeyIdentifier, branchKeyVersion)).branchKeyMaterials())))
       .build();
   }
 
@@ -94,7 +93,7 @@ public class KeyStore {
   public VersionKeyOutput VersionKey(VersionKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     call(() -> {
-      store.versionKey(branchKeyIdentifier);
+      store.versionKey(VersionKeyRequest.of(branchKeyIdentifier));
       return null;
     });
     return VersionKeyOutput.builder().build();

@@ -5,8 +5,8 @@ package software.amazon.cryptography.mpl.keystore;
 import java.util.List;
 import java.util.Objects;
 
-/** Configuration of a branch key store, as reported by {@link BranchKeyStore#getKeyStoreInfo()}. Immutable. */
-public final class KeyStoreInfo {
+/** Output of {@link BranchKeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
+public final class GetKeyStoreInfoResponse {
 
   private final String keyStoreId;
   private final String keyStoreName;
@@ -14,7 +14,7 @@ public final class KeyStoreInfo {
   private final List<String> grantTokens;
   private final KmsConfiguration kmsConfiguration;
 
-  KeyStoreInfo(
+  GetKeyStoreInfoResponse(
     String keyStoreId,
     String keyStoreName,
     String logicalKeyStoreName,
@@ -52,10 +52,10 @@ public final class KeyStoreInfo {
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof KeyStoreInfo)) {
+    if (!(other instanceof GetKeyStoreInfoResponse)) {
       return false;
     }
-    KeyStoreInfo that = (KeyStoreInfo) other;
+    GetKeyStoreInfoResponse that = (GetKeyStoreInfoResponse) other;
     return (
       keyStoreId.equals(that.keyStoreId) &&
       keyStoreName.equals(that.keyStoreName) &&
@@ -74,7 +74,7 @@ public final class KeyStoreInfo {
   @Override
   public String toString() {
     return (
-      "KeyStoreInfo[" + keyStoreId + ", table " + keyStoreName + ", logical name " + logicalKeyStoreName + ", " +
+      "GetKeyStoreInfoResponse[" + keyStoreId + ", table " + keyStoreName + ", logical name " + logicalKeyStoreName + ", " +
       kmsConfiguration + ", " + grantTokens.size() + " grant tokens]"
     );
   }

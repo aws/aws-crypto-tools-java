@@ -47,8 +47,8 @@ public final class HierarchicalKeyringExample {
     ) {
       // Key store administration, usually done once outside the application.
       keyStore.createKeyStore();
-      String tenant1BranchKeyId = keyStore.createKey();
-      String tenant2BranchKeyId = keyStore.createKey();
+      String tenant1BranchKeyId = keyStore.createKey().branchKeyIdentifier();
+      String tenant2BranchKeyId = keyStore.createKey().branchKeyIdentifier();
 
       DdbKeyBranchKeyIdSupplier byTenant = ddbKey -> {
         String tenant = ddbKey.get(ExampleItems.PARTITION_KEY);

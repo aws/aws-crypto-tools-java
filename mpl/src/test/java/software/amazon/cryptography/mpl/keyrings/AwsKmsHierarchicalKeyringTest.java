@@ -71,7 +71,7 @@ class AwsKmsHierarchicalKeyringTest {
 
   AwsKmsHierarchicalKeyringTest() {
     store.createKeyStore();
-    branchKey = store.createKey();
+    branchKey = store.createKey().branchKeyIdentifier();
     aws.clearRequests();
   }
 
@@ -132,7 +132,7 @@ class AwsKmsHierarchicalKeyringTest {
     );
     assertEquals(
       "Cannot initialize keyring with both a branchKeyId and BranchKeyIdSupplier.",
-      assertThrows(ValidationException.class, () -> builder().branchKeyIdSupplier(ec -> branchKey).build()).getMessage()
+      assertThrows(ValidationException.class, () -> builder().branchKeyIdSupplier(request -> GetBranchKeyIdResponse.of(branchKey)).build()).getMessage()
     );
     assertEquals(
       "Must initialize keyring with either branchKeyId or BranchKeyIdSupplier.",
@@ -147,7 +147,7 @@ class AwsKmsHierarchicalKeyringTest {
 
   @Test
   void accessors() {
-    BranchKeyIdSupplier supplier = ec -> branchKey;
+    BranchKeyIdSupplier supplier = request -> GetBranchKeyIdResponse.of(branchKey);
     CacheType cache = CacheType.multiThreaded(5);
     AwsKmsHierarchicalKeyring configured = builder().branchKeyId(null).branchKeyIdSupplier(supplier).cache(cache).partitionId("p").ttlSeconds(7).build();
     assertSame(store, configured.keyStore());
@@ -221,7 +221,7 @@ class AwsKmsHierarchicalKeyringTest {
     };
     assertSame(failure, assertThrows(IllegalStateException.class, () -> builder().cache(CacheType.shared(failing)).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build())));
     RuntimeException supplierFailure = new RuntimeException("supplier failed");
-    AwsKmsHierarchicalKeyring throwing = builder().branchKeyId(null).branchKeyIdSupplier(ec -> {
+    AwsKmsHierarchicalKeyring throwing = builder().branchKeyId(null).branchKeyIdSupplier(request -> {
       throw supplierFailure;
     }).build();
     assertSame(supplierFailure, assertThrows(RuntimeException.class, () -> throwing.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())));
@@ -229,7 +229,7 @@ class AwsKmsHierarchicalKeyringTest {
 
   @Test
   void aSupplierReturningNullFails() {
-    AwsKmsHierarchicalKeyring nullId = builder().branchKeyId(null).branchKeyIdSupplier(ec -> null).build();
+    AwsKmsHierarchicalKeyring nullId = builder().branchKeyId(null).branchKeyIdSupplier(request -> null).build();
     assertEquals(
       "BranchKeyIdSupplier returned no branch key id.",
       assertThrows(ValidationException.class, () -> nullId.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage()
@@ -238,6 +238,12 @@ class AwsKmsHierarchicalKeyringTest {
     assertEquals(
       "BranchKeyIdSupplier returned no branch key id.",
       assertThrows(ValidationException.class, () -> nullId.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(Collections.emptyList()).build())).getMessage()
+    );
+    // A response cannot hold a null id: the supplier's own call fails, with the same exception kind.
+    AwsKmsHierarchicalKeyring nullInResponse = builder().branchKeyId(null).branchKeyIdSupplier(request -> GetBranchKeyIdResponse.of(null)).build();
+    assertEquals(
+      "Missing value for required field `branchKeyId`",
+      assertThrows(ValidationException.class, () -> nullInResponse.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage()
     );
   }
 

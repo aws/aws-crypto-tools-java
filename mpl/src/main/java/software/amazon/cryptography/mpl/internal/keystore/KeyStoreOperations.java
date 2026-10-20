@@ -177,7 +177,7 @@ public final class KeyStoreOperations implements AutoCloseable {
    * Creates a branch key: its first version, DECRYPT_ONLY and ACTIVE, and its beacon key.
    *
    * @param branchKeyIdentifier the caller's id, or null for a random one
-   * @param encryptionContext the caller's encryption context, or null for none; not null with an id
+   * @param encryptionContext the caller's encryption context, or null for none; an id without a non-empty one fails
    */
   //= spec/framework/branch-key-store.md#branch-key-and-beacon-key-creation
   //= type=implication
@@ -190,7 +190,7 @@ public final class KeyStoreOperations implements AutoCloseable {
     //= type=implication
     //# If an optional branch key id is provided
     //# and no encryption context is provided this operation MUST fail.
-    if (branchKeyIdentifier != null && encryptionContext.isEmpty()) {
+    if (branchKeyIdentifier != null && (encryptionContext == null || encryptionContext.isEmpty())) {
       throw new ValidationException(KeyStoreMessages.CUSTOM_BRANCH_KEY_ID_NEED_EC);
     }
     if (!kmsConfiguration.arn().isPresent()) {

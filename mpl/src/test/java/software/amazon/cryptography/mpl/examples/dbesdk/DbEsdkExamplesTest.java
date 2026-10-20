@@ -102,8 +102,8 @@ class DbEsdkExamplesTest {
   @Test
   void singleKeyStoreBeaconIsStableAndPerKey() {
     BranchKeyStore store = keyStore();
-    String first = store.createKey();
-    String second = store.createKey();
+    String first = store.createKey().branchKeyIdentifier();
+    String second = store.createKey().branchKeyIdentifier();
     String beacon = SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321");
     assertEquals(beacon, SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321"));
     Map<String, String> perTenant = SearchableEncryptionExample.multiKeyStoreBeacons(store, first, second, "4321");
@@ -233,7 +233,7 @@ class DbEsdkExamplesTest {
   @Test
   void oneCacheServesTwoKeyringsAndTheBeaconKeySource() {
     BranchKeyStore store = keyStore();
-    String branchKey = store.createKey();
+    String branchKey = store.createKey().branchKeyIdentifier();
     aws.clearRequests();
     String beacon = SharedCacheExample.shareOneCache(store, branchKey);
     // Active branch key, the version on the writer's decrypt, the beacon key; the reader's decrypt hits the cache.
@@ -319,7 +319,7 @@ class DbEsdkExamplesTest {
   @Test
   void beaconKeySourceCachesWithinItsTtlAndPartition() {
     BranchKeyStore store = keyStore();
-    String key = store.createKey();
+    String key = store.createKey().branchKeyIdentifier();
     CryptographicMaterialsCache backing = CryptographicMaterialsCache.create(CacheType.multiThreaded(10));
     List<CacheEntry> puts = new ArrayList<>();
     CryptographicMaterialsCache cache = new CryptographicMaterialsCache() {

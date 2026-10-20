@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
-import software.amazon.cryptography.mpl.EncryptionContext;
-
-/** Chooses the branch key for a message from its encryption context. Must be thread-safe; a null result fails the operation with a ValidationException. */
+/**
+ * Chooses the branch key for a message from its encryption context. Must be thread-safe.
+ * A null response fails the operation with a {@link software.amazon.cryptography.mpl.exceptions.ValidationException};
+ * an exception the supplier throws reaches the caller unchanged.
+ */
 @FunctionalInterface
 public interface BranchKeyIdSupplier {
-  String getBranchKeyId(EncryptionContext encryptionContext);
+  GetBranchKeyIdResponse getBranchKeyId(GetBranchKeyIdRequest request);
 }

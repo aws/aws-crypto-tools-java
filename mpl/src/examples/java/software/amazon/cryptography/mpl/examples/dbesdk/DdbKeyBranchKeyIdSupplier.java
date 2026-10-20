@@ -4,6 +4,7 @@ package software.amazon.cryptography.mpl.examples.dbesdk;
 
 import java.util.Map;
 import software.amazon.cryptography.mpl.keyrings.BranchKeyIdSupplier;
+import software.amazon.cryptography.mpl.keyrings.GetBranchKeyIdResponse;
 
 /**
  * STAND-IN for the DB-ESDK's {@code IDynamoDbKeyBranchKeyIdSupplier}: chooses a branch key from an item's primary key.
@@ -20,6 +21,6 @@ public interface DdbKeyBranchKeyIdSupplier {
 
   /** The MPL supplier that decodes the primary key from the encryption context and asks {@code supplier}. */
   static BranchKeyIdSupplier asBranchKeyIdSupplier(DdbKeyBranchKeyIdSupplier supplier) {
-    return context -> supplier.branchKeyId(DbEsdkLikeItemEncryptor.ddbKey(context));
+    return request -> GetBranchKeyIdResponse.of(supplier.branchKeyId(DbEsdkLikeItemEncryptor.ddbKey(request.encryptionContext())));
   }
 }

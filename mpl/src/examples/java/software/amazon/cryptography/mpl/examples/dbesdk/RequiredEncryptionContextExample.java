@@ -7,6 +7,7 @@ import java.util.Map;
 import software.amazon.cryptography.mpl.examples.dbesdk.DbEsdkLikeItemEncryptor.CryptoAction;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.mpl.keyrings.BranchKeyIdSupplier;
+import software.amazon.cryptography.mpl.keyrings.GetBranchKeyIdResponse;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 
 /**
@@ -53,10 +54,11 @@ public final class RequiredEncryptionContextExample {
 
   private static DbEsdkLikeItemEncryptor tenantTable(BranchKeyStore keyStore) {
     Map<String, String> branchKeyIds = new LinkedHashMap<>();
-    branchKeyIds.put("tenantA", keyStore.createKey());
-    branchKeyIds.put("tenantB", keyStore.createKey());
+    branchKeyIds.put("tenantA", keyStore.createKey().branchKeyIdentifier());
+    branchKeyIds.put("tenantB", keyStore.createKey().branchKeyIdentifier());
     // The MPL supplier sees the whole encryption context, including the SIGN_AND_INCLUDE entries.
-    BranchKeyIdSupplier byTenant = context -> branchKeyIds.get(context.get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT));
+    BranchKeyIdSupplier byTenant = request ->
+      GetBranchKeyIdResponse.of(branchKeyIds.get(request.encryptionContext().get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT)));
     AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyIdSupplier(byTenant).ttlSeconds(600).build();
 
     Map<String, CryptoAction> actions = ExampleItems.actions();

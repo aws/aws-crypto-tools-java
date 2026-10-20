@@ -22,7 +22,7 @@ import software.amazon.cryptography.materialproviders.internal.Boundary;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.KeyStoreInfo;
+import software.amazon.cryptography.mpl.keystore.GetKeyStoreInfoResponse;
 import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
 /** Test adapter: old key store models to and from the native key store, and native exceptions as the old API threw them. */
@@ -97,7 +97,7 @@ public final class KeyStoreConvert {
     return encryptionContext.isEmpty() ? null : EncryptionContext.copyOf(encryptionContext);
   }
 
-  public static GetKeyStoreInfoOutput toOld(KeyStoreInfo info) {
+  public static GetKeyStoreInfoOutput toOld(GetKeyStoreInfoResponse info) {
     return GetKeyStoreInfoOutput.builder()
       .keyStoreId(info.keyStoreId())
       .keyStoreName(info.keyStoreName())

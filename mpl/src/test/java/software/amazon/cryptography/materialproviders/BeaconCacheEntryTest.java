@@ -17,6 +17,7 @@ import software.amazon.cryptography.keystore.model.GetBeaconKeyInput;
 import software.amazon.cryptography.materialproviders.internal.CacheAdapter;
 import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.mpl.keystore.GetBeaconKeyRequest;
 
 // The beacon key cache entry a DB-ESDK builds with BeaconKeyMaterials.toHmacKeysOnly, against the one the Dafny DB-ESDK builds
 // (SearchInfo.dfy getKeysCache): GetBeaconKey's materials with beaconKey := None and hmacKeys := Some(keyMap).
@@ -48,7 +49,7 @@ class BeaconCacheEntryTest {
       derivedBuffers.put("beacon" + i, ByteBuffer.wrap(key));
     }
 
-    BeaconKeyMaterials nativeEntry = stores.nativeStore.impl().getBeaconKey(id).toHmacKeysOnly(derived);
+    BeaconKeyMaterials nativeEntry = stores.nativeStore.impl().getBeaconKey(GetBeaconKeyRequest.of(id)).beaconKeyMaterials().toHmacKeysOnly(derived);
     Object referenceOutput = ReferenceMpl.call(stores.referenceStore, "GetBeaconKey", GetBeaconKeyInput.builder().branchKeyIdentifier(id).build());
     Object referenceEntry = with(with(get(referenceOutput, "beaconKeyMaterials"), "beaconKey", null), "hmacKeys", derivedBuffers);
     assertEquals(ReferenceMpl.describe(referenceEntry), ReferenceMpl.describe(CacheAdapter.toOld(nativeEntry)));

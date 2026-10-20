@@ -6,6 +6,7 @@ import java.util.HashMap;
 import software.amazon.cryptography.materialproviders.IBranchKeyIdSupplier;
 import software.amazon.cryptography.materialproviders.model.GetBranchKeyIdInput;
 import software.amazon.cryptography.mpl.keyrings.BranchKeyIdSupplier;
+import software.amazon.cryptography.mpl.keyrings.GetBranchKeyIdResponse;
 
 /**
  * Test adapter: an old-interface branch key id supplier a caller implemented, as a native supplier.
@@ -16,9 +17,13 @@ public final class CustomBranchKeyIdSupplier {
   private CustomBranchKeyIdSupplier() {}
 
   public static BranchKeyIdSupplier of(IBranchKeyIdSupplier supplier) {
-    return encryptionContext -> {
+    return request -> {
       try {
-        return supplier.GetBranchKeyId(GetBranchKeyIdInput.builder().encryptionContext(new HashMap<>(encryptionContext)).build()).branchKeyId();
+        String id = supplier
+          .GetBranchKeyId(GetBranchKeyIdInput.builder().encryptionContext(new HashMap<>(request.encryptionContext())).build())
+          .branchKeyId();
+        // A null id reaches the keyring as a null response, which it reports as the Dafny-based keyring did.
+        return id == null ? null : GetBranchKeyIdResponse.of(id);
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }

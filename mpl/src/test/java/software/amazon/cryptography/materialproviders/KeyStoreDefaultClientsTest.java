@@ -30,6 +30,7 @@ import software.amazon.cryptography.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.mpl.internal.UserAgent;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
+import software.amazon.cryptography.mpl.keystore.GetActiveBranchKeyRequest;
 import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
 /**
@@ -159,10 +160,10 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .build();
     owning.createKeyStore();
-    String id = owning.createKey();
-    assertNotNull(owning.getActiveBranchKey(id));
+    String id = owning.createKey().branchKeyIdentifier();
+    assertNotNull(owning.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials());
     owning.close();
-    assertThrows(IllegalStateException.class, () -> owning.getActiveBranchKey(id));
+    assertThrows(IllegalStateException.class, () -> owning.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)));
     assertThrows(IllegalStateException.class, () -> owning.createKey());
 
     KmsClient kms = harness.nativeAws.kmsClient(ReferenceAws.NATIVE, KEY_REGION);
@@ -175,7 +176,7 @@ class KeyStoreDefaultClientsTest {
       .ddbClient(ddb)
       .build();
     borrowing.close();
-    assertNotNull(borrowing.getActiveBranchKey(id));
+    assertNotNull(borrowing.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials());
     // A store with only one client passed in closes the other.
     BranchKeyStore half = BranchKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
@@ -184,7 +185,7 @@ class KeyStoreDefaultClientsTest {
       .kmsClient(kms)
       .build();
     half.close();
-    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(id));
+    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)));
   }
 
   // Builds each side's store without clients, aimed at its own endpoint, and runs the same operations on both.
@@ -237,7 +238,7 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .build();
     setup.createKeyStore();
-    String id = setup.createKey();
+    String id = setup.createKey().branchKeyIdentifier();
     setup.close();
     BranchKeyStore half = BranchKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
@@ -245,9 +246,9 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .ddbClient(harness.nativeAws.dynamoDbClient(ReferenceAws.NATIVE, KEY_REGION))
       .build();
-    assertNotNull(half.getActiveBranchKey(id));
+    assertNotNull(half.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials());
     half.close();
-    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(id));
+    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)));
   }
 
   private static void same(KeyStore nativeStore, Object referenceStore, String operation, Object input) {

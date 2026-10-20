@@ -150,7 +150,7 @@ class EsdkExamplesTest {
     String branchKeyId;
     try (BranchKeyStore admin = keyStore(kmsKey)) {
       admin.createKeyStore();
-      branchKeyId = admin.createKey();
+      branchKeyId = admin.createKey().branchKeyIdentifier();
     }
     aws.clearRequests();
     SharedCacheExample.encryptAndDecrypt("KeyStoreTable", "logical", "partition", kmsKey, branchKeyId, kms, aws.dynamoDbClient("native", REGION));

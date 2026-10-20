@@ -12,6 +12,7 @@ import software.amazon.cryptography.mpl.cache.CacheType;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.mpl.keyrings.BranchKeyIdSupplier;
+import software.amazon.cryptography.mpl.keyrings.GetBranchKeyIdResponse;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
@@ -51,16 +52,16 @@ public final class HierarchicalKeyringExample {
       keyStore.createKeyStore();
       // createKeyStore does not wait for a new table to become active; writes to it fail until then.
       ddbClient.waiter().waitUntilTableExists(table -> table.tableName(keyStoreTableName));
-      String branchKeyIdA = keyStore.createKey();
-      String branchKeyIdB = keyStore.createKey();
+      String branchKeyIdA = keyStore.createKey().branchKeyIdentifier();
+      String branchKeyIdB = keyStore.createKey().branchKeyIdentifier();
 
-      BranchKeyIdSupplier byTenant = encryptionContext -> {
-        String tenant = encryptionContext.get("tenant");
+      BranchKeyIdSupplier byTenant = request -> {
+        String tenant = request.encryptionContext().get("tenant");
         if ("TenantA".equals(tenant)) {
-          return branchKeyIdA;
+          return GetBranchKeyIdResponse.of(branchKeyIdA);
         }
         if ("TenantB".equals(tenant)) {
-          return branchKeyIdB;
+          return GetBranchKeyIdResponse.of(branchKeyIdB);
         }
         throw new IllegalArgumentException("Encryption context has no known tenant");
       };
@@ -86,9 +87,10 @@ public final class HierarchicalKeyringExample {
 
       // Rotation: a new active version for tenant A. Earlier messages still decrypt;
       // keyrings pick up the new version when their cached copy expires (here: a keyring that caches nothing).
-      String versionBefore = keyStore.getActiveBranchKey(branchKeyIdA).branchKeyVersion();
-      keyStore.versionKey(branchKeyIdA);
-      Expect.isTrue(!versionBefore.equals(keyStore.getActiveBranchKey(branchKeyIdA).branchKeyVersion()), "a new active version");
+      String versionBefore = keyStore.getActiveBranchKey(r -> r.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      keyStore.versionKey(r -> r.branchKeyIdentifier(branchKeyIdA));
+      String versionAfter = keyStore.getActiveBranchKey(r -> r.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      Expect.isTrue(!versionBefore.equals(versionAfter), "a new active version");
       Keyring uncached = AwsKmsHierarchicalKeyring
         .builder()
         .keyStore(keyStore)

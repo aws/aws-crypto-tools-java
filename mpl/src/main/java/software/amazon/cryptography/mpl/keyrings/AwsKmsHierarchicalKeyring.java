@@ -53,6 +53,8 @@ import software.amazon.cryptography.mpl.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.mpl.internal.primitives.Randoms;
 import software.amazon.cryptography.mpl.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
+import software.amazon.cryptography.mpl.keystore.GetActiveBranchKeyRequest;
+import software.amazon.cryptography.mpl.keystore.GetBranchKeyVersionRequest;
 
 /**
  * Wraps data keys with branch keys from a branch key store, caching branch keys so most operations make no KMS call.
@@ -169,7 +171,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //# the hierarchical keyring MUST attempt to obtain the branch key materials
     //# by querying the backing branch keystore specified in
     //# the [retrieve OnEncrypt branch key materials](#query-branch-keystore-onencrypt) section.
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(id));
+    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials());
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.Wrap<Void> wrap = (plaintext, suite, encryptionContext) ->
       new EdkWrapping.Wrapped<>(wrap(branchKey, idBytes, versionBytes, plaintext, encryptionContext), null);
@@ -252,7 +254,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     String version = new UUID(versionBuffer.getLong(), versionBuffer.getLong()).toString();
     byte[] idBytes = edk.keyProviderInfo();
     byte[] cacheId = cacheId(SCOPE_DECRYPT, idBytes, version);
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getBranchKeyVersion(id, version));
+    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getBranchKeyVersion(GetBranchKeyVersionRequest.of(id, version)).branchKeyMaterials());
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
       edk.ciphertext(),
@@ -267,11 +269,11 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     if (branchKeyId != null) {
       return branchKeyId;
     }
-    String id = branchKeyIdSupplier.getBranchKeyId(encryptionContext);
-    if (id == null) {
+    GetBranchKeyIdResponse response = branchKeyIdSupplier.getBranchKeyId(GetBranchKeyIdRequest.of(encryptionContext));
+    if (response == null) {
       throw new ValidationException("BranchKeyIdSupplier returned no branch key id.");
     }
-    return id;
+    return response.branchKeyId();
   }
 
   // A string that is not well-formed UTF-16 has no UTF-8 encoding and fails with failureMessage.
