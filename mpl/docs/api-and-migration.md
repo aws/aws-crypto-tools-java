@@ -4,6 +4,7 @@ Status: draft for planning, 2026-10-20 (updated for request/response objects and
 
 - **Current API:** the Dafny-based MPL for Java, 1.11.1, package `software.amazon.cryptography.materialproviders`, the `keystore` package, and `primitives`.
 - **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven, package `software.amazon.cryptography.mpl`, Java 8, no Dafny runtime.
+- **Conventions:** the API follows the AWS SDK for Java v2 (request and response objects, `builder()`/`toBuilder()`, `name()` accessors with no `get` prefix), except that absent values are `Optional` and secrets are `SecretBytes`.
 - **Details:** the javadoc in `mpl/src/main/java/software/amazon/cryptography/mpl` and the examples in `mpl/src/examples` (ESDK and DB-ESDK usage). The R ids in section 4 refer to the behavior-change register, which is shared separately with the design review.
 
 ## 1. What changes and what doesn't
