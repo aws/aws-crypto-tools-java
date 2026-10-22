@@ -4,6 +4,7 @@ package software.amazon.cryptography.mpl;
 
 import java.security.PrivateKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -276,6 +277,11 @@ public final class EncryptionMaterials implements Destroyable {
     public Builder requiredEncryptionContextKeys(Collection<String> keys) {
       this.requiredEncryptionContextKeys = new ArrayList<>(keys);
       return this;
+    }
+
+    /** The same as {@link #requiredEncryptionContextKeys(Collection)}; a null array is a null collection. */
+    public Builder requiredEncryptionContextKeys(String... keys) {
+      return requiredEncryptionContextKeys(keys == null ? null : Arrays.asList(keys));
     }
 
     /**

@@ -356,6 +356,11 @@ public final class AwsKmsEcdhKeyring implements Keyring {
       return this;
     }
 
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
+    }
+
     // CreateAwsKmsEcdhKeyring.
     public AwsKmsEcdhKeyring build() {
       //= spec/framework/aws-kms/aws-kms-ecdh-keyring.md#initialization

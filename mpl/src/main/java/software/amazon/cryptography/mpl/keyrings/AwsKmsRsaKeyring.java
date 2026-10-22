@@ -336,6 +336,11 @@ public final class AwsKmsRsaKeyring implements Keyring {
       return this;
     }
 
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
+    }
+
     // CreateAwsKmsRsaKeyring.
     public AwsKmsRsaKeyring build() {
       KeyringNames.requireSet(kmsKeyId, "kmsKeyId");

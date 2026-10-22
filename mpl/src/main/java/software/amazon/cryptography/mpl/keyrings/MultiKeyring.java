@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.keyrings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -249,6 +250,11 @@ public final class MultiKeyring implements Keyring {
         Objects.requireNonNull(child, "child keyring");
       }
       return this;
+    }
+
+    /** The same as {@link #childKeyrings(Collection)}; a null array is a null collection. */
+    public Builder childKeyrings(Keyring... childKeyrings) {
+      return childKeyrings(childKeyrings == null ? null : Arrays.asList(childKeyrings));
     }
 
     public MultiKeyring build() {

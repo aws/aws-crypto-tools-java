@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -124,6 +125,11 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
       return this;
     }
 
+    /** The same as {@link #regions(Collection)}; a null array is a null collection. */
+    public Builder regions(String... regions) {
+      return regions(regions == null ? null : Arrays.asList(regions));
+    }
+
     /** Limits decryption to KMS keys in these accounts and partition. */
     public Builder discoveryFilter(DiscoveryFilter discoveryFilter) {
       this.discoveryFilter = discoveryFilter;
@@ -139,6 +145,11 @@ public final class AwsKmsMrkDiscoveryMultiKeyring implements Keyring, AutoClosea
     public Builder grantTokens(Collection<String> grantTokens) {
       this.grantTokens = grantTokens;
       return this;
+    }
+
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }
 
     /** Gets each Region's client from the client supplier. */

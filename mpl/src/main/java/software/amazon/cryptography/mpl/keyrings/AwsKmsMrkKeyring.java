@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.keyrings;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -144,6 +145,11 @@ public final class AwsKmsMrkKeyring implements Keyring {
     public Builder grantTokens(Collection<String> grantTokens) {
       this.grantTokens = grantTokens;
       return this;
+    }
+
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }
 
     public AwsKmsMrkKeyring build() {

@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.keystore;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -312,6 +313,11 @@ public final class BranchKeyStore implements AutoCloseable {
       }
       this.grantTokens = Collections.unmodifiableList(copy);
       return this;
+    }
+
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }
 
     /**

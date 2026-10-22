@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -63,6 +64,11 @@ public final class OnDecryptRequest {
     public Builder encryptedDataKeys(Collection<EncryptedDataKey> encryptedDataKeys) {
       this.encryptedDataKeys = new ArrayList<>(encryptedDataKeys);
       return this;
+    }
+
+    /** The same as {@link #encryptedDataKeys(Collection)}; a null array is a null collection. */
+    public Builder encryptedDataKeys(EncryptedDataKey... encryptedDataKeys) {
+      return encryptedDataKeys(encryptedDataKeys == null ? null : Arrays.asList(encryptedDataKeys));
     }
 
     public OnDecryptRequest build() {

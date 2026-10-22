@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -162,6 +163,11 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
     public Builder grantTokens(Collection<String> grantTokens) {
       this.grantTokens = grantTokens;
       return this;
+    }
+
+    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }
 
     /** The Region to decrypt in; replica keys are used through this Region. */

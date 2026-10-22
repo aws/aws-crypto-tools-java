@@ -3,6 +3,7 @@
 package software.amazon.cryptography.mpl.cmm;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -198,6 +199,11 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
         Objects.requireNonNull(key, "required encryption context key");
       }
       return this;
+    }
+
+    /** The same as {@link #requiredEncryptionContextKeys(Collection)}; a null array is a null collection. */
+    public Builder requiredEncryptionContextKeys(String... keys) {
+      return requiredEncryptionContextKeys(keys == null ? null : Arrays.asList(keys));
     }
 
     public RequiredEncryptionContextCryptographicMaterialsManager build() {
