@@ -19,7 +19,6 @@ public final class PutCacheEntryRequest {
     return new Builder();
   }
 
-
   /** A builder holding this request's values. */
   public Builder toBuilder() {
     return new Builder().key(key).entry(entry);

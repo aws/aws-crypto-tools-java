@@ -252,7 +252,7 @@ public final class MultiKeyring implements Keyring {
       return this;
     }
 
-    /** The same as {@link #childKeyrings(Collection)}; a null array is a null collection. */
+    /** The same as {@link #childKeyrings(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder childKeyrings(Keyring... childKeyrings) {
       return childKeyrings(childKeyrings == null ? null : Arrays.asList(childKeyrings));
     }

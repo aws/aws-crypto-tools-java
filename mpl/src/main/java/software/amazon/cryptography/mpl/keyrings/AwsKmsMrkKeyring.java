@@ -109,12 +109,13 @@ public final class AwsKmsMrkKeyring implements Keyring {
         candidates.add(edk);
       }
     }
-    return OnDecryptResponse.builder().materials(KmsDataKeys.firstSuccess(
-        candidates,
-        edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
-        encryptedDataKeys,
-        materials.algorithmSuite()
-      )).build();
+    DecryptionMaterials decrypted = KmsDataKeys.firstSuccess(
+      candidates,
+      edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
+      encryptedDataKeys,
+      materials.algorithmSuite()
+    );
+    return OnDecryptResponse.builder().materials(decrypted).build();
   }
 
   /**
@@ -142,12 +143,13 @@ public final class AwsKmsMrkKeyring implements Keyring {
       return this;
     }
 
+    /** Copied; a null collection is the same as an empty one. */
     public Builder grantTokens(Collection<String> grantTokens) {
-      this.grantTokens = grantTokens;
+      this.grantTokens = grantTokens == null ? null : new ArrayList<>(grantTokens);
       return this;
     }
 
-    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    /** The same as {@link #grantTokens(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder grantTokens(String... grantTokens) {
       return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }

@@ -190,19 +190,20 @@ public final class AwsKmsRsaKeyring implements Keyring {
       throw new NoMatchingDataKeyException(KeyringNames.incorrectDataKeys(encryptedDataKeys, suite), Collections.emptyList());
     }
     byte[] digest = encryptionContextDigest(materials.encryptionContext());
-    return OnDecryptResponse.builder().materials(KmsDataKeys.firstSuccess(
-        candidates,
-        edk -> {
-          EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
-            edk.ciphertext(),
-            materials,
-            (wrapped, unwrapSuite, encryptionContext) -> new EdkWrapping.Unwrapped<>(unwrap(wrapped, unwrapSuite, digest), null)
-          );
-          return unwrapped.addTo(materials);
-        },
-        encryptedDataKeys,
-        suite
-      )).build();
+    DecryptionMaterials decrypted = KmsDataKeys.firstSuccess(
+      candidates,
+      edk -> {
+        EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
+          edk.ciphertext(),
+          materials,
+          (wrapped, unwrapSuite, encryptionContext) -> new EdkWrapping.Unwrapped<>(unwrap(wrapped, unwrapSuite, digest), null)
+        );
+        return unwrapped.addTo(materials);
+      },
+      encryptedDataKeys,
+      suite
+    );
+    return OnDecryptResponse.builder().materials(decrypted).build();
   }
 
   // KmsRsaWrapKeyMaterial: RSA-OAEP of digest || key material.
@@ -331,12 +332,13 @@ public final class AwsKmsRsaKeyring implements Keyring {
     //= spec/framework/aws-kms/aws-kms-rsa-keyring.md#initialization
     //= type=implication
     //# - MAY provide a list of Grant Tokens
+    /** Copied; a null collection is the same as an empty one. */
     public Builder grantTokens(Collection<String> grantTokens) {
-      this.grantTokens = grantTokens;
+      this.grantTokens = grantTokens == null ? null : new ArrayList<>(grantTokens);
       return this;
     }
 
-    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    /** The same as {@link #grantTokens(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder grantTokens(String... grantTokens) {
       return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }

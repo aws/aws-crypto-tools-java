@@ -20,7 +20,6 @@ public final class GetEncryptionMaterialsResponse {
     return new Builder();
   }
 
-
   /** A builder holding this response's values. */
   public Builder toBuilder() {
     return new Builder().encryptionMaterials(encryptionMaterials);

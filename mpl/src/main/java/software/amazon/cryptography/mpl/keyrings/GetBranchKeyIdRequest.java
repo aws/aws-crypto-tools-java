@@ -18,7 +18,6 @@ public final class GetBranchKeyIdRequest {
     return new Builder();
   }
 
-
   /** A builder holding this request's values. */
   public Builder toBuilder() {
     return new Builder().encryptionContext(encryptionContext);

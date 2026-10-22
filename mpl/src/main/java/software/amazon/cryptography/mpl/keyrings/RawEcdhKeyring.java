@@ -13,7 +13,6 @@ import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnDecryptResponse;
 import software.amazon.cryptography.mpl.OnEncryptRequest;
 import software.amazon.cryptography.mpl.OnEncryptResponse;
-import software.amazon.cryptography.mpl.SecretBytes;
 import software.amazon.cryptography.mpl.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.mpl.exceptions.ValidationException;

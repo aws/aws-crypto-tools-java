@@ -29,7 +29,9 @@
  *       destroyed {@link software.amazon.cryptography.mpl.SecretBytes} throws {@link IllegalStateException}.
  *       Exceptions: the static methods of {@link software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations}
  *       and {@link software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations} report a null argument with
- *       {@link software.amazon.cryptography.mpl.exceptions.ValidationException}, as a builder reports a missing field.</li>
+ *       {@link software.amazon.cryptography.mpl.exceptions.ValidationException}, as a builder reports a missing field;
+ *       and the {@code grantTokens}, {@code kmsKeyIds}, and {@code regions} setters of the AWS KMS keyring builders,
+ *       which take a null collection as an empty one.</li>
  * </ul>
  */
 package software.amazon.cryptography.mpl;

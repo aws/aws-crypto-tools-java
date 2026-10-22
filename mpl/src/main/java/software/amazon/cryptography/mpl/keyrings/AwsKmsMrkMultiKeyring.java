@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.keyrings;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptionMaterials;
 import software.amazon.cryptography.mpl.Keyring;
 import software.amazon.cryptography.mpl.OnDecryptRequest;
 import software.amazon.cryptography.mpl.OnDecryptResponse;
@@ -124,12 +123,13 @@ public final class AwsKmsMrkMultiKeyring implements Keyring, AutoCloseable {
       return this;
     }
 
+    /** Copied; a null collection is the same as an empty one. */
     public Builder kmsKeyIds(Collection<String> kmsKeyIds) {
-      this.kmsKeyIds = kmsKeyIds;
+      this.kmsKeyIds = kmsKeyIds == null ? null : new ArrayList<>(kmsKeyIds);
       return this;
     }
 
-    /** The same as {@link #kmsKeyIds(Collection)}; a null array is a null collection. */
+    /** The same as {@link #kmsKeyIds(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder kmsKeyIds(String... kmsKeyIds) {
       return kmsKeyIds(kmsKeyIds == null ? null : Arrays.asList(kmsKeyIds));
     }
@@ -140,12 +140,13 @@ public final class AwsKmsMrkMultiKeyring implements Keyring, AutoCloseable {
       return this;
     }
 
+    /** Copied; a null collection is the same as an empty one. */
     public Builder grantTokens(Collection<String> grantTokens) {
-      this.grantTokens = grantTokens;
+      this.grantTokens = grantTokens == null ? null : new ArrayList<>(grantTokens);
       return this;
     }
 
-    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    /** The same as {@link #grantTokens(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder grantTokens(String... grantTokens) {
       return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }

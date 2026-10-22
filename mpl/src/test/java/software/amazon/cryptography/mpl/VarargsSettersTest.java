@@ -5,10 +5,25 @@ package software.amazon.cryptography.mpl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.lang.reflect.Array;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -243,6 +258,50 @@ class VarargsSettersTest {
       k -> decryptMaterials().encryptedDataKeys(k).build(),
       DecryptMaterialsRequest::encryptedDataKeys
     );
+  }
+
+  // Keeps the cases above complete: a new Collection setter changes the count, and one without a varargs twin fails.
+  @Test
+  void everyCollectionSetterHasAVarargsTwin() throws IOException, URISyntaxException, ClassNotFoundException {
+    Path classes = Paths.get(Keyring.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+    List<String> builders;
+    try (Stream<Path> files = Files.walk(classes)) {
+      builders = files
+        .map(file -> classes.relativize(file).toString())
+        .filter(name -> name.endsWith("$Builder.class") && !name.contains("internal"))
+        .map(name -> name.substring(0, name.length() - ".class".length()).replace('/', '.').replace('\\', '.'))
+        .collect(Collectors.toList());
+    }
+    List<String> setters = new ArrayList<>();
+    List<String> missing = new ArrayList<>();
+    for (String name : builders) {
+      Class<?> builder = Class.forName(name);
+      if (!Modifier.isPublic(builder.getModifiers())) {
+        continue;
+      }
+      for (Method setter : builder.getMethods()) {
+        if (setter.getParameterCount() != 1 || setter.getParameterTypes()[0] != Collection.class) {
+          continue;
+        }
+        Class<?> element = elementType(setter.getGenericParameterTypes()[0]);
+        setters.add(builder.getName() + "." + setter.getName());
+        try {
+          builder.getMethod(setter.getName(), Array.newInstance(element, 0).getClass());
+        } catch (NoSuchMethodException e) {
+          missing.add(builder.getName() + "." + setter.getName());
+        }
+      }
+    }
+    assertEquals(22, setters.size(), setters.toString());
+    assertEquals(new ArrayList<String>(), missing);
+  }
+
+  private static Class<?> elementType(Type collection) {
+    Type argument = ((ParameterizedType) collection).getActualTypeArguments()[0];
+    if (argument instanceof WildcardType) {
+      argument = ((WildcardType) argument).getUpperBounds()[0];
+    }
+    return (Class<?>) argument;
   }
 
   // For each case, the array overload and the Collection overload either produce equal views or fail alike.

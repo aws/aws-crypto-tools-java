@@ -88,9 +88,9 @@ public final class HierarchicalKeyringExample {
 
       // Rotation: a new active version for tenant A. Earlier messages still decrypt;
       // keyrings pick up the new version when their cached copy expires (here: a keyring that caches nothing).
-      String versionBefore = keyStore.getActiveBranchKey(r -> r.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
-      keyStore.versionKey(r -> r.branchKeyIdentifier(branchKeyIdA));
-      String versionAfter = keyStore.getActiveBranchKey(r -> r.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      String versionBefore = keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      keyStore.versionKey(b -> b.branchKeyIdentifier(branchKeyIdA));
+      String versionAfter = keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
       Expect.isTrue(!versionBefore.equals(versionAfter), "a new active version");
       Keyring uncached = AwsKmsHierarchicalKeyring
         .builder()

@@ -315,7 +315,7 @@ public final class BranchKeyStore implements AutoCloseable {
       return this;
     }
 
-    /** The same as {@link #grantTokens(Collection)}; a null array is a null collection. */
+    /** The same as {@link #grantTokens(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder grantTokens(String... grantTokens) {
       return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
     }

@@ -17,7 +17,6 @@ public final class DeleteCacheEntryRequest {
     return new Builder();
   }
 
-
   /** A builder holding this request's values. */
   public Builder toBuilder() {
     return new Builder().key(key);

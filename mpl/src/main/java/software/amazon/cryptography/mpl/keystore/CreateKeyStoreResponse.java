@@ -17,7 +17,6 @@ public final class CreateKeyStoreResponse {
     return new Builder();
   }
 
-
   /** A builder holding this response's values. */
   public Builder toBuilder() {
     return new Builder().tableArn(tableArn);

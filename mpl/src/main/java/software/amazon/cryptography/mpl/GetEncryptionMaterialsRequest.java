@@ -133,7 +133,7 @@ public final class GetEncryptionMaterialsRequest {
       return this;
     }
 
-    /** The same as {@link #requiredEncryptionContextKeys(Collection)}; a null array is a null collection. */
+    /** The same as {@link #requiredEncryptionContextKeys(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder requiredEncryptionContextKeys(String... keys) {
       return requiredEncryptionContextKeys(keys == null ? null : Arrays.asList(keys));
     }

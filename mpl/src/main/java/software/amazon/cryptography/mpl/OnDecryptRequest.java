@@ -66,7 +66,7 @@ public final class OnDecryptRequest {
       return this;
     }
 
-    /** The same as {@link #encryptedDataKeys(Collection)}; a null array is a null collection. */
+    /** The same as {@link #encryptedDataKeys(Collection)} with these values; a null array is passed on as a null collection. */
     public Builder encryptedDataKeys(EncryptedDataKey... encryptedDataKeys) {
       return encryptedDataKeys(encryptedDataKeys == null ? null : Arrays.asList(encryptedDataKeys));
     }
