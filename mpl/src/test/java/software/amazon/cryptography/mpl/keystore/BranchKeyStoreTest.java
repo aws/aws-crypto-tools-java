@@ -183,11 +183,11 @@ class BranchKeyStoreTest {
   void materials() {
     BranchKeyStore store = store();
     String id = store.createKey(b -> b.branchKeyIdentifier("branch").encryptionContext(EncryptionContext.of("tenant", "a"))).branchKeyIdentifier();
-    BranchKeyMaterials active = store.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials();
+    BranchKeyMaterials active = store.getActiveBranchKey(GetActiveBranchKeyRequest.builder().branchKeyIdentifier(id).build()).branchKeyMaterials();
     assertEquals("branch", active.branchKeyIdentifier());
     assertEquals(EncryptionContext.of("tenant", "a"), active.encryptionContext());
     assertEquals(32, active.branchKey().length());
-    BranchKeyMaterials sameVersion = store.getBranchKeyVersion(GetBranchKeyVersionRequest.of(id, active.branchKeyVersion())).branchKeyMaterials();
+    BranchKeyMaterials sameVersion = store.getBranchKeyVersion(GetBranchKeyVersionRequest.builder().branchKeyIdentifier(id).branchKeyVersion(active.branchKeyVersion()).build()).branchKeyMaterials();
     assertEquals(active, sameVersion);
     assertEquals(active.hashCode(), sameVersion.hashCode());
     assertNotSame(active.branchKey(), sameVersion.branchKey());
@@ -195,29 +195,29 @@ class BranchKeyStoreTest {
     assertTrue(text.contains("branch") && text.contains(active.branchKeyVersion()) && text.contains("tenant"), text);
     assertFalse(text.contains("\"a\"") || text.contains("=a"), text);
 
-    store.versionKey(VersionKeyRequest.of(id));
-    BranchKeyMaterials next = store.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials();
+    store.versionKey(VersionKeyRequest.builder().branchKeyIdentifier(id).build());
+    BranchKeyMaterials next = store.getActiveBranchKey(GetActiveBranchKeyRequest.builder().branchKeyIdentifier(id).build()).branchKeyMaterials();
     assertNotEquals(active, next);
     assertNotEquals(active.branchKeyVersion(), next.branchKeyVersion());
     assertNotEquals(active, null);
 
-    BeaconKeyMaterials beacon = store.getBeaconKey(GetBeaconKeyRequest.of(id)).beaconKeyMaterials();
+    BeaconKeyMaterials beacon = store.getBeaconKey(GetBeaconKeyRequest.builder().branchKeyIdentifier(id).build()).beaconKeyMaterials();
     assertEquals("branch", beacon.beaconKeyIdentifier());
     assertEquals(EncryptionContext.of("tenant", "a"), beacon.encryptionContext());
     assertTrue(beacon.beaconKey().isPresent());
     assertFalse(beacon.beaconKey().get().contentEquals(active.branchKey()));
     assertEquals(Collections.emptyMap(), beacon.hmacKeys());
-    assertEquals(beacon, store.getBeaconKey(GetBeaconKeyRequest.of(id)).beaconKeyMaterials());
-    assertEquals(beacon.hashCode(), store.getBeaconKey(GetBeaconKeyRequest.of(id)).beaconKeyMaterials().hashCode());
+    assertEquals(beacon, store.getBeaconKey(GetBeaconKeyRequest.builder().branchKeyIdentifier(id).build()).beaconKeyMaterials());
+    assertEquals(beacon.hashCode(), store.getBeaconKey(GetBeaconKeyRequest.builder().branchKeyIdentifier(id).build()).beaconKeyMaterials().hashCode());
     assertTrue(beacon.toString().contains("branch") && beacon.toString().contains("tenant"), beacon.toString());
 
     // Random ids, and a custom context without an id.
     String random = store.createKey().branchKeyIdentifier();
     assertTrue(random.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"), random);
-    assertEquals(EncryptionContext.empty(), store.getActiveBranchKey(GetActiveBranchKeyRequest.of(random)).branchKeyMaterials().encryptionContext());
+    assertEquals(EncryptionContext.empty(), store.getActiveBranchKey(b -> b.branchKeyIdentifier(random)).branchKeyMaterials().encryptionContext());
     String withContext = store.createKey(b -> b.encryptionContext(EncryptionContext.of("k", "v"))).branchKeyIdentifier();
-    assertEquals(EncryptionContext.of("k", "v"), store.getActiveBranchKey(GetActiveBranchKeyRequest.of(withContext)).branchKeyMaterials().encryptionContext());
-    assertNotEquals(store.getActiveBranchKey(GetActiveBranchKeyRequest.of(random)).branchKeyMaterials(), store.getActiveBranchKey(GetActiveBranchKeyRequest.of(withContext)).branchKeyMaterials());
+    assertEquals(EncryptionContext.of("k", "v"), store.getActiveBranchKey(b -> b.branchKeyIdentifier(withContext)).branchKeyMaterials().encryptionContext());
+    assertNotEquals(store.getActiveBranchKey(b -> b.branchKeyIdentifier(random)).branchKeyMaterials(), store.getActiveBranchKey(b -> b.branchKeyIdentifier(withContext)).branchKeyMaterials());
   }
 
   @Test
@@ -254,46 +254,46 @@ class BranchKeyStoreTest {
     assertInstanceOf(TransactionCanceledException.class, conflict.getCause());
     assertEquals(conflict.getCause().getMessage(), conflict.getMessage());
 
-    ResourceNotFoundException missing = assertThrows(ResourceNotFoundException.class, () -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of("missing")));
+    ResourceNotFoundException missing = assertThrows(ResourceNotFoundException.class, () -> store.getActiveBranchKey(b -> b.branchKeyIdentifier("missing")));
     assertEquals("No item found for corresponding branch key identifier.", missing.getMessage());
     assertNull(missing.getCause());
-    assertThrows(ResourceNotFoundException.class, () -> store.versionKey(VersionKeyRequest.of("missing")));
+    assertThrows(ResourceNotFoundException.class, () -> store.versionKey(b -> b.branchKeyIdentifier("missing")));
 
     assertThrows(ValidationException.class, () -> store.createKey(b -> b.branchKeyIdentifier("").encryptionContext(EncryptionContext.of("k", "v"))));
     assertThrows(ValidationException.class, () -> store.createKey(b -> b.branchKeyIdentifier("id").encryptionContext(EncryptionContext.empty())));
-    assertThrows(ValidationException.class, () -> store.versionKey(VersionKeyRequest.of("")));
+    assertThrows(ValidationException.class, () -> store.versionKey(b -> b.branchKeyIdentifier("")));
     assertThrows(ValidationException.class, () -> builder(KmsConfiguration.discovery()).build().createKey());
-    assertThrows(ValidationException.class, () -> builder(KmsConfiguration.discovery()).build().versionKey(VersionKeyRequest.of("taken")));
+    assertThrows(ValidationException.class, () -> builder(KmsConfiguration.discovery()).build().versionKey(b -> b.branchKeyIdentifier("taken")));
     String otherKey = aws.kms().createSymmetricKey(REGION);
     assertEquals(
       "Branch key's KMS Key ARN read from Dynamodb does not match Key Store's configured KMS Key ARN.",
-      assertThrows(ValidationException.class, () -> builder(KmsConfiguration.kmsKeyArn(otherKey)).build().getActiveBranchKey(GetActiveBranchKeyRequest.of("taken"))).getMessage()
+      assertThrows(ValidationException.class, () -> builder(KmsConfiguration.kmsKeyArn(otherKey)).build().getActiveBranchKey(b -> b.branchKeyIdentifier("taken"))).getMessage()
     );
 
     putItem(item("corrupt", "branch:ACTIVE", "1"));
     assertEquals(
       "Item found is not a valid active branch key.",
-      assertThrows(InvalidMaterialsException.class, () -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of("corrupt"))).getMessage()
+      assertThrows(InvalidMaterialsException.class, () -> store.getActiveBranchKey(b -> b.branchKeyIdentifier("corrupt"))).getMessage()
     );
     Map<String, AttributeValue> alias = item("alias", "beacon:ACTIVE", null);
     alias.put("kms-arn", AttributeValue.builder().s("arn:aws:kms:us-west-2:111122223333:alias/a").build());
     putItem(alias);
     assertEquals(
       "The `kms-arn` field for the requested branch key identifier is corrupted.",
-      assertThrows(InvalidMaterialsException.class, () -> store.getBeaconKey(GetBeaconKeyRequest.of("alias"))).getMessage()
+      assertThrows(InvalidMaterialsException.class, () -> store.getBeaconKey(b -> b.branchKeyIdentifier("alias"))).getMessage()
     );
 
     aws.kms().fail("Decrypt", null, ServiceError.accessDenied("denied"));
-    AccessDeniedException denied = assertThrows(AccessDeniedException.class, () -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of("taken")));
+    AccessDeniedException denied = assertThrows(AccessDeniedException.class, () -> store.getActiveBranchKey(b -> b.branchKeyIdentifier("taken")));
     assertInstanceOf(software.amazon.awssdk.services.kms.model.KmsException.class, denied.getCause());
     assertFalse(denied.isRetryable());
     aws.kms().clearFailures();
     aws.kms().fail("Decrypt", null, ServiceError.throttling("slow"));
-    ThrottlingException throttled = assertThrows(ThrottlingException.class, () -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of("taken")));
+    ThrottlingException throttled = assertThrows(ThrottlingException.class, () -> store.getActiveBranchKey(b -> b.branchKeyIdentifier("taken")));
     assertTrue(throttled.isRetryable());
     aws.kms().clearFailures();
     aws.kms().fail("Decrypt", null, ServiceError.of("InvalidCiphertextException", "bad"));
-    ServiceException service = assertThrows(ServiceException.class, () -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of("taken")));
+    ServiceException service = assertThrows(ServiceException.class, () -> store.getActiveBranchKey(b -> b.branchKeyIdentifier("taken")));
     assertInstanceOf(software.amazon.awssdk.services.kms.model.InvalidCiphertextException.class, service.getCause());
     aws.kms().clearFailures();
     String unknownKey = "arn:aws:kms:us-west-2:111122223333:key/00000000-0000-4000-8000-999999999999";
@@ -301,7 +301,7 @@ class BranchKeyStoreTest {
     assertInstanceOf(software.amazon.awssdk.services.kms.model.NotFoundException.class, notFound.getCause());
 
     aws.dynamoDb().fail("GetItem", ServiceError.of("com.amazonaws.dynamodb.v20120810#ProvisionedThroughputExceededException", "busy"));
-    assertThrows(ThrottlingException.class, () -> store.getBeaconKey(GetBeaconKeyRequest.of("taken")));
+    assertThrows(ThrottlingException.class, () -> store.getBeaconKey(b -> b.branchKeyIdentifier("taken")));
     aws.dynamoDb().clearFailures();
 
     // A request that never reaches an endpoint.
@@ -322,7 +322,7 @@ class BranchKeyStoreTest {
     ) {
       MaterialProvidersException dispatch = assertThrows(
         DispatchException.class,
-        () -> builder(KmsConfiguration.kmsKeyArn(kmsKey)).kmsClient(unreachable).build().getActiveBranchKey(GetActiveBranchKeyRequest.of("taken")).branchKeyMaterials()
+        () -> builder(KmsConfiguration.kmsKeyArn(kmsKey)).kmsClient(unreachable).build().getActiveBranchKey(b -> b.branchKeyIdentifier("taken")).branchKeyMaterials()
       );
       assertInstanceOf(SdkClientException.class, dispatch.getCause());
       assertTrue(dispatch.isRetryable());
@@ -340,13 +340,13 @@ class BranchKeyStoreTest {
     assertThrows(NullPointerException.class, () -> store.createKeyStore((CreateKeyStoreRequest) null));
     assertThrows(NullPointerException.class, () -> store.getKeyStoreInfo((GetKeyStoreInfoRequest) null));
     String missing = "Missing value for required field `branchKeyIdentifier`";
-    assertEquals(missing, assertThrows(ValidationException.class, () -> VersionKeyRequest.of(null)).getMessage());
-    assertEquals(missing, assertThrows(ValidationException.class, () -> GetActiveBranchKeyRequest.of(null)).getMessage());
-    assertEquals(missing, assertThrows(ValidationException.class, () -> GetBranchKeyVersionRequest.of(null, "v")).getMessage());
-    assertEquals(missing, assertThrows(ValidationException.class, () -> GetBeaconKeyRequest.of(null)).getMessage());
+    assertEquals(missing, assertThrows(ValidationException.class, () -> VersionKeyRequest.builder().branchKeyIdentifier(null).build()).getMessage());
+    assertEquals(missing, assertThrows(ValidationException.class, () -> GetActiveBranchKeyRequest.builder().branchKeyIdentifier(null).build()).getMessage());
+    assertEquals(missing, assertThrows(ValidationException.class, () -> GetBranchKeyVersionRequest.builder().branchKeyIdentifier(null).branchKeyVersion("v").build()).getMessage());
+    assertEquals(missing, assertThrows(ValidationException.class, () -> GetBeaconKeyRequest.builder().branchKeyIdentifier(null).build()).getMessage());
     assertEquals(
       "Missing value for required field `branchKeyVersion`",
-      assertThrows(ValidationException.class, () -> GetBranchKeyVersionRequest.of("id", null)).getMessage()
+      assertThrows(ValidationException.class, () -> GetBranchKeyVersionRequest.builder().branchKeyIdentifier("id").branchKeyVersion(null).build()).getMessage()
     );
     // CreateKey's members are optional, but an id needs a non-empty encryption context, as in the Dafny model.
     assertEquals(
@@ -364,7 +364,7 @@ class BranchKeyStoreTest {
     assertEquals(EncryptionContext.of("k", "v"), active.encryptionContext());
     assertEquals(active, store.getBranchKeyVersion(b -> b.branchKeyIdentifier(id).branchKeyVersion(active.branchKeyVersion())).branchKeyMaterials());
     store.versionKey(b -> b.branchKeyIdentifier(id));
-    assertNotEquals(active.branchKeyVersion(), store.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials().branchKeyVersion());
+    assertNotEquals(active.branchKeyVersion(), store.getActiveBranchKey(GetActiveBranchKeyRequest.builder().branchKeyIdentifier(id).build()).branchKeyMaterials().branchKeyVersion());
     assertEquals(id, store.getBeaconKey(b -> b.branchKeyIdentifier(id)).beaconKeyMaterials().beaconKeyIdentifier());
     assertEquals(store.createKeyStore().tableArn(), store.createKeyStore(b -> {}).tableArn());
     assertSame(store.getKeyStoreInfo(), store.getKeyStoreInfo(b -> {}));

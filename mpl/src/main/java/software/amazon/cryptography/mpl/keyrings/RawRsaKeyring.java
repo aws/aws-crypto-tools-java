@@ -134,7 +134,9 @@ public final class RawRsaKeyring implements Keyring {
     //#  -  The [ciphertext](structures.md#ciphertext) field is the
     //#     ciphertext output by the RSA encryption of the plaintext data
     //#     key.
-    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial)));
+    return OnEncryptResponse.builder()
+      .materials(result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial)))
+      .build();
   }
 
   @Override
@@ -184,7 +186,7 @@ public final class RawRsaKeyring implements Keyring {
         //= spec/framework/raw-rsa-keyring.md#ondecrypt
         //# - The output of RSA decryption is set as the decryption material's
         //#   plaintext data key.
-        return OnDecryptResponse.of(unwrapped.addTo(materials));
+        return OnDecryptResponse.builder().materials(unwrapped.addTo(materials)).build();
       }
       errors.add(new ValidationException(KeyringNames.incorrectRawDataKeys(i, "RSAKeyring", edk.keyProviderId())));
     }

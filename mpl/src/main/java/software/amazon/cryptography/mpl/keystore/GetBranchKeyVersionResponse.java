@@ -17,10 +17,6 @@ public final class GetBranchKeyVersionResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyMaterials(branchKeyMaterials).build()}. */
-  public static GetBranchKeyVersionResponse of(BranchKeyMaterials branchKeyMaterials) {
-    return builder().branchKeyMaterials(branchKeyMaterials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

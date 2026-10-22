@@ -20,10 +20,6 @@ public final class OnDecryptResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().materials(materials).build()}. */
-  public static OnDecryptResponse of(DecryptionMaterials materials) {
-    return builder().materials(materials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

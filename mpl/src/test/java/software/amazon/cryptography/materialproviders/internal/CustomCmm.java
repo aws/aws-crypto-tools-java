@@ -40,7 +40,7 @@ public final class CustomCmm implements CryptographicMaterialsManager {
         .GetEncryptionMaterials(Requests.input(request))
         .encryptionMaterials();
       Boundary.encryptionMaterials(output);
-      return GetEncryptionMaterialsResponse.of(MaterialsAccess.encryption(Convert.fields(output)));
+      return GetEncryptionMaterialsResponse.builder().encryptionMaterials(MaterialsAccess.encryption(Convert.fields(output))).build();
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }
@@ -53,7 +53,7 @@ public final class CustomCmm implements CryptographicMaterialsManager {
         .DecryptMaterials(Requests.input(request))
         .decryptionMaterials();
       Boundary.decryptionMaterials(output);
-      return DecryptMaterialsResponse.of(MaterialsAccess.decryption(Convert.fields(output)));
+      return DecryptMaterialsResponse.builder().decryptionMaterials(MaterialsAccess.decryption(Convert.fields(output))).build();
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }

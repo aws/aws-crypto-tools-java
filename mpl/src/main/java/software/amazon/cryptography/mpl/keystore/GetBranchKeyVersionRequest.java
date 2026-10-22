@@ -19,10 +19,6 @@ public final class GetBranchKeyVersionRequest {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyIdentifier(branchKeyIdentifier).branchKeyVersion(branchKeyVersion).build()}. */
-  public static GetBranchKeyVersionRequest of(String branchKeyIdentifier, String branchKeyVersion) {
-    return builder().branchKeyIdentifier(branchKeyIdentifier).branchKeyVersion(branchKeyVersion).build();
-  }
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {

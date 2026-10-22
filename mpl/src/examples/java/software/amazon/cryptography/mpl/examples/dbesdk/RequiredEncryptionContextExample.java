@@ -58,8 +58,10 @@ public final class RequiredEncryptionContextExample {
     branchKeyIds.put("tenantA", keyStore.createKey().branchKeyIdentifier());
     branchKeyIds.put("tenantB", keyStore.createKey().branchKeyIdentifier());
     // The MPL supplier sees the whole encryption context, including the SIGN_AND_INCLUDE entries.
-    BranchKeyIdSupplier byTenant = request ->
-      GetBranchKeyIdResponse.of(branchKeyIds.get(request.encryptionContext().get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT)));
+    BranchKeyIdSupplier byTenant = request -> {
+      String tenant = request.encryptionContext().get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT);
+      return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIds.get(tenant)).build();
+    };
     AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyIdSupplier(byTenant).ttl(Duration.ofMinutes(10)).build();
 
     Map<String, CryptoAction> actions = ExampleItems.actions();

@@ -96,7 +96,9 @@ public final class CustomKeyringExample {
         Arrays.fill(dataKey, (byte) 0);
       }
       byte[] ciphertext = ByteBuffer.allocate(iv.length + wrapped.length).put(iv).put(wrapped).array();
-      return OnEncryptResponse.of(withKey.withEncryptedDataKey(EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext)));
+      return OnEncryptResponse.builder()
+        .materials(withKey.withEncryptedDataKey(EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext)))
+        .build();
     }
 
     @Override
@@ -116,7 +118,7 @@ public final class CustomKeyringExample {
         try {
           dataKey = gcm(Cipher.DECRYPT_MODE, Arrays.copyOf(ciphertext, 12), aad, Arrays.copyOfRange(ciphertext, 12, ciphertext.length));
           try (SecretBytes secret = SecretBytes.copyOf(dataKey)) {
-            return OnDecryptResponse.of(materials.withPlaintextDataKey(secret));
+            return OnDecryptResponse.builder().materials(materials.withPlaintextDataKey(secret)).build();
           }
         } catch (IllegalStateException e) {
           failures.add(e);

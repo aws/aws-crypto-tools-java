@@ -17,10 +17,6 @@ public final class GetActiveBranchKeyResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyMaterials(branchKeyMaterials).build()}. */
-  public static GetActiveBranchKeyResponse of(BranchKeyMaterials branchKeyMaterials) {
-    return builder().branchKeyMaterials(branchKeyMaterials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

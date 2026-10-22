@@ -88,7 +88,9 @@ public final class AwsKmsDiscoveryKeyring implements Keyring {
   public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
-    return OnDecryptResponse.of(decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, arn -> passes(discoveryFilter, arn) ? arn.toString() : null));
+    return OnDecryptResponse.builder()
+      .materials(decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, arn -> passes(discoveryFilter, arn) ? arn.toString() : null))
+      .build();
   }
 
   //= spec/framework/aws-kms/aws-kms-discovery-keyring.md#ondecrypt

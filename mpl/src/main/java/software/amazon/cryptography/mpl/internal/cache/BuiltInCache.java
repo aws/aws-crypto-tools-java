@@ -29,12 +29,12 @@ public final class BuiltInCache implements CryptographicMaterialsCache {
   public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
     CacheEntry entry = request.entry();
     engine.put(request.key(), entry, entry.expiryTime().getEpochSecond());
-    return PutCacheEntryResponse.of();
+    return PutCacheEntryResponse.builder().build();
   }
 
   @Override
   public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
     engine.remove(request.key());
-    return DeleteCacheEntryResponse.of();
+    return DeleteCacheEntryResponse.builder().build();
   }
 }

@@ -140,7 +140,7 @@ public final class MultiKeyring implements Keyring {
     //# succeeded, this keyring MUST return the [encryption materials]
     //# (structures.md#encryption-materials) returned by the last OnEncrypt
     //# call.
-    return OnEncryptResponse.of(current);
+    return OnEncryptResponse.builder().materials(current).build();
   }
 
   @Override
@@ -198,7 +198,7 @@ public final class MultiKeyring implements Keyring {
       //# (structures.md#decryption-materials) containing a plaintext data key,
       //# the multi-keyring MUST immediately return the modified decryption
       //# materials.
-      return OnDecryptResponse.of(decrypted);
+      return OnDecryptResponse.builder().materials(decrypted).build();
     }
     //= spec/framework/multi-keyring.md#ondecrypt
     //= type=exception

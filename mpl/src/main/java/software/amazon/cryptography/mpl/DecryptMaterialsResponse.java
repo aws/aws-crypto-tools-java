@@ -20,10 +20,6 @@ public final class DecryptMaterialsResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().decryptionMaterials(decryptionMaterials).build()}. */
-  public static DecryptMaterialsResponse of(DecryptionMaterials decryptionMaterials) {
-    return builder().decryptionMaterials(decryptionMaterials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

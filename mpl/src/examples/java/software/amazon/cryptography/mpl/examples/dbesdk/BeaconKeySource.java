@@ -27,7 +27,6 @@ import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.GetBeaconKeyRequest;
 
 /**
  * Integration example: the DB-ESDK's beacon key source on the native MPL, per SearchInfo.dfy and ConfigToInfo.dfy
@@ -101,7 +100,7 @@ public final class BeaconKeySource {
   public Map<String, SecretBytes> hmacKeys(String beaconKeyId) {
     // Per getKeysCache: a cache hit within this source's TTL, else the key store, then put with expiry now + TTL.
     CacheKey key = CacheKey.of(cacheIdentifier(beaconKeyId));
-    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
+    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.builder().key(key).build()).entry();
     long now = epochSeconds.getAsLong();
     if (entry.isPresent() && now - entry.get().creationTime().getEpochSecond() <= cacheTtlSeconds) {
       BeaconKeyMaterials cached = entry
@@ -111,7 +110,7 @@ public final class BeaconKeySource {
         .orElseThrow(() -> new IllegalStateException("Invalid Material Type."));
       return copies(cached.hmacKeys());
     }
-    BeaconKeyMaterials materials = keyStore.getBeaconKey(GetBeaconKeyRequest.of(beaconKeyId)).beaconKeyMaterials();
+    BeaconKeyMaterials materials = keyStore.getBeaconKey(b -> b.branchKeyIdentifier(beaconKeyId)).beaconKeyMaterials();
     SecretBytes beaconKey = materials.beaconKey().orElseThrow(() -> new IllegalStateException("beacon key unexpectedly empty"));
     Map<String, SecretBytes> keys = new LinkedHashMap<>();
     try {
@@ -119,7 +118,10 @@ public final class BeaconKeySource {
         keys.put(name, hmacKey(beaconKey, name));
       }
       cache.putCacheEntry(
-        PutCacheEntryRequest.of(key, CacheEntry.of(materials.toHmacKeysOnly(keys), Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + cacheTtlSeconds)))
+        PutCacheEntryRequest.builder()
+          .key(key)
+          .entry(CacheEntry.of(materials.toHmacKeysOnly(keys), Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + cacheTtlSeconds)))
+          .build()
       );
     } catch (RuntimeException e) {
       keys.values().forEach(SecretBytes::destroy);

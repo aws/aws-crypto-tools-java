@@ -23,7 +23,7 @@ public final class CustomBranchKeyIdSupplier {
           .GetBranchKeyId(GetBranchKeyIdInput.builder().encryptionContext(new HashMap<>(request.encryptionContext())).build())
           .branchKeyId();
         // A null id reaches the keyring as a null response, which it reports as the Dafny-based keyring did.
-        return id == null ? null : GetBranchKeyIdResponse.of(id);
+        return id == null ? null : GetBranchKeyIdResponse.builder().branchKeyId(id).build();
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }

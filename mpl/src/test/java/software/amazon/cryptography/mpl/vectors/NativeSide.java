@@ -299,7 +299,7 @@ final class NativeSide implements Side {
       for (TestVectors.Edk edk : material.encryptedDataKeys) {
         result = result.withEncryptedDataKey(EncryptedDataKey.of(edk.keyProviderId, edk.keyProviderInfo, edk.ciphertext));
       }
-      return OnEncryptResponse.of(result);
+      return OnEncryptResponse.builder().materials(result).build();
     }
 
     @Override
@@ -312,7 +312,7 @@ final class NativeSide implements Side {
         .requiredEncryptionContextKeys(material.requiredEncryptionContextKeys)
         .build();
       Optional<byte[]> plaintextDataKey = Optional.ofNullable(material.plaintextDataKey);
-      return OnDecryptResponse.of(plaintextDataKey.isPresent() ? result.withPlaintextDataKey(SecretBytes.copyOf(plaintextDataKey.get())) : result);
+      return OnDecryptResponse.builder().materials(plaintextDataKey.isPresent() ? result.withPlaintextDataKey(SecretBytes.copyOf(plaintextDataKey.get())) : result).build();
     }
   }
 }

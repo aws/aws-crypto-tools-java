@@ -11,10 +11,6 @@ public final class DeleteCacheEntryResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().build()}. */
-  public static DeleteCacheEntryResponse of() {
-    return builder().build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

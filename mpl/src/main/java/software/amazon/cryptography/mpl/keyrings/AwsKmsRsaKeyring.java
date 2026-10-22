@@ -149,7 +149,9 @@ public final class AwsKmsRsaKeyring implements Keyring {
         }
       }
     );
-    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, Utf8.encode(kmsKeyId), result.wrappedMaterial)));
+    return OnEncryptResponse.builder()
+      .materials(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, Utf8.encode(kmsKeyId), result.wrappedMaterial)))
+      .build();
   }
 
   /**
@@ -188,8 +190,7 @@ public final class AwsKmsRsaKeyring implements Keyring {
       throw new NoMatchingDataKeyException(KeyringNames.incorrectDataKeys(encryptedDataKeys, suite), Collections.emptyList());
     }
     byte[] digest = encryptionContextDigest(materials.encryptionContext());
-    return OnDecryptResponse.of(
-      KmsDataKeys.firstSuccess(
+    return OnDecryptResponse.builder().materials(KmsDataKeys.firstSuccess(
         candidates,
         edk -> {
           EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
@@ -201,8 +202,7 @@ public final class AwsKmsRsaKeyring implements Keyring {
         },
         encryptedDataKeys,
         suite
-      )
-    );
+      )).build();
   }
 
   // KmsRsaWrapKeyMaterial: RSA-OAEP of digest || key material.

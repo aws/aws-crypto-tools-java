@@ -17,10 +17,6 @@ public final class GetActiveBranchKeyRequest {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyIdentifier(branchKeyIdentifier).build()}. */
-  public static GetActiveBranchKeyRequest of(String branchKeyIdentifier) {
-    return builder().branchKeyIdentifier(branchKeyIdentifier).build();
-  }
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {

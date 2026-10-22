@@ -53,8 +53,6 @@ import software.amazon.cryptography.mpl.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.mpl.internal.primitives.Randoms;
 import software.amazon.cryptography.mpl.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.GetActiveBranchKeyRequest;
-import software.amazon.cryptography.mpl.keystore.GetBranchKeyVersionRequest;
 
 /**
  * Wraps data keys with branch keys from a branch key store, caching branch keys so most operations make no KMS call.
@@ -171,7 +169,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //# the hierarchical keyring MUST attempt to obtain the branch key materials
     //# by querying the backing branch keystore specified in
     //# the [retrieve OnEncrypt branch key materials](#query-branch-keystore-onencrypt) section.
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(GetActiveBranchKeyRequest.of(id)).branchKeyMaterials());
+    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.Wrap<Void> wrap = (plaintext, suite, encryptionContext) ->
       new EdkWrapping.Wrapped<>(wrap(branchKey, idBytes, versionBytes, plaintext, encryptionContext), null);
@@ -197,7 +195,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //
     //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#onencrypt
     //# [ciphertext](../structures.md#ciphertext): MUST be serialized as the [hierarchical keyring ciphertext](#ciphertext)
-    return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, idBytes, result.wrappedMaterial)));
+    return OnEncryptResponse.builder().materials(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, idBytes, result.wrappedMaterial))).build();
   }
 
   @Override
@@ -230,7 +228,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     List<Throwable> errors = new ArrayList<>();
     for (EncryptedDataKey edk : matching) {
       try {
-        return OnDecryptResponse.of(decrypt(materials, fields.suite, id, edk));
+        return OnDecryptResponse.builder().materials(decrypt(materials, fields.suite, id, edk)).build();
       } catch (RuntimeException e) {
         errors.add(e);
       }
@@ -254,7 +252,10 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     String version = new UUID(versionBuffer.getLong(), versionBuffer.getLong()).toString();
     byte[] idBytes = edk.keyProviderInfo();
     byte[] cacheId = cacheId(SCOPE_DECRYPT, idBytes, version);
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getBranchKeyVersion(GetBranchKeyVersionRequest.of(id, version)).branchKeyMaterials());
+    BranchKeyMaterials branchKey = branchKey(
+      cacheId,
+      () -> keyStore.getBranchKeyVersion(b -> b.branchKeyIdentifier(id).branchKeyVersion(version)).branchKeyMaterials()
+    );
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
       edk.ciphertext(),
@@ -269,7 +270,8 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     if (branchKeyId != null) {
       return branchKeyId;
     }
-    GetBranchKeyIdResponse response = branchKeyIdSupplier.getBranchKeyId(GetBranchKeyIdRequest.of(encryptionContext));
+    GetBranchKeyIdRequest request = GetBranchKeyIdRequest.builder().encryptionContext(encryptionContext).build();
+    GetBranchKeyIdResponse response = branchKeyIdSupplier.getBranchKeyId(request);
     if (response == null) {
       throw new ValidationException("BranchKeyIdSupplier returned no branch key id.");
     }
@@ -322,7 +324,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   // The cached branch key, unless it is missing or older than this keyring's TTL; then the key store's, cached.
   private BranchKeyMaterials branchKey(byte[] cacheId, KeyStoreRead read) {
     CacheKey key = CacheKey.of(cacheId);
-    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
+    Optional<CacheEntry> entry = cache.getCacheEntry(GetCacheEntryRequest.builder().key(key).build()).entry();
     // now - creation <= ttlSeconds, without overflow: now and ttlSeconds are not negative.
     if (entry.isPresent() && entry.get().creationTime().getEpochSecond() >= nowSeconds() - ttlSeconds) {
       return entry.get().branchKeyMaterials().orElseThrow(() -> new InvalidMaterialsException("Invalid Material Type."));
@@ -333,7 +335,8 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     if (ttlSeconds >= Long.MAX_VALUE - now) {
       throw new ValidationException("INT64 Overflow when putting cache entry.");
     }
-    cache.putCacheEntry(PutCacheEntryRequest.of(key, CacheEntry.of(materials, Instant.ofEpochSecond(now), expiry(now + ttlSeconds))));
+    CacheEntry fresh = CacheEntry.of(materials, Instant.ofEpochSecond(now), expiry(now + ttlSeconds));
+    cache.putCacheEntry(PutCacheEntryRequest.builder().key(key).entry(fresh).build());
     return materials;
   }
 

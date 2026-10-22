@@ -95,7 +95,9 @@ public final class AwsKmsMrkDiscoveryKeyring implements Keyring {
   public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     DecryptionMaterials materials = request.materials();
     List<EncryptedDataKey> encryptedDataKeys = request.encryptedDataKeys();
-    return OnDecryptResponse.of(AwsKmsDiscoveryKeyring.decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, this::keyIdFor));
+    return OnDecryptResponse.builder()
+      .materials(AwsKmsDiscoveryKeyring.decrypt(kmsClient, grantTokens, materials, encryptedDataKeys, this::keyIdFor))
+      .build();
   }
 
   // DiscoveryMatch and ToStringForRegion: a single-Region key must be in this Region; a multi-Region key is used through its replica here.

@@ -105,7 +105,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     if (!result.requiredEncryptionContextKeys().containsAll(request.requiredEncryptionContextKeys())) {
       throw new InvalidMaterialsException("Keyring returned an invalid response");
     }
-    return GetEncryptionMaterialsResponse.of(result);
+    return GetEncryptionMaterialsResponse.builder().encryptionMaterials(result).build();
   }
 
   /**
@@ -172,7 +172,7 @@ public final class RequiredEncryptionContextCryptographicMaterialsManager implem
     if (!MaterialsRules.isReadyForDecrypt(MaterialsAccess.fields(result))) {
       throw new InvalidMaterialsException("Keyring.OnDecrypt failed to decrypt the plaintext data key.");
     }
-    return DecryptMaterialsResponse.of(result);
+    return DecryptMaterialsResponse.builder().decryptionMaterials(result).build();
   }
 
   /**

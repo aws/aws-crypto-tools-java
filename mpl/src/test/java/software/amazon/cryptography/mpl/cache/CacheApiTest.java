@@ -370,9 +370,9 @@ class CacheApiTest {
       put(cache, key("b"), beacon);
       assertSame(branch, get(cache, key("a")).get());
       assertSame(beacon, get(cache, key("b")).get());
-      cache.deleteCacheEntry(DeleteCacheEntryRequest.of(key("a")));
+      cache.deleteCacheEntry(DeleteCacheEntryRequest.builder().key(key("a")).build());
       assertFalse(get(cache, key("a")).isPresent(), type.kind().toString());
-      cache.deleteCacheEntry(DeleteCacheEntryRequest.of(key("a")));
+      cache.deleteCacheEntry(DeleteCacheEntryRequest.builder().key(key("a")).build());
       // Expired: before this second.
       put(cache, key("c"), CacheEntry.of(branchKey("c"), now, now.minusSeconds(2)));
       assertFalse(get(cache, key("c")).isPresent(), type.kind().toString());
@@ -380,10 +380,10 @@ class CacheApiTest {
       assertThrows(NullPointerException.class, () -> cache.putCacheEntry(null));
       assertThrows(NullPointerException.class, () -> cache.deleteCacheEntry(null));
     }
-    assertThrows(ValidationException.class, () -> GetCacheEntryRequest.of(null));
-    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.of(null, CacheEntry.of(branchKey("a"), now, now)));
-    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.of(key("a"), null));
-    assertThrows(ValidationException.class, () -> DeleteCacheEntryRequest.of(null));
+    assertThrows(ValidationException.class, () -> GetCacheEntryRequest.builder().key(null).build());
+    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(null).entry(CacheEntry.of(branchKey("a"), now, now)).build());
+    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(key("a")).entry(null).build());
+    assertThrows(ValidationException.class, () -> DeleteCacheEntryRequest.builder().key(null).build());
     CryptographicMaterialsCache none = CryptographicMaterialsCache.create(CacheType.noCache());
     put(none, key("a"), CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000)));
     assertFalse(get(none, key("a")).isPresent());
@@ -444,11 +444,11 @@ class CacheApiTest {
   }
 
   private static Optional<CacheEntry> get(CryptographicMaterialsCache cache, CacheKey key) {
-    return cache.getCacheEntry(GetCacheEntryRequest.of(key)).entry();
+    return cache.getCacheEntry(GetCacheEntryRequest.builder().key(key).build()).entry();
   }
 
   private static void put(CryptographicMaterialsCache cache, CacheKey key, CacheEntry entry) {
-    cache.putCacheEntry(PutCacheEntryRequest.of(key, entry));
+    cache.putCacheEntry(PutCacheEntryRequest.builder().key(key).entry(entry).build());
   }
 
   private static CacheKey key(String id) {

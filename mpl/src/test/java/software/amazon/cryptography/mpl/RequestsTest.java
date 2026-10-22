@@ -66,19 +66,19 @@ class RequestsTest {
   void responsesHoldTheMaterialsAndRequireThem() {
     EncryptionMaterials encryption = EncryptionMaterials.builder(SUITE).build();
     DecryptionMaterials decryption = DecryptionMaterials.builder(SUITE).build();
-    assertSame(encryption, OnEncryptResponse.of(encryption).toBuilder().build().materials());
-    assertSame(decryption, OnDecryptResponse.of(decryption).toBuilder().build().materials());
-    assertSame(encryption, GetEncryptionMaterialsResponse.of(encryption).toBuilder().build().encryptionMaterials());
-    assertSame(decryption, DecryptMaterialsResponse.of(decryption).toBuilder().build().decryptionMaterials());
-    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnEncryptResponse.of(null)).getMessage());
-    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnDecryptResponse.of(null)).getMessage());
+    assertSame(encryption, OnEncryptResponse.builder().materials(encryption).build().toBuilder().build().materials());
+    assertSame(decryption, OnDecryptResponse.builder().materials(decryption).build().toBuilder().build().materials());
+    assertSame(encryption, GetEncryptionMaterialsResponse.builder().encryptionMaterials(encryption).build().toBuilder().build().encryptionMaterials());
+    assertSame(decryption, DecryptMaterialsResponse.builder().decryptionMaterials(decryption).build().toBuilder().build().decryptionMaterials());
+    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnEncryptResponse.builder().materials(null).build()).getMessage());
+    assertEquals("Missing value for required field `materials`", assertThrows(ValidationException.class, () -> OnDecryptResponse.builder().materials(null).build()).getMessage());
     assertEquals(
       "Missing value for required field `encryptionMaterials`",
-      assertThrows(ValidationException.class, () -> GetEncryptionMaterialsResponse.of(null)).getMessage()
+      assertThrows(ValidationException.class, () -> GetEncryptionMaterialsResponse.builder().encryptionMaterials(null).build()).getMessage()
     );
     assertEquals(
       "Missing value for required field `decryptionMaterials`",
-      assertThrows(ValidationException.class, () -> DecryptMaterialsResponse.of(null)).getMessage()
+      assertThrows(ValidationException.class, () -> DecryptMaterialsResponse.builder().decryptionMaterials(null).build()).getMessage()
     );
   }
 

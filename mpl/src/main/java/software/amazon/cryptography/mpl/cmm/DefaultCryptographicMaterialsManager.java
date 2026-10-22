@@ -211,7 +211,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# [Encrypted Data Keys](structures.md#encrypted-data-keys)
     //# from the On Encrypt Response and include it
     //# in the [encryption materials](structures.md#encryption-materials) returned.
-    return GetEncryptionMaterialsResponse.of(result);
+    return GetEncryptionMaterialsResponse.builder().encryptionMaterials(result).build();
   }
 
   //= spec/framework/cmm-interface.md#decrypt-materials
@@ -315,6 +315,6 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# The default CMM MUST obtain the Plaintext Data Key from
     //# the On Decrypt response and include it in the decrypt
     //# materials returned.
-    return DecryptMaterialsResponse.of(result);
+    return DecryptMaterialsResponse.builder().decryptionMaterials(result).build();
   }
 }

@@ -17,10 +17,6 @@ public final class CreateKeyStoreResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().tableArn(tableArn).build()}. */
-  public static CreateKeyStoreResponse of(String tableArn) {
-    return builder().tableArn(tableArn).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

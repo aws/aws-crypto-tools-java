@@ -67,7 +67,7 @@ public final class AwsKmsMrkKeyring implements Keyring {
   //# materials) as input.
   public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
-    return OnEncryptResponse.of(KmsDataKeys.onEncrypt(kmsClient, kmsKeyId, grantTokens, materials));
+    return OnEncryptResponse.builder().materials(KmsDataKeys.onEncrypt(kmsClient, kmsKeyId, grantTokens, materials)).build();
   }
 
   /**
@@ -108,14 +108,12 @@ public final class AwsKmsMrkKeyring implements Keyring {
         candidates.add(edk);
       }
     }
-    return OnDecryptResponse.of(
-      KmsDataKeys.firstSuccess(
+    return OnDecryptResponse.builder().materials(KmsDataKeys.firstSuccess(
         candidates,
         edk -> KmsDataKeys.decrypt(kmsClient, kmsKeyId, grantTokens, materials, edk),
         encryptedDataKeys,
         materials.algorithmSuite()
-      )
-    );
+      )).build();
   }
 
   /**

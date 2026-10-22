@@ -111,7 +111,7 @@ public final class RawAesKeyring implements Keyring {
     //= spec/framework/raw-aes-keyring.md#onencrypt
     //# OnEncrypt MUST output the modified [encryption materials]
     //# (structures.md#encryption-materials).
-    return OnEncryptResponse.of(result.addTo(materials, edk));
+    return OnEncryptResponse.builder().materials(result.addTo(materials, edk)).build();
   }
 
   @Override
@@ -157,7 +157,7 @@ public final class RawAesKeyring implements Keyring {
         //# If a decryption succeeds, this keyring MUST add the resulting
         //# plaintext data key to the decryption materials and return the
         //# modified materials.
-        return OnDecryptResponse.of(unwrapped.addTo(materials));
+        return OnDecryptResponse.builder().materials(unwrapped.addTo(materials)).build();
       } else {
         errors.add(new ValidationException(KeyringNames.incorrectRawDataKeys(i, "AESKeyring", edk.keyProviderId())));
       }

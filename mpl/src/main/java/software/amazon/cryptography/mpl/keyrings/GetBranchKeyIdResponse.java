@@ -17,10 +17,6 @@ public final class GetBranchKeyIdResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyId(branchKeyId).build()}. */
-  public static GetBranchKeyIdResponse of(String branchKeyId) {
-    return builder().branchKeyId(branchKeyId).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

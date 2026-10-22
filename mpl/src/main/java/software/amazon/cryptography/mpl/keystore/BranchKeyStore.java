@@ -71,7 +71,7 @@ public final class BranchKeyStore implements AutoCloseable {
    */
   public CreateKeyStoreResponse createKeyStore(CreateKeyStoreRequest request) {
     Objects.requireNonNull(request, "request");
-    return CreateKeyStoreResponse.of(operations.createKeyStore());
+    return CreateKeyStoreResponse.builder().tableArn(operations.createKeyStore()).build();
   }
 
   /** The same as {@code createKeyStore(CreateKeyStoreRequest.builder().build())}. */
@@ -102,7 +102,7 @@ public final class BranchKeyStore implements AutoCloseable {
   public CreateKeyResponse createKey(CreateKeyRequest request) {
     String id = request.branchKeyIdentifier().orElse(null);
     EncryptionContext encryptionContext = request.encryptionContext().orElse(null);
-    return CreateKeyResponse.of(operations.createKey(id, encryptionContext));
+    return CreateKeyResponse.builder().branchKeyIdentifier(operations.createKey(id, encryptionContext)).build();
   }
 
   /** Creates a branch key with a random id and no encryption context of the caller's. */
@@ -123,7 +123,7 @@ public final class BranchKeyStore implements AutoCloseable {
   //# - MUST supply a `branch-key-id`
   public VersionKeyResponse versionKey(VersionKeyRequest request) {
     operations.versionKey(request.branchKeyIdentifier());
-    return VersionKeyResponse.of();
+    return VersionKeyResponse.builder().build();
   }
 
   /** {@link #versionKey(VersionKeyRequest)} with a request built by {@code request}. */
@@ -145,7 +145,9 @@ public final class BranchKeyStore implements AutoCloseable {
     //= spec/framework/branch-key-store.md#getactivebranchkey
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
-    return GetActiveBranchKeyResponse.of(branchKeyMaterials(operations.getActiveBranchKey(request.branchKeyIdentifier())));
+    return GetActiveBranchKeyResponse.builder()
+      .branchKeyMaterials(branchKeyMaterials(operations.getActiveBranchKey(request.branchKeyIdentifier())))
+      .build();
   }
 
   /** {@link #getActiveBranchKey(GetActiveBranchKeyRequest)} with a request built by {@code request}. */
@@ -171,9 +173,9 @@ public final class BranchKeyStore implements AutoCloseable {
     //= spec/framework/branch-key-store.md#getbranchkeyversion
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
-    return GetBranchKeyVersionResponse.of(
-      branchKeyMaterials(operations.getBranchKeyVersion(request.branchKeyIdentifier(), request.branchKeyVersion()))
-    );
+    return GetBranchKeyVersionResponse.builder()
+      .branchKeyMaterials(branchKeyMaterials(operations.getBranchKeyVersion(request.branchKeyIdentifier(), request.branchKeyVersion())))
+      .build();
   }
 
   /** {@link #getBranchKeyVersion(GetBranchKeyVersionRequest)} with a request built by {@code request}. */
@@ -198,9 +200,9 @@ public final class BranchKeyStore implements AutoCloseable {
       //= spec/framework/branch-key-store.md#getbeaconkey
       //= type=implication
       //# This operation MUST return the constructed [beacon key materials](./structures.md#beacon-key-materials).
-      return GetBeaconKeyResponse.of(
-        KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap())
-      );
+      return GetBeaconKeyResponse.builder()
+        .beaconKeyMaterials(KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap()))
+        .build();
     } finally {
       Bytes.zero(unwrapped.key());
     }

@@ -17,10 +17,6 @@ public final class GetCacheEntryRequest {
     return new Builder();
   }
 
-  /** The same as {@code builder().key(key).build()}. */
-  public static GetCacheEntryRequest of(CacheKey key) {
-    return builder().key(key).build();
-  }
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {

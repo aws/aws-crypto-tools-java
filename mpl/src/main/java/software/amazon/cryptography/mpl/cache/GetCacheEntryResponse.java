@@ -17,10 +17,6 @@ public final class GetCacheEntryResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().entry(entry).build()}: a null entry is a miss. */
-  public static GetCacheEntryResponse of(CacheEntry entry) {
-    return builder().entry(entry).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

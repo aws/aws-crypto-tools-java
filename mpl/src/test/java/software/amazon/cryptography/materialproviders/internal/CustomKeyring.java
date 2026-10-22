@@ -45,7 +45,7 @@ public final class CustomKeyring implements Keyring {
     try {
       software.amazon.cryptography.materialproviders.model.EncryptionMaterials output = keyring.OnEncrypt(input).materials();
       Boundary.encryptionMaterials(output);
-      return OnEncryptResponse.of(MaterialsAccess.encryption(Convert.fields(output)));
+      return OnEncryptResponse.builder().materials(MaterialsAccess.encryption(Convert.fields(output))).build();
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }
@@ -61,7 +61,7 @@ public final class CustomKeyring implements Keyring {
     try {
       software.amazon.cryptography.materialproviders.model.DecryptionMaterials output = keyring.OnDecrypt(input).materials();
       Boundary.decryptionMaterials(output);
-      return OnDecryptResponse.of(MaterialsAccess.decryption(Convert.fields(output)));
+      return OnDecryptResponse.builder().materials(MaterialsAccess.decryption(Convert.fields(output))).build();
     } catch (RuntimeException e) {
       throw Boundary.crossing(e);
     }

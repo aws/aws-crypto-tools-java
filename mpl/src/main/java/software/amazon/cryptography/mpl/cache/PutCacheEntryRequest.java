@@ -19,10 +19,6 @@ public final class PutCacheEntryRequest {
     return new Builder();
   }
 
-  /** The same as {@code builder().key(key).entry(entry).build()}. */
-  public static PutCacheEntryRequest of(CacheKey key, CacheEntry entry) {
-    return builder().key(key).entry(entry).build();
-  }
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {

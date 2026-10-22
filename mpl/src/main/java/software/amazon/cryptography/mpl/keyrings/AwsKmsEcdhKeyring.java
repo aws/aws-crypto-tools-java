@@ -143,7 +143,9 @@ public final class AwsKmsEcdhKeyring implements Keyring {
 
       //= spec/framework/raw-ecdh-keyring.md#data-key-wrapping
       //# If the keyring successfully wraps the plaintext data key it MUST set it on the [encryption materials](structures.md#encryption-materials).
-      return OnEncryptResponse.of(result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.KMS_PROVIDER_ID, providerInfo, result.wrappedMaterial)));
+      return OnEncryptResponse.builder()
+        .materials(result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.KMS_PROVIDER_ID, providerInfo, result.wrappedMaterial)))
+        .build();
     } finally {
       Bytes.zero(sharedSecret);
     }
@@ -192,7 +194,9 @@ public final class AwsKmsEcdhKeyring implements Keyring {
     //= spec/framework/aws-kms/aws-kms-ecdh-keyring.md#ondecrypt
     //# If OnDecrypt fails to successfully decrypt any encrypted data key,
     //# then it MUST yield an error that includes all the collected errors.
-    return OnDecryptResponse.of(KmsDataKeys.firstSuccess(candidates, candidate -> decrypt(materials, candidate), encryptedDataKeys, materials.algorithmSuite()));
+    return OnDecryptResponse.builder()
+      .materials(KmsDataKeys.firstSuccess(candidates, candidate -> decrypt(materials, candidate), encryptedDataKeys, materials.algorithmSuite()))
+      .build();
   }
 
   private boolean isDiscovery() {

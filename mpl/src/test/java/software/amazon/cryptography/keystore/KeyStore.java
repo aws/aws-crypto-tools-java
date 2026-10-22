@@ -21,10 +21,6 @@ import software.amazon.cryptography.keystore.model.VersionKeyInput;
 import software.amazon.cryptography.keystore.model.VersionKeyOutput;
 import software.amazon.cryptography.mpl.EncryptionContext;
 import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.GetActiveBranchKeyRequest;
-import software.amazon.cryptography.mpl.keystore.GetBeaconKeyRequest;
-import software.amazon.cryptography.mpl.keystore.GetBranchKeyVersionRequest;
-import software.amazon.cryptography.mpl.keystore.VersionKeyRequest;
 
 /** Test adapter: the Dafny-shaped key store client on top of {@link BranchKeyStore}. */
 public class KeyStore {
@@ -63,7 +59,7 @@ public class KeyStore {
   public GetActiveBranchKeyOutput GetActiveBranchKey(GetActiveBranchKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetActiveBranchKeyOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(GetActiveBranchKeyRequest.of(branchKeyIdentifier)).branchKeyMaterials())))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdentifier)).branchKeyMaterials())))
       .build();
   }
 
@@ -71,7 +67,7 @@ public class KeyStore {
   public GetBeaconKeyOutput GetBeaconKey(GetBeaconKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetBeaconKeyOutput.builder()
-      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(GetBeaconKeyRequest.of(branchKeyIdentifier)).beaconKeyMaterials())))
+      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(b -> b.branchKeyIdentifier(branchKeyIdentifier)).beaconKeyMaterials())))
       .build();
   }
 
@@ -80,7 +76,7 @@ public class KeyStore {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     String branchKeyVersion = input.branchKeyVersion();
     return GetBranchKeyVersionOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(GetBranchKeyVersionRequest.of(branchKeyIdentifier, branchKeyVersion)).branchKeyMaterials())))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(b -> b.branchKeyIdentifier(branchKeyIdentifier).branchKeyVersion(branchKeyVersion)).branchKeyMaterials())))
       .build();
   }
 
@@ -93,7 +89,7 @@ public class KeyStore {
   public VersionKeyOutput VersionKey(VersionKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     call(() -> {
-      store.versionKey(VersionKeyRequest.of(branchKeyIdentifier));
+      store.versionKey(b -> b.branchKeyIdentifier(branchKeyIdentifier));
       return null;
     });
     return VersionKeyOutput.builder().build();

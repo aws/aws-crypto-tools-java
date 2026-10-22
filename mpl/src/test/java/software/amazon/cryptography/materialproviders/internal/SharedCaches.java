@@ -76,7 +76,7 @@ public final class SharedCaches {
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }
-      return PutCacheEntryResponse.of();
+      return PutCacheEntryResponse.builder().build();
     }
 
     @Override
@@ -86,7 +86,7 @@ public final class SharedCaches {
       } catch (RuntimeException e) {
         throw Boundary.crossing(e);
       }
-      return DeleteCacheEntryResponse.of();
+      return DeleteCacheEntryResponse.builder().build();
     }
 
     // The Dafny-based wrapper converted the result inside its try, so a result it could not convert failed like a thrown exception.

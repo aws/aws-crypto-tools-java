@@ -17,10 +17,6 @@ public final class GetBeaconKeyResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().beaconKeyMaterials(beaconKeyMaterials).build()}. */
-  public static GetBeaconKeyResponse of(BeaconKeyMaterials beaconKeyMaterials) {
-    return builder().beaconKeyMaterials(beaconKeyMaterials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

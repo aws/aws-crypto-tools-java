@@ -134,7 +134,7 @@ class AwsKmsHierarchicalKeyringTest {
     );
     assertEquals(
       "Cannot initialize keyring with both a branchKeyId and BranchKeyIdSupplier.",
-      assertThrows(ValidationException.class, () -> builder().branchKeyIdSupplier(request -> GetBranchKeyIdResponse.of(branchKey)).build()).getMessage()
+      assertThrows(ValidationException.class, () -> builder().branchKeyIdSupplier(request -> GetBranchKeyIdResponse.builder().branchKeyId(branchKey).build()).build()).getMessage()
     );
     assertEquals(
       "Must initialize keyring with either branchKeyId or BranchKeyIdSupplier.",
@@ -160,7 +160,7 @@ class AwsKmsHierarchicalKeyringTest {
 
   @Test
   void accessors() {
-    BranchKeyIdSupplier supplier = request -> GetBranchKeyIdResponse.of(branchKey);
+    BranchKeyIdSupplier supplier = request -> GetBranchKeyIdResponse.builder().branchKeyId(branchKey).build();
     CacheType cache = CacheType.multiThreaded(5);
     AwsKmsHierarchicalKeyring configured = builder().branchKeyId(null).branchKeyIdSupplier(supplier).cache(cache).partitionId("p").ttl(Duration.ofSeconds(7)).build();
     assertSame(store, configured.keyStore());
@@ -253,7 +253,7 @@ class AwsKmsHierarchicalKeyringTest {
       assertThrows(ValidationException.class, () -> nullId.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(Collections.emptyList()).build())).getMessage()
     );
     // A response cannot hold a null id: the supplier's own call fails, with the same exception kind.
-    AwsKmsHierarchicalKeyring nullInResponse = builder().branchKeyId(null).branchKeyIdSupplier(request -> GetBranchKeyIdResponse.of(null)).build();
+    AwsKmsHierarchicalKeyring nullInResponse = builder().branchKeyId(null).branchKeyIdSupplier(request -> GetBranchKeyIdResponse.builder().branchKeyId(null).build()).build();
     assertEquals(
       "Missing value for required field `branchKeyId`",
       assertThrows(ValidationException.class, () -> nullInResponse.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage()
@@ -401,13 +401,13 @@ class AwsKmsHierarchicalKeyringTest {
     @Override
     public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
       entries.put(request.key(), request.entry());
-      return PutCacheEntryResponse.of();
+      return PutCacheEntryResponse.builder().build();
     }
 
     @Override
     public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
       entries.remove(request.key());
-      return DeleteCacheEntryResponse.of();
+      return DeleteCacheEntryResponse.builder().build();
     }
   }
 }

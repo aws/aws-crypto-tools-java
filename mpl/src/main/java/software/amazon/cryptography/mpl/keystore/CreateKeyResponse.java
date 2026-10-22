@@ -17,10 +17,6 @@ public final class CreateKeyResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().branchKeyIdentifier(branchKeyIdentifier).build()}. */
-  public static CreateKeyResponse of(String branchKeyIdentifier) {
-    return builder().branchKeyIdentifier(branchKeyIdentifier).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

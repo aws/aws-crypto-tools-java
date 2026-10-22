@@ -21,6 +21,8 @@ public interface DdbKeyBranchKeyIdSupplier {
 
   /** The MPL supplier that decodes the primary key from the encryption context and asks {@code supplier}. */
   static BranchKeyIdSupplier asBranchKeyIdSupplier(DdbKeyBranchKeyIdSupplier supplier) {
-    return request -> GetBranchKeyIdResponse.of(supplier.branchKeyId(DbEsdkLikeItemEncryptor.ddbKey(request.encryptionContext())));
+    return request -> GetBranchKeyIdResponse.builder()
+      .branchKeyId(supplier.branchKeyId(DbEsdkLikeItemEncryptor.ddbKey(request.encryptionContext())))
+      .build();
   }
 }

@@ -20,10 +20,6 @@ public final class GetEncryptionMaterialsResponse {
     return new Builder();
   }
 
-  /** The same as {@code builder().encryptionMaterials(encryptionMaterials).build()}. */
-  public static GetEncryptionMaterialsResponse of(EncryptionMaterials encryptionMaterials) {
-    return builder().encryptionMaterials(encryptionMaterials).build();
-  }
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {

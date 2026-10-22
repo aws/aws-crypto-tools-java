@@ -59,10 +59,10 @@ public final class HierarchicalKeyringExample {
       BranchKeyIdSupplier byTenant = request -> {
         String tenant = request.encryptionContext().get("tenant");
         if ("TenantA".equals(tenant)) {
-          return GetBranchKeyIdResponse.of(branchKeyIdA);
+          return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdA).build();
         }
         if ("TenantB".equals(tenant)) {
-          return GetBranchKeyIdResponse.of(branchKeyIdB);
+          return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdB).build();
         }
         throw new IllegalArgumentException("Encryption context has no known tenant");
       };
