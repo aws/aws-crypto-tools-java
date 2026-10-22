@@ -142,10 +142,10 @@ The prototype's results:
 1. Add the native MPL dependency (Maven coordinates are still open). The Dafny MPL can stay alongside it during the move.
 2. Change imports from `software.amazon.cryptography.materialproviders.*` and `...keystore.*` to `software.amazon.cryptography.mpl.*`.
 3. Replace `matProv.CreateX(CreateXInput.builder()...build())` with `X.builder()...build()`, using the member names from the tables above.
-4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas, e.g. `req -> GetBranchKeyIdResponse.of(pick(req.encryptionContext()))`.
+4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas, e.g. `req -> GetBranchKeyIdResponse.builder().branchKeyId(pick(req.encryptionContext())).build()`.
 5. Port custom `IKeyring` and `ICryptographicMaterialsManager` implementations:
    - change the method names to lower case;
-   - return `OnEncryptResponse.of(materials)` / `OnDecryptResponse.of(materials)` (CMMs: the matching `...Response.of`);
+   - return `OnEncryptResponse.builder().materials(materials).build()` / `OnDecryptResponse.builder().materials(materials).build()` (CMMs: the matching `...Response.builder()`);
    - use `materials.with...` instead of mutating the materials.
 6. Update exception handling:
    - catch `MaterialProvidersException`, or a specific subclass;
