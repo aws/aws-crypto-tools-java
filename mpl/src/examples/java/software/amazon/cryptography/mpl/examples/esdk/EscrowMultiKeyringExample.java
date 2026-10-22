@@ -35,7 +35,7 @@ public final class EscrowMultiKeyringExample {
 
     Keyring kms = AwsKmsKeyring.builder().kmsKeyId(kmsKeyArn).kmsClient(kmsClient).build();
     Keyring escrowPublic = escrowKeyring().publicKey(escrow.getPublic()).build();
-    Keyring multi = MultiKeyring.builder().generator(kms).childKeyrings(Collections.singletonList(escrowPublic)).build();
+    Keyring multi = MultiKeyring.builder().generator(kms).childKeyrings(escrowPublic).build();
     byte[] ciphertext = crypto.encryptData(multi, EXAMPLE_DATA, encryptionContext);
 
     // The usual path: the multi keyring decrypts with KMS.

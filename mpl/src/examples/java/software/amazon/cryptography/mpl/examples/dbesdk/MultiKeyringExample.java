@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.examples.dbesdk;
 
-import java.util.Collections;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.mpl.Keyring;
@@ -33,7 +32,7 @@ public final class MultiKeyringExample {
       .wrappingKey(aesKey)
       .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
       .build();
-    Keyring multi = MultiKeyring.builder().generator(kmsKeyring).childKeyrings(Collections.singletonList(aesKeyring)).build();
+    Keyring multi = MultiKeyring.builder().generator(kmsKeyring).childKeyrings(aesKeyring).build();
 
     Map<String, String> item = ExampleItems.item("multiKeyringItem");
     Map<String, String> encrypted = ExampleItems.roundTrip(ExampleItems.encryptor(multi), item);

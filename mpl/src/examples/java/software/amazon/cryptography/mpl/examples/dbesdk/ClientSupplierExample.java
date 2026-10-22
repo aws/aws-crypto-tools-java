@@ -60,7 +60,7 @@ public final class ClientSupplierExample {
       AwsKmsMrkMultiKeyring writer = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(supplier).build();
       AwsKmsMrkDiscoveryMultiKeyring reader = AwsKmsMrkDiscoveryMultiKeyring
         .builder()
-        .regions(Collections.singletonList(readerRegion))
+        .regions(readerRegion)
         .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), "aws"))
         .clientSupplier(supplier)
         .build()

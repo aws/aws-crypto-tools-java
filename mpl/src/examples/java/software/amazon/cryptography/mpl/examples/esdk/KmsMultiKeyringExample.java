@@ -33,7 +33,7 @@ public final class KmsMultiKeyringExample {
       AwsKmsMultiKeyring keyring = AwsKmsMultiKeyring
         .builder()
         .generator(generatorKeyArn)
-        .kmsKeyIds(Collections.singletonList(additionalKeyArn))
+        .kmsKeyIds(additionalKeyArn)
         .clientSupplier(clientSupplier)
         .build()
     ) {
@@ -45,7 +45,7 @@ public final class KmsMultiKeyringExample {
     try (
       AwsKmsMultiKeyring additionalKeyOnly = AwsKmsMultiKeyring
         .builder()
-        .kmsKeyIds(Collections.singletonList(additionalKeyArn))
+        .kmsKeyIds(additionalKeyArn)
         .clientSupplier(clientSupplier)
         .build()
     ) {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.mpl.examples.dbesdk;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
@@ -35,7 +34,7 @@ public final class MrkDiscoveryMultiKeyringExample {
     try (
       AwsKmsMrkDiscoveryMultiKeyring keyring = AwsKmsMrkDiscoveryMultiKeyring
         .builder()
-        .regions(Collections.singletonList(readerRegion))
+        .regions(readerRegion)
         .discoveryFilter(DiscoveryFilter.of(allowedAccountIds, "aws"))
         .clientSupplier(clientSupplier)
         .build()

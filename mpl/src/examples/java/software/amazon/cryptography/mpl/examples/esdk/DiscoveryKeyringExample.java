@@ -53,7 +53,7 @@ public final class DiscoveryKeyringExample {
     try (
       AwsKmsDiscoveryMultiKeyring multiRegion = AwsKmsDiscoveryMultiKeyring
         .builder()
-        .regions(Collections.singletonList(region))
+        .regions(region)
         .discoveryFilter(filter)
         .clientSupplier(clientSupplier)
         .build()

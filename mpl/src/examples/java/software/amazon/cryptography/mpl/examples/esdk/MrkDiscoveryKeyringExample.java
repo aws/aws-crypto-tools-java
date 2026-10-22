@@ -39,7 +39,7 @@ public final class MrkDiscoveryKeyringExample {
     try (
       AwsKmsMrkDiscoveryMultiKeyring decrypting = AwsKmsMrkDiscoveryMultiKeyring
         .builder()
-        .regions(Collections.singletonList(decryptRegion))
+        .regions(decryptRegion)
         .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), partition))
         .clientSupplier(clientSupplier)
         .build()

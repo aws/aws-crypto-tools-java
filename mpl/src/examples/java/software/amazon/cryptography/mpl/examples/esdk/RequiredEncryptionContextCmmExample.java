@@ -3,7 +3,6 @@
 package software.amazon.cryptography.mpl.examples.esdk;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
@@ -30,7 +29,7 @@ public final class RequiredEncryptionContextCmmExample {
     CryptographicMaterialsManager cmm = RequiredEncryptionContextCryptographicMaterialsManager
       .builder()
       .underlyingCmm(DefaultCryptographicMaterialsManager.of(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build()))
-      .requiredEncryptionContextKeys(Arrays.asList("requiredKey1", "requiredKey2"))
+      .requiredEncryptionContextKeys("requiredKey1", "requiredKey2")
       .build();
 
     Map<String, String> encryptionContext = new HashMap<>();

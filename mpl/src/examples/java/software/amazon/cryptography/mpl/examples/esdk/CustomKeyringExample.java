@@ -50,9 +50,10 @@ public final class CustomKeyringExample {
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyService, ciphertext, encryptionContext).getResult());
 
     // As a child of a multi keyring it adds its copy of a data key another keyring generated.
-    Keyring withEscrowCopy = MultiKeyring.builder().generator(keyService).childKeyrings(Collections.singletonList(
-      new KeyServiceKeyring("key-2", new SecretKeySpec(keyBytes, "AES"))
-    )).build();
+    Keyring withEscrowCopy = MultiKeyring.builder()
+      .generator(keyService)
+      .childKeyrings(new KeyServiceKeyring("key-2", new SecretKeySpec(keyBytes, "AES")))
+      .build();
     byte[] twoCopies = crypto.encryptData(withEscrowCopy, EXAMPLE_DATA, encryptionContext);
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(new KeyServiceKeyring("key-2", new SecretKeySpec(keyBytes, "AES")), twoCopies).getResult());
 
