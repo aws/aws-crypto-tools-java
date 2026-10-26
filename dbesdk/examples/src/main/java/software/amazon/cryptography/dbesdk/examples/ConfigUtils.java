@@ -1,7 +1,7 @@
 package software.amazon.cryptography.dbesdk.examples;
 
-import software.amazon.cryptography.dbesdk.dynamodbencryption.DynamoDbEncryptionInterceptor;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.DynamoDbTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.DynamoDbItemEncryptorConfig;
 
 public final class ConfigUtils {

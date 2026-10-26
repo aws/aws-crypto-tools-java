@@ -6,8 +6,8 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.DynamoDbEncryption;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.EncryptedDataKeyDescription;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryption;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedDataKeyDescription;
 
 public class GetEncryptedDataKeyDescriptionExample {
 

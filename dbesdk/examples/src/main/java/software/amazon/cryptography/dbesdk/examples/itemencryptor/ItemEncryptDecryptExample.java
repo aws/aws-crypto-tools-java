@@ -3,7 +3,7 @@ package software.amazon.cryptography.dbesdk.examples.itemencryptor;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.CryptoAction;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.DynamoDbItemEncryptorConfig;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;

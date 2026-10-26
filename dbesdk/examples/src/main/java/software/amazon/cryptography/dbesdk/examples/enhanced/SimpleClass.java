@@ -4,8 +4,8 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttri
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.enhancedclient.DynamoDbEncryptionDoNothing;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.enhancedclient.DynamoDbEncryptionSignOnly;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionDoNothing;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionSignOnly;
 
 /** This class is used by the Enhanced Client examples */
 @DynamoDbBean

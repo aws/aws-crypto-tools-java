@@ -2,7 +2,7 @@ package software.amazon.cryptography.dbesdk.examples.keyring;
 
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.cryptography.dbesdk.dynamodbencryption.DynamoDbKeyBranchKeyIdSupplier;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbKeyBranchKeyIdSupplier;
 
 // Used in the 'HierarchicalKeyringExample'.
 // In that example, we have a table where we distinguish multiple tenants
