@@ -29,7 +29,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DoNo
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEnhancedClientEncryption;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEnhancedTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.SignOnlyTag;
-import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.DynamoDbItemEncryptor;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.dbesdk.examples.ConfigUtils;
 import software.amazon.cryptography.dbesdk.examples.ExampleUtils;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;

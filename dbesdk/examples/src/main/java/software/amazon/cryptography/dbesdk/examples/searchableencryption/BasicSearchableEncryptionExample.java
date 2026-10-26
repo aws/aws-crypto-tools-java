@@ -20,7 +20,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryp
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.SearchConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.SingleKeyStore;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
-import software.amazon.cryptography.dbesdk.dynamodbencryptiontransforms.DynamoDbEncryptionTransforms;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;

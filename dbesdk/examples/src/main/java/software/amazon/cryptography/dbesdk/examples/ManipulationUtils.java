@@ -8,8 +8,8 @@ import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.kms.model.InvalidCiphertextException;
-import software.amazon.cryptography.dbesdk.dynamodbitemencryptor.DynamoDbItemEncryptor;
-import software.amazon.cryptography.dbesdk.structuredencryption.StructuredEncryptionException;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.StructuredEncryptionException;
 
 public final class ManipulationUtils {
 
