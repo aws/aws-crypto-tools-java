@@ -2,9 +2,9 @@ name: mpl-native-java
 
 on:
   pull_request:
-    paths: ["mpl/**", "spec", ".gitmodules", ".github/workflows/mpl-native-java.yml"]
+    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
   push:
-    paths: ["mpl/**", "spec", ".gitmodules", ".github/workflows/mpl-native-java.yml"]
+    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
 
 jobs:
   test:
@@ -19,8 +19,7 @@ jobs:
             17
       # Gradle runs on 17; the build's toolchain compiles and tests on 8.
       - name: Build and test
-        working-directory: mpl
-        run: ./gradlew build
+        run: ./gradlew -p mpl build
 
   duvet:
     runs-on: ubuntu-latest
