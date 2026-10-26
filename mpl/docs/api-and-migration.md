@@ -1,17 +1,17 @@
 # Native Java MPL: API summary and migration path
 
-Status: draft for planning, 2026-10-20 (updated for request/response objects and Duration). Unreviewed: the API can still change after team review.
+Status: draft for planning, 2026-10-26 (final packages: same as today, new major version). Unreviewed: the API can still change after team review.
 
 - **Current API:** the Dafny-based MPL for Java, 1.11.1, package `software.amazon.cryptography.materialproviders`, the `keystore` package, and `primitives`.
-- **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven, package `software.amazon.cryptography.mpl`, Java 8, no Dafny runtime.
+- **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven; packages `software.amazon.cryptography.materialproviders` and `software.amazon.cryptography.keystore`, artifact `aws-cryptographic-material-providers` 2.0.0; Java 8, no Dafny runtime.
 - **Conventions:** the API follows the AWS SDK for Java v2 (request and response objects, `builder()`/`toBuilder()`, `name()` accessors with no `get` prefix), except that absent values are `Optional` and secrets are `SecretBytes`.
-- **Details:** the javadoc in `mpl/src/main/java/software/amazon/cryptography/mpl` and the examples in `mpl/src/examples` (ESDK and DB-ESDK usage). The R ids in section 4 refer to the behavior-change register, which is shared separately with the design review.
+- **Details:** the javadoc in `mpl/src/main/java/software/amazon/cryptography/materialproviders` and `.../keystore`, and the examples in `mpl/src/examples` (ESDK and DB-ESDK usage). The R ids in section 4 refer to the behavior-change register, which is shared separately with the design review.
 
 ## 1. What changes and what doesn't
 
 | Changes | Stays the same |
 |---|---|
-| New package `software.amazon.cryptography.mpl`, which can sit on the classpath next to the Dafny MPL | Wire format: EDKs, the canonical encryption context, key store items. Existing data decrypts; nothing is re-encrypted. |
+| Same packages as today (`software.amazon.cryptography.materialproviders`, `software.amazon.cryptography.keystore`), shipped as `aws-cryptographic-material-providers` 2.0.0; it replaces the Dafny MPL, not runs beside it | Wire format: EDKs, the canonical encryption context, key store items. Existing data decrypts; nothing is re-encrypted. |
 | No `MaterialProviders` factory client and no `*Input`/`*Output` wrappers; every component has `builder()` | Pass/fail for every input (four approved exceptions, sec. 4) |
 | Enums for closed sets, immutable values, secrets as `SecretBytes`, `Optional` instead of null | Defaults, KMS and DynamoDB calls, cache behavior |
 | One unchecked exception root with `kind()` and `isRetryable()` | Member names and enum constants (only casing changes: `ALG_AES_256_...`, `branchKeyIdentifier`, `ddbTableName`) |
@@ -109,6 +109,33 @@ AwsKmsMultiKeyring keyring = AwsKmsMultiKeyring.builder().generator(keyArn).buil
 crypto.encryptData(keyring, data, encryptionContext);   // ESDK call unchanged
 ```
 
+### Async APIs (proposed for a later minor release)
+
+Same pattern as the AWS SDK for Java v2, where `KmsClient` and `KmsAsyncClient` take the same requests and return the same responses, the async one as a `CompletableFuture`, and neither wraps the other. Details, SDK examples, and sources: section 3.2 of the [API doc](https://chorus.aws.dev/doc/hWnwq7qGvcut).
+
+| Sync (v1.0) | Async (added later, same request and response types) |
+| --- | --- |
+| `Keyring` | `AsyncKeyring`: `CompletableFuture<OnEncryptResponse> onEncrypt(OnEncryptRequest)` |
+| `CryptographicMaterialsManager` | `AsyncCryptographicMaterialsManager` |
+| `AwsKmsKeyring` (takes `KmsClient`) | `AwsKmsAsyncKeyring` (takes `KmsAsyncClient`) |
+| `BranchKeyStore` (takes `DynamoDbClient`, `KmsClient`) | `AsyncBranchKeyStore` (takes `DynamoDbAsyncClient`, `KmsAsyncClient`) |
+| `AwsKmsHierarchicalKeyring` | An async hierarchical keyring on `AsyncBranchKeyStore` |
+| `BranchKeyIdSupplier` | `AsyncBranchKeyIdSupplier` |
+| Raw AES, RSA, ECDH keyrings (no I/O) | Not duplicated; an adapter lifts them into async |
+| ESDK 4.0 `EsdkClient` | `EsdkAsyncClient`: `CompletableFuture<EncryptResponse> encrypt(EncryptRequest)` |
+
+```java
+// Sync, as in v1.0
+Keyring keyring = AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(KmsClient.create()).build();
+EncryptResponse encrypted = esdk.encrypt(b -> b.plaintext(data).keyring(keyring));
+
+// Async, same requests and responses
+AsyncKeyring asyncKeyring = AwsKmsAsyncKeyring.builder().kmsKeyId(keyArn).kmsClient(KmsAsyncClient.create()).build();
+CompletableFuture<EncryptResponse> future = esdkAsync.encrypt(b -> b.plaintext(data).keyring(asyncKeyring));
+```
+
+The async types are new types beside the sync ones, so they ship in a later minor release without changing the sync API. Names are proposals.
+
 ## 3. Migration path
 
 Data does not migrate. Messages and items written with either MPL decrypt with the other.
@@ -117,12 +144,10 @@ Data does not migrate. Messages and items written with either MPL decrypt with t
 
 | Phase | What the ESDK ships | What the customer does |
 |---|---|---|
-| 1. ESDK 3.x minor (recommended first) | `AwsCrypto` overloads that take a native `Keyring` or `CryptographicMaterialsManager`. The Dafny-MPL overloads stay. | Nothing, to stay where they are. To adopt: change the imports, replace each keyring, CMM, key store and cache construction (one statement per site), and update catch blocks. |
-| 2. ESDK 4.0 (later) | Native MPL only; the Dafny MPL dependency is dropped | Required: everything in phase 1, plus rewriting custom keyrings and CMMs against the new interfaces |
+| Stay on ESDK 3.x | ESDK 3.x on MPL 1.x, unchanged | Nothing |
+| Move to ESDK 4.0 | A new major version on MPL 2.0.0 only (the two MPLs share packages, so they cannot be combined) | Upgrade both together; replace each keyring, CMM, key store and cache construction (one statement per site), rewrite custom keyrings and CMMs against the new interfaces, and update catch blocks |
 
-Effort for the ESDK team, measured on a prototype:
-- **Phase 1:** about 2–3 weeks after the native MPL is on Maven Central. The prototype changed 5 files.
-- **Phase 2:** about 4–6 weeks.
+Effort for the ESDK team: about 4–6 weeks for ESDK 4.0, estimated from a prototype that added native overloads to 3.x (5 files).
 
 The prototype's results:
 - 2244 of 2244 native/Dafny interop cases pass.
@@ -132,15 +157,15 @@ The prototype's results:
 
 ### DB-ESDK customers
 
-- **Dafny DB-ESDK:** stays on the Dafny MPL. No customer change.
+- **Dafny DB-ESDK:** stays on MPL 1.x. No customer change, but an application on it cannot also use ESDK 4.0 (MPL 2.0.0) in the same build.
 - **Native DB-ESDK:** customers build keyrings with the native API in the table config, and use `BranchKeyStore` for beacons.
   - DB-ESDK team effort: about 4 days for the item path; about 3–4 weeks to remove the Dafny MPL fully.
   - The prototype passed 120/120 library tests and 62/62 real-KMS cross-implementation cases.
 
 ### Direct MPL users, step by step
 
-1. Add the native MPL dependency (Maven coordinates are still open). The Dafny MPL can stay alongside it during the move.
-2. Change imports from `software.amazon.cryptography.materialproviders.*` and `...keystore.*` to `software.amazon.cryptography.mpl.*`.
+1. Upgrade `software.amazon.cryptography:aws-cryptographic-material-providers` to 2.0.0, together with any library built on it (ESDK 4.0). The two versions cannot be combined.
+2. Update imports: the packages stay (`software.amazon.cryptography.materialproviders`, `software.amazon.cryptography.keystore`), but `materialproviders.model.*` types move to the `keyrings`, `cmm`, `cache`, and `exceptions` subpackages, and `primitives` is no longer public.
 3. Replace `matProv.CreateX(CreateXInput.builder()...build())` with `X.builder()...build()`, using the member names from the tables above.
 4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas, e.g. `req -> GetBranchKeyIdResponse.builder().branchKeyId(pick(req.encryptionContext())).build()`.
 5. Port custom `IKeyring` and `ICryptographicMaterialsManager` implementations:
@@ -166,8 +191,7 @@ The prototype's results:
 
 ## 5. Open before release
 
-1. Maven artifact name.
-2. Whether DynamoDB stays a compile dependency.
-3. Cache selection shape (`CacheType` versus passing a cache object, as the native Rust MPL does); request/response objects and `Duration` are already adopted.
-4. Three spec-versus-Dafny questions for the MPL owners: raw AES namespaces starting with `aws-kms`, the default suite under `FORBID_ENCRYPT_ALLOW_DECRYPT`, and verification key length checks.
-5. Security sign-off for R11.
+1. Whether DynamoDB stays a compile dependency.
+2. Cache selection shape (`CacheType` versus passing a cache object, as the native Rust MPL does); request/response objects and `Duration` are already adopted.
+3. Spec-versus-Dafny questions C1–C3.
+4. Security sign-off for R11.
