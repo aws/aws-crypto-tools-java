@@ -36,7 +36,7 @@ public final class ReferenceBridge {
     return unwrapped(() -> ReferenceMpl.call(target, method, args));
   }
 
-  /** A reference model value rebuilt as the test adapter's model value of the same class name. */
+  /** A reference model value rebuilt as the test adapter's model value of the same class name under {@code oldapi}. */
   public static Object fromReference(Object value) {
     return ReferenceMpl.fromReference(value);
   }

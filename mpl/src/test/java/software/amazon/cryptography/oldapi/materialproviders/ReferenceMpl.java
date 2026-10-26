@@ -340,12 +340,8 @@ final class ReferenceMpl {
       if (name.startsWith(OLD_API_ROOT)) {
         return MODEL_ROOT + name.substring(OLD_API_ROOT.length());
       }
-    } else if (type.getClassLoader() == loader()) {
-      if (name.startsWith(MODEL_ROOT)) {
-        return OLD_API_ROOT + name.substring(MODEL_ROOT.length());
-      }
-    } else if (name.startsWith(OLD_API_ROOT)) {
-      return name;
+    } else if (type.getClassLoader() == loader() && name.startsWith(MODEL_ROOT)) {
+      return OLD_API_ROOT + name.substring(MODEL_ROOT.length());
     }
     throw new IllegalArgumentException("cannot rebuild " + name);
   }

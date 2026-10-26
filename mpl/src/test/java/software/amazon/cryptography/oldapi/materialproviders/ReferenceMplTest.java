@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -54,13 +55,10 @@ class ReferenceMplTest {
     for (Class<?> type : Arrays.asList(EncryptedDataKey.class, KmsClient.class)) {
       assertNotSame(type, Class.forName(ReferenceMpl.apiName(type), false, loader));
     }
-    // Main classes the reference also declares, by the same name.
-    for (Class<?> type : Arrays.asList(
-      software.amazon.cryptography.materialproviders.Keyring.class,
-      software.amazon.cryptography.materialproviders.CryptographicMaterialsManager.class
-    )) {
-      assertNotSame(type, Class.forName(type.getName(), false, loader));
-    }
+    // Only the old-API copy maps to the reference; main classes share its packages.
+    Object main = software.amazon.cryptography.materialproviders.EncryptedDataKey.of("provider", new byte[0], new byte[0]);
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> ReferenceMpl.toReference(main));
+    assertEquals("cannot rebuild " + main.getClass().getName(), e.getMessage());
   }
 
   @Test
