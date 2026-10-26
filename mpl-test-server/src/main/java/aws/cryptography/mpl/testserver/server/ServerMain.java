@@ -10,7 +10,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
+import software.amazon.cryptography.materialproviders.exceptions.MaterialProvidersException;
 
 /**
  * rpcv2Cbor HTTP Language_Server for the MPL TestServer, backed by the native Java MPL. Binds loopback

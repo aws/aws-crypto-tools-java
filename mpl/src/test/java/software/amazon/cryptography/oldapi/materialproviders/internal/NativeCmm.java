@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.oldapi.materialproviders.internal;
 
+import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.CommitmentChecks;
 import software.amazon.cryptography.oldapi.materialproviders.ICryptographicMaterialsManager;
 import software.amazon.cryptography.oldapi.materialproviders.model.DecryptMaterialsInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.DecryptMaterialsOutput;
@@ -9,9 +12,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.GetEncryption
 import software.amazon.cryptography.oldapi.materialproviders.model.GetEncryptionMaterialsOutput;
 import software.amazon.cryptography.oldapi.materialproviders.model.InvalidAlgorithmSuiteInfoOnDecrypt;
 import software.amazon.cryptography.oldapi.materialproviders.model.InvalidAlgorithmSuiteInfoOnEncrypt;
-import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
-import software.amazon.cryptography.mpl.internal.CommitmentChecks;
 
 /** Test adapter: a native materials manager behind the old interface. */
 public final class NativeCmm implements ICryptographicMaterialsManager {

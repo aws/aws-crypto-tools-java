@@ -35,6 +35,11 @@ import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 import org.junit.jupiter.api.Test;
+import software.amazon.cryptography.materialproviders.internal.EcdhEdkWrapping;
+import software.amazon.cryptography.materialproviders.internal.EdkWrapping;
+import software.amazon.cryptography.materialproviders.internal.MaterialsAccess;
+import software.amazon.cryptography.materialproviders.internal.primitives.Ecdh;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
 import software.amazon.cryptography.oldapi.materialproviders.internal.Convert;
@@ -52,11 +57,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.OnEncryptOutp
 import software.amazon.cryptography.oldapi.materialproviders.model.PublicKeyDiscoveryInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations;
 import software.amazon.cryptography.oldapi.materialproviders.model.RawPrivateKeyToStaticPublicKeyInput;
-import software.amazon.cryptography.mpl.internal.EcdhEdkWrapping;
-import software.amazon.cryptography.mpl.internal.EdkWrapping;
-import software.amazon.cryptography.mpl.internal.MaterialsAccess;
-import software.amazon.cryptography.mpl.internal.primitives.Ecdh;
-import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.oldapi.primitives.model.ECDHCurveSpec;
 
 // Differential tests of the raw ECDH keyring against the published Dafny-based MPL.
@@ -456,7 +456,7 @@ class RawEcdhKeyringTest {
     byte[] sharedSecret,
     EncryptionMaterials start
   ) {
-    software.amazon.cryptography.mpl.EncryptionMaterials materials = MaterialsAccess.encryption(Convert.fields(start));
+    software.amazon.cryptography.materialproviders.EncryptionMaterials materials = MaterialsAccess.encryption(Convert.fields(start));
     byte[] sender = Ecdh.compressPublicKey(senderPublicKey);
     byte[] recipient = Ecdh.compressPublicKey(recipientPublicKey);
     byte[] fixedInfo = EcdhEdkWrapping.fixedInfo(EcdhCurveSpec.valueOf(curve.name()), sender, recipient, materials.encryptionContext());
@@ -465,7 +465,7 @@ class RawEcdhKeyringTest {
       EcdhEdkWrapping.wrap(sharedSecret, fixedInfo),
       EcdhEdkWrapping.generateAndWrap(sharedSecret, fixedInfo)
     );
-    software.amazon.cryptography.mpl.EncryptedDataKey edk = software.amazon.cryptography.mpl.EncryptedDataKey.of(
+    software.amazon.cryptography.materialproviders.EncryptedDataKey edk = software.amazon.cryptography.materialproviders.EncryptedDataKey.of(
       providerId,
       EcdhEdkWrapping.providerInfo(sender, recipient),
       result.wrappedMaterial

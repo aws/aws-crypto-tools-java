@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.oldapi.materialproviders.internal;
 
+import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
+import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
+import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsRequest;
+import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsResponse;
+import software.amazon.cryptography.materialproviders.internal.MaterialsAccess;
 import software.amazon.cryptography.oldapi.materialproviders.ICryptographicMaterialsManager;
-import software.amazon.cryptography.mpl.CryptographicMaterialsManager;
-import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
-import software.amazon.cryptography.mpl.DecryptMaterialsResponse;
-import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
-import software.amazon.cryptography.mpl.GetEncryptionMaterialsResponse;
-import software.amazon.cryptography.mpl.internal.MaterialsAccess;
 
 /**
  * Test adapter: an old-interface materials manager a caller implemented, as a native one.

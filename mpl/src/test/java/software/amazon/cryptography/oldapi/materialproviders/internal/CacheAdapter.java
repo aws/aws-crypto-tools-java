@@ -10,6 +10,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
+import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
 import software.amazon.cryptography.oldapi.keystore.model.BeaconKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.BranchKeyMaterials;
 import software.amazon.cryptography.oldapi.materialproviders.ICryptographicMaterialsCache;
@@ -21,11 +26,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.MultiThreaded
 import software.amazon.cryptography.oldapi.materialproviders.model.SingleThreadedCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.StormTrackingCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.TimeUnits;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache;
-import software.amazon.cryptography.mpl.internal.KeyMaterialsAccess;
-import software.amazon.cryptography.mpl.internal.cache.StormSettings;
 
 /**
  * Test adapter: converts the old cache model to the native one,
@@ -37,7 +37,7 @@ public final class CacheAdapter {
    * Stands for a cached encryption or decryption materials entry, which a native cache entry cannot hold.
    * The hierarchical keyring only tells branch keys from everything else, so any non-branch-key entry serves.
    */
-  static final software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials NOT_A_KEY = KeyMaterialsAccess.beaconKey(
+  static final software.amazon.cryptography.keystore.BeaconKeyMaterials NOT_A_KEY = KeyMaterialsAccess.beaconKey(
     "",
     EncryptionContext.empty(),
     null,
@@ -55,23 +55,23 @@ public final class CacheAdapter {
    * The native cache type. A {@code Shared} cache is a customer object in the old API;
    * {@code sharedCache} turns it into a native one.
    */
-  public static software.amazon.cryptography.mpl.cache.CacheType cacheType(
+  public static software.amazon.cryptography.materialproviders.cache.CacheType cacheType(
     CacheType old,
     Function<ICryptographicMaterialsCache, CryptographicMaterialsCache> sharedCache
   ) {
     if (old.Default() != null) {
-      return software.amazon.cryptography.mpl.cache.CacheType.defaultCache(old.Default().entryCapacity());
+      return software.amazon.cryptography.materialproviders.cache.CacheType.defaultCache(old.Default().entryCapacity());
     }
     if (old.No() != null) {
-      return software.amazon.cryptography.mpl.cache.CacheType.noCache();
+      return software.amazon.cryptography.materialproviders.cache.CacheType.noCache();
     }
     if (old.SingleThreaded() != null) {
       SingleThreadedCache c = old.SingleThreaded();
-      return software.amazon.cryptography.mpl.cache.CacheType.singleThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return software.amazon.cryptography.materialproviders.cache.CacheType.singleThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
     }
     if (old.MultiThreaded() != null) {
       MultiThreadedCache c = old.MultiThreaded();
-      return software.amazon.cryptography.mpl.cache.CacheType.multiThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return software.amazon.cryptography.materialproviders.cache.CacheType.multiThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
     }
     if (old.StormTracking() != null) {
       // Through the internal settings, which hold any old configuration, its time unit included.
@@ -86,9 +86,9 @@ public final class CacheAdapter {
         c.sleepMilli(),
         c.timeUnits() != TimeUnits.Milliseconds
       );
-      return software.amazon.cryptography.mpl.cache.CacheType.stormTracking(settings.toPublic());
+      return software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(settings.toPublic());
     }
-    return software.amazon.cryptography.mpl.cache.CacheType.shared(sharedCache.apply(old.Shared()));
+    return software.amazon.cryptography.materialproviders.cache.CacheType.shared(sharedCache.apply(old.Shared()));
   }
 
   // An unset optional int reads as 0, which the Dafny-based MPL took as absent (OptionalCountingNumber).
@@ -96,7 +96,7 @@ public final class CacheAdapter {
     return entryPruningTailSize <= 0 ? 1 : entryPruningTailSize;
   }
 
-  public static software.amazon.cryptography.mpl.keystore.BranchKeyMaterials toNative(BranchKeyMaterials old) {
+  public static software.amazon.cryptography.keystore.BranchKeyMaterials toNative(BranchKeyMaterials old) {
     Boundary.utf8(old.branchKeyVersion());
     Boundary.encryptionContext(old.encryptionContext());
     return KeyMaterialsAccess.branchKey(
@@ -107,7 +107,7 @@ public final class CacheAdapter {
     );
   }
 
-  public static BranchKeyMaterials toOld(software.amazon.cryptography.mpl.keystore.BranchKeyMaterials materials) {
+  public static BranchKeyMaterials toOld(software.amazon.cryptography.keystore.BranchKeyMaterials materials) {
     return BranchKeyMaterials
       .builder()
       .branchKeyIdentifier(materials.branchKeyIdentifier())
@@ -117,7 +117,7 @@ public final class CacheAdapter {
       .build();
   }
 
-  public static software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials toNative(BeaconKeyMaterials old) {
+  public static software.amazon.cryptography.keystore.BeaconKeyMaterials toNative(BeaconKeyMaterials old) {
     Boundary.encryptionContext(old.encryptionContext());
     Map<String, SecretBytes> hmacKeys = new LinkedHashMap<>();
     if (old.hmacKeys() != null) {
@@ -134,7 +134,7 @@ public final class CacheAdapter {
   }
 
   /** An empty map of HMAC keys is absent, as the Dafny-based MPL returned it. */
-  public static BeaconKeyMaterials toOld(software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials materials) {
+  public static BeaconKeyMaterials toOld(software.amazon.cryptography.keystore.BeaconKeyMaterials materials) {
     Map<String, ByteBuffer> hmacKeys = null;
     if (!materials.hmacKeys().isEmpty()) {
       hmacKeys = new HashMap<>();

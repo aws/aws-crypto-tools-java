@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.oldapi.materialproviders.internal;
 
+import software.amazon.cryptography.materialproviders.cache.CacheKey;
+import software.amazon.cryptography.materialproviders.exceptions.ThrottlingException;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
+import software.amazon.cryptography.materialproviders.internal.cache.Lookup;
 import software.amazon.cryptography.oldapi.materialproviders.ICryptographicMaterialsCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.DeleteCacheEntryInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.EntryDoesNotExist;
@@ -12,10 +16,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.Materials;
 import software.amazon.cryptography.oldapi.materialproviders.model.OpaqueError;
 import software.amazon.cryptography.oldapi.materialproviders.model.PutCacheEntryInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.UpdateUsageMetadataInput;
-import software.amazon.cryptography.mpl.cache.CacheKey;
-import software.amazon.cryptography.mpl.exceptions.ThrottlingException;
-import software.amazon.cryptography.mpl.internal.cache.CacheEngine;
-import software.amazon.cryptography.mpl.internal.cache.Lookup;
 
 /**
  * Test adapter: the old cache interface over a native built-in cache.
@@ -101,8 +101,8 @@ public final class NativeCache implements ICryptographicMaterialsCache {
   /** A cached old-shape entry; the counters change under the entry's lock. */
   public static final class Entry {
 
-    private final software.amazon.cryptography.mpl.keystore.BranchKeyMaterials branchKey;
-    private final software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials beaconKey;
+    private final software.amazon.cryptography.keystore.BranchKeyMaterials branchKey;
+    private final software.amazon.cryptography.keystore.BeaconKeyMaterials beaconKey;
     private final Materials encryptionOrDecryption;
     final long creationTime;
     final long expiryTime;

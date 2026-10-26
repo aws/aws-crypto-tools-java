@@ -16,36 +16,36 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.mpl.Keyring;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.examples.dbesdk.ClientSupplierExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.KmsEcdhKeyringExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.KmsRsaKeyringExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.MrkDiscoveryMultiKeyringExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.MrkMultiKeyringExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.MultiKeyringExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.RequiredEncryptionContextExample;
-import software.amazon.cryptography.mpl.examples.dbesdk.SearchableEncryptionExample;
-import software.amazon.cryptography.mpl.examples.esdk.AwsKmsRsaKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.CommitmentPolicyAndAlgorithmExample;
-import software.amazon.cryptography.mpl.examples.esdk.CustomClientSupplierExample;
-import software.amazon.cryptography.mpl.examples.esdk.CustomCmmExample;
-import software.amazon.cryptography.mpl.examples.esdk.DiscoveryKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.ErrorHandlingExample;
-import software.amazon.cryptography.mpl.examples.esdk.ErrorHandlingExample.Outcome;
-import software.amazon.cryptography.mpl.examples.esdk.EscrowMultiKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.EsdkLikeClient;
-import software.amazon.cryptography.mpl.examples.esdk.HierarchicalKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.KmsKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.KmsMultiKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.MrkDiscoveryKeyringExample;
-import software.amazon.cryptography.mpl.examples.esdk.RequiredEncryptionContextCmmExample;
-import software.amazon.cryptography.mpl.examples.esdk.SharedCacheExample;
-import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
-import software.amazon.cryptography.mpl.keyrings.ClientSupplier;
-import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
+import software.amazon.cryptography.materialproviders.Keyring;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.ClientSupplierExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.KmsEcdhKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.KmsRsaKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.MrkDiscoveryMultiKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.MrkMultiKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.MultiKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.RequiredEncryptionContextExample;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.SearchableEncryptionExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.AwsKmsRsaKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.CommitmentPolicyAndAlgorithmExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.CustomClientSupplierExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.CustomCmmExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.DiscoveryKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.ErrorHandlingExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.ErrorHandlingExample.Outcome;
+import software.amazon.cryptography.materialproviders.examples.esdk.EscrowMultiKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.EsdkLikeClient;
+import software.amazon.cryptography.materialproviders.examples.esdk.HierarchicalKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.KmsKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.KmsMultiKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.MrkDiscoveryKeyringExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.RequiredEncryptionContextCmmExample;
+import software.amazon.cryptography.materialproviders.examples.esdk.SharedCacheExample;
+import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
 
 // The ESDK and DB-ESDK examples that need AWS, run on the native MPL against the real keys and the key store table.
 // The examples check their own results and throw on a mismatch.
@@ -143,7 +143,7 @@ class RealExamplesIT {
 
   @Test
   void dbEsdkKeyStoreExamples() {
-    List<Map<String, String>> tenants = software.amazon.cryptography.mpl.examples.dbesdk.HierarchicalKeyringExample.encryptAndDecryptForTwoTenants(
+    List<Map<String, String>> tenants = software.amazon.cryptography.materialproviders.examples.dbesdk.HierarchicalKeyringExample.encryptAndDecryptForTwoTenants(
       ddb,
       kms,
       RealAws.TABLE,
@@ -163,7 +163,7 @@ class RealExamplesIT {
       assertEquals(3, perTenant.get(second).length());
       RequiredEncryptionContextExample.encryptAndDecrypt(store);
       assertTrue(RequiredEncryptionContextExample.decryptAfterChangingSortKey(store) instanceof NoMatchingDataKeyException);
-      assertEquals(3, software.amazon.cryptography.mpl.examples.dbesdk.SharedCacheExample.shareOneCache(store, first).length());
+      assertEquals(3, software.amazon.cryptography.materialproviders.examples.dbesdk.SharedCacheExample.shareOneCache(store, first).length());
     }
   }
 

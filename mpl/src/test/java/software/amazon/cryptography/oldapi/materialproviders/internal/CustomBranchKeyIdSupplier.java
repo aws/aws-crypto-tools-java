@@ -3,10 +3,10 @@
 package software.amazon.cryptography.oldapi.materialproviders.internal;
 
 import java.util.HashMap;
+import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
+import software.amazon.cryptography.materialproviders.keyrings.GetBranchKeyIdResponse;
 import software.amazon.cryptography.oldapi.materialproviders.IBranchKeyIdSupplier;
 import software.amazon.cryptography.oldapi.materialproviders.model.GetBranchKeyIdInput;
-import software.amazon.cryptography.mpl.keyrings.BranchKeyIdSupplier;
-import software.amazon.cryptography.mpl.keyrings.GetBranchKeyIdResponse;
 
 /**
  * Test adapter: an old-interface branch key id supplier a caller implemented, as a native supplier.

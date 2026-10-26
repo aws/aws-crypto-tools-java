@@ -43,11 +43,11 @@ import software.amazon.cryptography.oldapi.materialproviders.model.GetClientInpu
 import software.amazon.cryptography.oldapi.materialproviders.model.OnDecryptOutput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnEncryptInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnEncryptOutput;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.ClientSupplier;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
-import software.amazon.cryptography.mpl.keyrings.DefaultClientSupplier;
-import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.keyrings.DefaultClientSupplier;
+import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 
 // The default client supplier, and the KMS multi keyrings that make one, against the published Dafny-based MPL.
 // System properties point the SDK's default endpoint, credentials, and Region at the fake KMS,
@@ -164,8 +164,8 @@ class DefaultClientSupplierTest {
   @Test
   void multiKeyringClosesOnlyItsOwnClients() {
     String key = aws.kms().createSymmetricKey(REGION);
-    software.amazon.cryptography.mpl.EncryptionMaterials start = software.amazon.cryptography.mpl.EncryptionMaterials
-      .builder(software.amazon.cryptography.mpl.AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
+    software.amazon.cryptography.materialproviders.EncryptionMaterials start = software.amazon.cryptography.materialproviders.EncryptionMaterials
+      .builder(software.amazon.cryptography.materialproviders.AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
       .build();
     AwsKmsMultiKeyring owning = AwsKmsMultiKeyring.builder().generator(key).build();
     owning.onEncrypt(OnEncryptRequest.builder().materials(start).build());

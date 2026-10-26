@@ -54,6 +54,13 @@ class ReferenceMplTest {
     for (Class<?> type : Arrays.asList(EncryptedDataKey.class, KmsClient.class)) {
       assertNotSame(type, Class.forName(ReferenceMpl.apiName(type), false, loader));
     }
+    // Main classes the reference also declares, by the same name.
+    for (Class<?> type : Arrays.asList(
+      software.amazon.cryptography.materialproviders.Keyring.class,
+      software.amazon.cryptography.materialproviders.CryptographicMaterialsManager.class
+    )) {
+      assertNotSame(type, Class.forName(type.getName(), false, loader));
+    }
   }
 
   @Test

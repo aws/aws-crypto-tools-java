@@ -17,6 +17,8 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.internal.CanonicalEncryptionContext;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
 import software.amazon.cryptography.oldapi.materialproviders.model.AesWrappingAlg;
@@ -25,8 +27,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.CreateRawAesK
 import software.amazon.cryptography.oldapi.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.oldapi.materialproviders.model.EncryptedDataKey;
 import software.amazon.cryptography.oldapi.materialproviders.model.EncryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.internal.CanonicalEncryptionContext;
 
 // Differential tests of the Raw AES keyring against the published Dafny-based MPL.
 // Encryption is randomized (IV, data key), so each side decrypts both sides' encrypted data keys;

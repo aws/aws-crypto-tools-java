@@ -29,9 +29,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.oldapi.materialproviders.internal.NativeKeyring;
 import software.amazon.cryptography.oldapi.materialproviders.model.AlgorithmSuiteId;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsRsaKeyringInput;
@@ -41,12 +47,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.EncryptionMat
 import software.amazon.cryptography.oldapi.materialproviders.model.EphemeralPrivateKeyToStaticPublicKeyInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.PublicKeyDiscoveryInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.RawPrivateKeyToStaticPublicKeyInput;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsRsaKeyring;
-import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.mpl.keyrings.PaddingScheme;
-import software.amazon.cryptography.mpl.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations;
-import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
 import software.amazon.cryptography.oldapi.primitives.model.ECDHCurveSpec;
 
 // The keyring builders that take JCA keys, against the reference keyring built from the keys' PEM/DER bytes:

@@ -62,29 +62,29 @@ import software.amazon.cryptography.oldapi.materialproviders.model.ValidDecrypti
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidEncryptionMaterialsTransitionInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidateCommitmentPolicyOnDecryptInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidateCommitmentPolicyOnEncryptInput;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.cmm.DefaultCryptographicMaterialsManager;
-import software.amazon.cryptography.mpl.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
-import software.amazon.cryptography.mpl.internal.cache.CacheClock;
-import software.amazon.cryptography.mpl.internal.cache.CacheEngine;
-import software.amazon.cryptography.mpl.internal.cache.Caches;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsDiscoveryMultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsEcdhKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMrkMultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsMultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsRsaKeyring;
-import software.amazon.cryptography.mpl.keyrings.MultiKeyring;
-import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.mpl.keyrings.RawAesKeyring;
-import software.amazon.cryptography.mpl.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.mpl.keyrings.RawRsaKeyring;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
+import software.amazon.cryptography.materialproviders.internal.cache.Caches;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 
 public class MaterialProviders {
 
@@ -216,7 +216,7 @@ public class MaterialProviders {
           .keyNamespace(input.keyNamespace())
           .keyName(input.keyName())
           .wrappingKey(SecretBytes.copyOf(Buffers.toArray(input.wrappingKey())))
-          .wrappingAlg(software.amazon.cryptography.mpl.keyrings.AesWrappingAlg.valueOf(input.wrappingAlg().name()))
+          .wrappingAlg(software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg.valueOf(input.wrappingAlg().name()))
           .build()
       );
     } catch (RuntimeException e) {
@@ -231,7 +231,7 @@ public class MaterialProviders {
           .builder()
           .keyNamespace(input.keyNamespace())
           .keyName(input.keyName())
-          .paddingScheme(software.amazon.cryptography.mpl.keyrings.PaddingScheme.valueOf(input.paddingScheme().name()))
+          .paddingScheme(software.amazon.cryptography.materialproviders.keyrings.PaddingScheme.valueOf(input.paddingScheme().name()))
           .publicKey(input.publicKey() == null ? null : Buffers.toArray(input.publicKey()))
           .privateKey(input.privateKey() == null ? null : SecretBytes.copyOf(Buffers.toArray(input.privateKey())))
           .build()
@@ -255,19 +255,19 @@ public class MaterialProviders {
     }
   }
 
-  private static software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations ecdhScheme(RawEcdhStaticConfigurations scheme) {
+  private static software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations ecdhScheme(RawEcdhStaticConfigurations scheme) {
     if (scheme.RawPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
         SecretBytes.copyOf(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().senderStaticPrivateKey())),
         Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().recipientPublicKey())
       );
     }
     if (scheme.EphemeralPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(
         Buffers.toArray(scheme.EphemeralPrivateKeyToStaticPublicKey().recipientPublicKey())
       );
     }
-    return software.amazon.cryptography.mpl.keyrings.RawEcdhStaticConfigurations.publicKeyDiscovery(
+    return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.publicKeyDiscovery(
       SecretBytes.copyOf(Buffers.toArray(scheme.PublicKeyDiscovery().recipientStaticPrivateKey()))
     );
   }
@@ -295,7 +295,7 @@ public class MaterialProviders {
   }
 
   public IKeyring CreateMultiKeyring(CreateMultiKeyringInput input) {
-    List<software.amazon.cryptography.mpl.Keyring> children = new ArrayList<>();
+    List<software.amazon.cryptography.materialproviders.Keyring> children = new ArrayList<>();
     for (IKeyring child : input.childKeyrings()) {
       children.add(CustomKeyring.of(child));
     }
@@ -445,18 +445,18 @@ public class MaterialProviders {
     );
   }
 
-  private static software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
+  private static software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
     if (scheme.KmsPublicKeyDiscovery() != null) {
-      return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(
+      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(
         scheme.KmsPublicKeyDiscovery().recipientKmsIdentifier()
       );
     }
     String sender = scheme.KmsPrivateKeyToStaticPublicKey().senderKmsIdentifier();
     byte[] recipientPublicKey = Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().recipientPublicKey());
     if (scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey() == null) {
-      return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
+      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
     }
-    return software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(
+    return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(
       sender,
       Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey()),
       recipientPublicKey
@@ -464,10 +464,10 @@ public class MaterialProviders {
   }
 
   public IClientSupplier CreateDefaultClientSupplier(CreateDefaultClientSupplierInput input) {
-    return CustomClientSupplier.toOld(software.amazon.cryptography.mpl.keyrings.ClientSupplier.defaultSupplier());
+    return CustomClientSupplier.toOld(software.amazon.cryptography.materialproviders.keyrings.ClientSupplier.defaultSupplier());
   }
 
-  private static IKeyring create(Supplier<software.amazon.cryptography.mpl.Keyring> build) {
+  private static IKeyring create(Supplier<software.amazon.cryptography.materialproviders.Keyring> build) {
     try {
       return new NativeKeyring(build.get());
     } catch (RuntimeException e) {
@@ -490,11 +490,11 @@ public class MaterialProviders {
     try {
       // The Dafny-based MPL rejected a shared cache here, where the native create returns it;
       // so which native instance stands in for the customer's does not matter.
-      software.amazon.cryptography.mpl.cache.CacheType type = CacheAdapter.cacheType(
+      software.amazon.cryptography.materialproviders.cache.CacheType type = CacheAdapter.cacheType(
         input.cache(),
-        shared -> software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache.create(software.amazon.cryptography.mpl.cache.CacheType.noCache())
+        shared -> software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache.create(software.amazon.cryptography.materialproviders.cache.CacheType.noCache())
       );
-      if (type.kind() == software.amazon.cryptography.mpl.cache.CacheType.Kind.SHARED) {
+      if (type.kind() == software.amazon.cryptography.materialproviders.cache.CacheType.Kind.SHARED) {
         throw new ValidationException("CreateCryptographicMaterialsCache should never be called with Shared CacheType.");
       }
       return Caches.engine(type, clock);
@@ -503,11 +503,11 @@ public class MaterialProviders {
     }
   }
 
-  private static software.amazon.cryptography.mpl.keyrings.DiscoveryFilter discoveryFilter(DiscoveryFilter filter) {
-    return filter == null ? null : software.amazon.cryptography.mpl.keyrings.DiscoveryFilter.of(filter.accountIds(), filter.partition());
+  private static software.amazon.cryptography.materialproviders.keyrings.DiscoveryFilter discoveryFilter(DiscoveryFilter filter) {
+    return filter == null ? null : software.amazon.cryptography.materialproviders.keyrings.DiscoveryFilter.of(filter.accountIds(), filter.partition());
   }
 
-  private static software.amazon.cryptography.mpl.keyrings.ClientSupplier clientSupplier(IClientSupplier supplier) {
+  private static software.amazon.cryptography.materialproviders.keyrings.ClientSupplier clientSupplier(IClientSupplier supplier) {
     return supplier == null ? null : CustomClientSupplier.of(supplier);
   }
 

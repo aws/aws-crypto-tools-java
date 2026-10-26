@@ -21,16 +21,16 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.internal.UserAgent;
 import software.amazon.cryptography.oldapi.keystore.KeyStore;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyStoreInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetActiveBranchKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
-import software.amazon.cryptography.mpl.internal.UserAgent;
-import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
 /**
  * Stores that create their own clients: the Region they pick, and closing them.

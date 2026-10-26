@@ -22,11 +22,11 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 import software.amazon.cryptography.oldapi.keystore.KeyStore;
 import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
-import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 
 /**
  * Runs the native key store (through the test adapter) and the reference key store side by side.

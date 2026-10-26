@@ -28,12 +28,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
-import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
-import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
+import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
+import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
+import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
 
 // CreateKey, native (through the adapter) against the reference, each on its own identically seeded endpoint.
 class KeyStoreCreateKeyTest {

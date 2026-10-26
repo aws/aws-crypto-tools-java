@@ -12,11 +12,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.cryptography.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetBeaconKeyInput;
 import software.amazon.cryptography.oldapi.materialproviders.internal.CacheAdapter;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials;
 
 // The beacon key cache entry a DB-ESDK builds with BeaconKeyMaterials.toHmacKeysOnly, against the one the Dafny DB-ESDK builds
 // (SearchInfo.dfy getKeysCache): GetBeaconKey's materials with beaconKey := None and hmacKeys := Some(keyMap).

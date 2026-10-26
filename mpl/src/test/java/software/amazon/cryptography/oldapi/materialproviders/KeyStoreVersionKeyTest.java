@@ -25,14 +25,14 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetActiveBranchKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetBeaconKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetBranchKeyVersionInput;
 import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyInput;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
-import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 
 // VersionKey, native (through the adapter) against the reference, each on its own identically seeded endpoint.
 class KeyStoreVersionKeyTest {

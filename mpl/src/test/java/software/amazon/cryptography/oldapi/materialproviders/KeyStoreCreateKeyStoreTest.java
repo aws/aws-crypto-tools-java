@@ -19,9 +19,9 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
 import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
-import software.amazon.cryptography.oldapi.keystore.model.CreateKeyStoreInput;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
+import software.amazon.cryptography.oldapi.keystore.model.CreateKeyStoreInput;
 
 // CreateKeyStore, native (through the adapter) against the reference, each on its own identically seeded endpoint.
 class KeyStoreCreateKeyStoreTest {

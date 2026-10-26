@@ -4,16 +4,16 @@ package software.amazon.cryptography.oldapi.materialproviders.internal;
 
 import java.util.ArrayList;
 import java.util.List;
+import software.amazon.cryptography.materialproviders.Keyring;
+import software.amazon.cryptography.materialproviders.OnDecryptRequest;
+import software.amazon.cryptography.materialproviders.OnDecryptResponse;
+import software.amazon.cryptography.materialproviders.OnEncryptRequest;
+import software.amazon.cryptography.materialproviders.OnEncryptResponse;
+import software.amazon.cryptography.materialproviders.internal.MaterialsAccess;
 import software.amazon.cryptography.oldapi.materialproviders.IKeyring;
 import software.amazon.cryptography.oldapi.materialproviders.model.EncryptedDataKey;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnDecryptInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnEncryptInput;
-import software.amazon.cryptography.mpl.Keyring;
-import software.amazon.cryptography.mpl.OnDecryptRequest;
-import software.amazon.cryptography.mpl.OnDecryptResponse;
-import software.amazon.cryptography.mpl.OnEncryptRequest;
-import software.amazon.cryptography.mpl.OnEncryptResponse;
-import software.amazon.cryptography.mpl.internal.MaterialsAccess;
 
 /**
  * Test adapter: an old-interface keyring a caller implemented, as a native keyring.
@@ -54,7 +54,7 @@ public final class CustomKeyring implements Keyring {
   @Override
   public OnDecryptResponse onDecrypt(OnDecryptRequest request) {
     List<EncryptedDataKey> edks = new ArrayList<>();
-    for (software.amazon.cryptography.mpl.EncryptedDataKey edk : request.encryptedDataKeys()) {
+    for (software.amazon.cryptography.materialproviders.EncryptedDataKey edk : request.encryptedDataKeys()) {
       edks.add(Convert.edk(edk));
     }
     OnDecryptInput input = OnDecryptInput.builder().materials(Convert.materials(request.materials())).encryptedDataKeys(edks).build();

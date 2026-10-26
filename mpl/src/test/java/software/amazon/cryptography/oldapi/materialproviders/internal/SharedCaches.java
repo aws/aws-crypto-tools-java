@@ -4,6 +4,14 @@ package software.amazon.cryptography.oldapi.materialproviders.internal;
 
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import software.amazon.cryptography.materialproviders.cache.CacheEntry;
+import software.amazon.cryptography.materialproviders.cache.CacheKey;
+import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryRequest;
+import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryResponse;
+import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
+import software.amazon.cryptography.materialproviders.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.materialproviders.cache.PutCacheEntryResponse;
 import software.amazon.cryptography.oldapi.materialproviders.ICryptographicMaterialsCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.DeleteCacheEntryInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.EntryAlreadyExists;
@@ -12,14 +20,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.GetCacheEntry
 import software.amazon.cryptography.oldapi.materialproviders.model.GetCacheEntryOutput;
 import software.amazon.cryptography.oldapi.materialproviders.model.Materials;
 import software.amazon.cryptography.oldapi.materialproviders.model.PutCacheEntryInput;
-import software.amazon.cryptography.mpl.cache.CacheEntry;
-import software.amazon.cryptography.mpl.cache.CacheKey;
-import software.amazon.cryptography.mpl.cache.DeleteCacheEntryRequest;
-import software.amazon.cryptography.mpl.cache.DeleteCacheEntryResponse;
-import software.amazon.cryptography.mpl.cache.GetCacheEntryRequest;
-import software.amazon.cryptography.mpl.cache.GetCacheEntryResponse;
-import software.amazon.cryptography.mpl.cache.PutCacheEntryRequest;
-import software.amazon.cryptography.mpl.cache.PutCacheEntryResponse;
 
 /**
  * Test adapter: an old-API cache given to a hierarchical keyring as {@code Shared}, as a native cache.
@@ -33,11 +33,11 @@ public final class SharedCaches {
 
   private SharedCaches() {}
 
-  public static software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache toNative(ICryptographicMaterialsCache cache) {
+  public static software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache toNative(ICryptographicMaterialsCache cache) {
     return new Customer(cache);
   }
 
-  private static final class Customer implements software.amazon.cryptography.mpl.cache.CryptographicMaterialsCache {
+  private static final class Customer implements software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache {
 
     private final ICryptographicMaterialsCache cache;
 

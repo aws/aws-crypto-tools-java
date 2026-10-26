@@ -5,16 +5,16 @@ package software.amazon.cryptography.oldapi.materialproviders.internal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
+import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsRequest;
 import software.amazon.cryptography.oldapi.materialproviders.model.CommitmentPolicy;
 import software.amazon.cryptography.oldapi.materialproviders.model.DBECommitmentPolicy;
 import software.amazon.cryptography.oldapi.materialproviders.model.DecryptMaterialsInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ESDKCommitmentPolicy;
 import software.amazon.cryptography.oldapi.materialproviders.model.EncryptedDataKey;
 import software.amazon.cryptography.oldapi.materialproviders.model.GetEncryptionMaterialsInput;
-import software.amazon.cryptography.mpl.DecryptMaterialsRequest;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.EsdkCommitmentPolicy;
-import software.amazon.cryptography.mpl.GetEncryptionMaterialsRequest;
 
 /** Test adapter: materials manager requests between the old models and the native core, after the boundary checks. */
 public final class Requests {
@@ -45,7 +45,7 @@ public final class Requests {
 
   public static DecryptMaterialsRequest request(DecryptMaterialsInput input) {
     Boundary.encryptionContext(input.encryptionContext());
-    List<software.amazon.cryptography.mpl.EncryptedDataKey> edks = new ArrayList<>();
+    List<software.amazon.cryptography.materialproviders.EncryptedDataKey> edks = new ArrayList<>();
     for (EncryptedDataKey edk : input.encryptedDataKeys()) {
       edks.add(Convert.edk(Boundary.encryptedDataKey(edk)));
     }
@@ -77,7 +77,7 @@ public final class Requests {
 
   public static DecryptMaterialsInput input(DecryptMaterialsRequest request) {
     List<EncryptedDataKey> edks = new ArrayList<>();
-    for (software.amazon.cryptography.mpl.EncryptedDataKey edk : request.encryptedDataKeys()) {
+    for (software.amazon.cryptography.materialproviders.EncryptedDataKey edk : request.encryptedDataKeys()) {
       edks.add(Convert.edk(edk));
     }
     return DecryptMaterialsInput
@@ -90,7 +90,7 @@ public final class Requests {
       .build();
   }
 
-  private static CommitmentPolicy policy(software.amazon.cryptography.mpl.CommitmentPolicy policy) {
+  private static CommitmentPolicy policy(software.amazon.cryptography.materialproviders.CommitmentPolicy policy) {
     return policy instanceof EsdkCommitmentPolicy
       ? CommitmentPolicy.builder().ESDK(ESDKCommitmentPolicy.valueOf(((EsdkCommitmentPolicy) policy).name())).build()
       : CommitmentPolicy.builder().DBE(DBECommitmentPolicy.valueOf(((Enum<?>) policy).name())).build();

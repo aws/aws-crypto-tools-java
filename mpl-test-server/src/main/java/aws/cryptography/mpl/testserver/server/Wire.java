@@ -8,16 +8,16 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import software.amazon.cryptography.mpl.AlgorithmSuite;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptedDataKey;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.EncryptionMaterials;
-import software.amazon.cryptography.mpl.EsdkCommitmentPolicy;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.keyrings.AesWrappingAlg;
-import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.mpl.keyrings.PaddingScheme;
+import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DecryptionMaterials;
+import software.amazon.cryptography.materialproviders.EncryptedDataKey;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
 
 /**
  * Model shapes to native MPL values and back. The model carries ESDK suites and commitment

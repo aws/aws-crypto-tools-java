@@ -1,6 +1,7 @@
 // rpcv2Cbor HTTP Language_Server for the MPL TestServer (commons repository,
 // mpl/test-server/model/mpl-test-server.smithy). Every operation delegates to the
-// public API of the native Java MPL (software.amazon.cryptography.mpl), built from ../mpl.
+// public API of the native Java MPL (software.amazon.cryptography.materialproviders and
+// software.amazon.cryptography.keystore), built from ../mpl.
 //
 // The server source compiles for Java 8, like the library, so the server can run on any JDK
 // the library supports. The orchestrator launches it with `./gradlew runServer --args=<port>`
@@ -19,7 +20,7 @@ val junitVersion: String by project
 
 dependencies {
     // Substituted by the included ../mpl build.
-    implementation("software.amazon.cryptography:mpl-native-java:0.1.0-SNAPSHOT")
+    implementation("software.amazon.cryptography:aws-cryptographic-material-providers:2.0.0-SNAPSHOT")
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jacksonVersion")
 

@@ -13,7 +13,7 @@ public final class CustomClientSupplier {
   private CustomClientSupplier() {}
 
   /** The native supplier behind an old-interface supplier; a caller's exception crosses as the old API wrapped it. */
-  public static software.amazon.cryptography.mpl.keyrings.ClientSupplier of(IClientSupplier supplier) {
+  public static software.amazon.cryptography.materialproviders.keyrings.ClientSupplier of(IClientSupplier supplier) {
     if (supplier instanceof ClientSupplier) {
       return of(((ClientSupplier) supplier).impl());
     }
@@ -30,15 +30,15 @@ public final class CustomClientSupplier {
   }
 
   /** A native supplier behind the old interface. */
-  public static IClientSupplier toOld(software.amazon.cryptography.mpl.keyrings.ClientSupplier supplier) {
+  public static IClientSupplier toOld(software.amazon.cryptography.materialproviders.keyrings.ClientSupplier supplier) {
     return new Native(supplier);
   }
 
   private static final class Native implements IClientSupplier {
 
-    final software.amazon.cryptography.mpl.keyrings.ClientSupplier supplier;
+    final software.amazon.cryptography.materialproviders.keyrings.ClientSupplier supplier;
 
-    Native(software.amazon.cryptography.mpl.keyrings.ClientSupplier supplier) {
+    Native(software.amazon.cryptography.materialproviders.keyrings.ClientSupplier supplier) {
       this.supplier = supplier;
     }
 

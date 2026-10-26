@@ -26,13 +26,13 @@ import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyStoreInput;
 import software.amazon.cryptography.oldapi.keystore.model.GetActiveBranchKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
-import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 import software.amazon.cryptography.oldapi.primitives.model.RSAEncryptInput;
 import software.amazon.cryptography.oldapi.primitives.model.RSAPaddingMode;
 

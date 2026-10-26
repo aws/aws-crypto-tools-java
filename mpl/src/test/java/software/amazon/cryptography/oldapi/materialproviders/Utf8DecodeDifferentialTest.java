@@ -11,9 +11,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.mpl.EncryptedDataKey;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.EncryptedDataKey;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
 // EncryptionContext.fromUtf8 and EncryptedDataKey.ofUtf8 accept exactly the bytes the reference's UTF8.Decode accepts,
 // and decode them to the same string. The Dafny DB-ESDK decodes header contexts and provider ids with UTF8.Decode.

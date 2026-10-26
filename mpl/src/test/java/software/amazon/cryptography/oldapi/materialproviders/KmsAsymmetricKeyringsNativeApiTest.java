@@ -23,22 +23,22 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
-import software.amazon.cryptography.mpl.AlgorithmSuite;
-import software.amazon.cryptography.mpl.DecryptionMaterials;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.EncryptionMaterials;
-import software.amazon.cryptography.mpl.exceptions.AccessDeniedException;
-import software.amazon.cryptography.mpl.exceptions.EncryptionContextMismatchException;
-import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
-import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
-import software.amazon.cryptography.mpl.exceptions.ServiceException;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsEcdhKeyring;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsRsaKeyring;
-import software.amazon.cryptography.mpl.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.mpl.keyrings.KmsEcdhStaticConfigurations;
-import software.amazon.cryptography.mpl.OnDecryptRequest;
-import software.amazon.cryptography.mpl.OnEncryptRequest;
+import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DecryptionMaterials;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.exceptions.AccessDeniedException;
+import software.amazon.cryptography.materialproviders.exceptions.EncryptionContextMismatchException;
+import software.amazon.cryptography.materialproviders.exceptions.MaterialProvidersException;
+import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
+import software.amazon.cryptography.materialproviders.exceptions.ServiceException;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.OnDecryptRequest;
+import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 
 // What the new API adds over the old one for the KMS RSA and ECDH keyrings, which the differential tests cannot see:
 // builder and configuration checks, copies, accessors, and error kinds with the SDK exception as cause.

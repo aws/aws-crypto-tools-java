@@ -6,6 +6,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import software.amazon.cryptography.materialproviders.DbeCommitmentPolicy;
+import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.internal.MaterialsRules;
 import software.amazon.cryptography.oldapi.materialproviders.model.AlgorithmSuiteId;
 import software.amazon.cryptography.oldapi.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.oldapi.materialproviders.model.CommitmentPolicy;
@@ -24,10 +28,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.IntermediateK
 import software.amazon.cryptography.oldapi.materialproviders.model.None;
 import software.amazon.cryptography.oldapi.materialproviders.model.SignatureAlgorithm;
 import software.amazon.cryptography.oldapi.materialproviders.model.SymmetricSignatureAlgorithm;
-import software.amazon.cryptography.mpl.DbeCommitmentPolicy;
-import software.amazon.cryptography.mpl.EsdkCommitmentPolicy;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.internal.MaterialsRules;
 import software.amazon.cryptography.oldapi.primitives.model.AES_GCM;
 import software.amazon.cryptography.oldapi.primitives.model.DigestAlgorithm;
 import software.amazon.cryptography.oldapi.primitives.model.ECDSASignatureAlgorithm;
@@ -40,25 +40,25 @@ public final class Convert {
 
   private Convert() {}
 
-  public static software.amazon.cryptography.mpl.AlgorithmSuite suite(AlgorithmSuiteId id) {
+  public static software.amazon.cryptography.materialproviders.AlgorithmSuite suite(AlgorithmSuiteId id) {
     String name = id.ESDK() != null ? id.ESDK().name() : id.DBE().name();
-    return software.amazon.cryptography.mpl.AlgorithmSuite.valueOf(name);
+    return software.amazon.cryptography.materialproviders.AlgorithmSuite.valueOf(name);
   }
 
-  public static AlgorithmSuiteId id(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
-    return suite.format() == software.amazon.cryptography.mpl.AlgorithmSuite.Format.ESDK
+  public static AlgorithmSuiteId id(software.amazon.cryptography.materialproviders.AlgorithmSuite suite) {
+    return suite.format() == software.amazon.cryptography.materialproviders.AlgorithmSuite.Format.ESDK
       ? AlgorithmSuiteId.builder().ESDK(ESDKAlgorithmSuiteId.valueOf(suite.name())).build()
       : AlgorithmSuiteId.builder().DBE(DBEAlgorithmSuiteId.valueOf(suite.name())).build();
   }
 
-  public static software.amazon.cryptography.mpl.CommitmentPolicy policy(CommitmentPolicy policy) {
+  public static software.amazon.cryptography.materialproviders.CommitmentPolicy policy(CommitmentPolicy policy) {
     return policy.ESDK() != null
       ? EsdkCommitmentPolicy.valueOf(policy.ESDK().name())
       : DbeCommitmentPolicy.valueOf(policy.DBE().name());
   }
 
   /** The old-shape suite description, built only from the native enum's accessors. */
-  public static AlgorithmSuiteInfo info(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
+  public static AlgorithmSuiteInfo info(software.amazon.cryptography.materialproviders.AlgorithmSuite suite) {
     DerivationAlgorithm kdf = kdf(suite);
     return AlgorithmSuiteInfo
       .builder()
@@ -99,8 +99,8 @@ public final class Convert {
       .build();
   }
 
-  private static DerivationAlgorithm kdf(software.amazon.cryptography.mpl.AlgorithmSuite suite) {
-    if (suite.keyDerivation() == software.amazon.cryptography.mpl.AlgorithmSuite.KeyDerivation.IDENTITY) {
+  private static DerivationAlgorithm kdf(software.amazon.cryptography.materialproviders.AlgorithmSuite suite) {
+    if (suite.keyDerivation() == software.amazon.cryptography.materialproviders.AlgorithmSuite.KeyDerivation.IDENTITY) {
       return DerivationAlgorithm.builder().IDENTITY(software.amazon.cryptography.oldapi.materialproviders.model.IDENTITY.builder().build()).build();
     }
     DigestAlgorithm hmac = DigestAlgorithm.valueOf(suite.keyDerivation().name().substring("HKDF_".length()).replace("SHA", "SHA_"));
@@ -122,15 +122,15 @@ public final class Convert {
     return Encrypt.builder().AES_GCM(AES_GCM.builder().keyLength(keyLength).tagLength(tagLength).ivLength(ivLength).build()).build();
   }
 
-  public static software.amazon.cryptography.mpl.EncryptedDataKey edk(EncryptedDataKey edk) {
-    return software.amazon.cryptography.mpl.EncryptedDataKey.of(
+  public static software.amazon.cryptography.materialproviders.EncryptedDataKey edk(EncryptedDataKey edk) {
+    return software.amazon.cryptography.materialproviders.EncryptedDataKey.of(
       edk.keyProviderId(),
       Buffers.toArray(edk.keyProviderInfo()),
       Buffers.toArray(edk.ciphertext())
     );
   }
 
-  public static EncryptedDataKey edk(software.amazon.cryptography.mpl.EncryptedDataKey edk) {
+  public static EncryptedDataKey edk(software.amazon.cryptography.materialproviders.EncryptedDataKey edk) {
     return EncryptedDataKey
       .builder()
       .keyProviderId(edk.keyProviderId())
@@ -141,7 +141,7 @@ public final class Convert {
 
   /** Raw fields of old-shape materials whose suite description is valid. */
   public static MaterialsRules.Encryption fields(EncryptionMaterials m) {
-    List<software.amazon.cryptography.mpl.EncryptedDataKey> edks = new ArrayList<>();
+    List<software.amazon.cryptography.materialproviders.EncryptedDataKey> edks = new ArrayList<>();
     for (EncryptedDataKey edk : m.encryptedDataKeys()) {
       edks.add(edk(edk));
     }
@@ -173,9 +173,9 @@ public final class Convert {
     );
   }
 
-  public static EncryptionMaterials materials(software.amazon.cryptography.mpl.EncryptionMaterials m) {
+  public static EncryptionMaterials materials(software.amazon.cryptography.materialproviders.EncryptionMaterials m) {
     List<EncryptedDataKey> edks = new ArrayList<>();
-    for (software.amazon.cryptography.mpl.EncryptedDataKey edk : m.encryptedDataKeys()) {
+    for (software.amazon.cryptography.materialproviders.EncryptedDataKey edk : m.encryptedDataKeys()) {
       edks.add(edk(edk));
     }
     List<ByteBuffer> symmetric = null;
@@ -197,7 +197,7 @@ public final class Convert {
       .build();
   }
 
-  public static DecryptionMaterials materials(software.amazon.cryptography.mpl.DecryptionMaterials m) {
+  public static DecryptionMaterials materials(software.amazon.cryptography.materialproviders.DecryptionMaterials m) {
     return DecryptionMaterials
       .builder()
       .algorithmSuite(info(m.algorithmSuite()))

@@ -18,7 +18,7 @@ import java.util.Base64;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
 /**
  * The server over real HTTP: each operation against the native MPL, the handle and error contract,

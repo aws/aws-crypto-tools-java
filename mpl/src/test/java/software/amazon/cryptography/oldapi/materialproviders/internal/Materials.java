@@ -3,15 +3,15 @@
 package software.amazon.cryptography.oldapi.materialproviders.internal;
 
 import java.util.ArrayList;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.MaterialsRules;
 import software.amazon.cryptography.oldapi.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.oldapi.materialproviders.model.DecryptionMaterials;
 import software.amazon.cryptography.oldapi.materialproviders.model.EncryptionMaterials;
 import software.amazon.cryptography.oldapi.materialproviders.model.InitializeDecryptionMaterialsInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.InitializeEncryptionMaterialsInput;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.SecretBytes;
-import software.amazon.cryptography.mpl.exceptions.ValidationException;
-import software.amazon.cryptography.mpl.internal.MaterialsRules;
 
 /**
  * Test adapter: the old materials operations, implemented on the native core.
@@ -25,10 +25,10 @@ public final class Materials {
   public static EncryptionMaterials initializeEncryptionMaterials(InitializeEncryptionMaterialsInput input) {
     Boundary.encryptionContext(input.encryptionContext());
     Boundary.utf8List(input.requiredEncryptionContextKeys());
-    software.amazon.cryptography.mpl.AlgorithmSuite suite = Convert.suite(input.algorithmSuiteId());
+    software.amazon.cryptography.materialproviders.AlgorithmSuite suite = Convert.suite(input.algorithmSuiteId());
     SecretBytes signingKey = input.signingKey() == null ? null : SecretBytes.copyOf(Buffers.toArray(input.signingKey()));
     byte[] verificationKey = input.verificationKey() == null ? null : Buffers.toArray(input.verificationKey());
-    software.amazon.cryptography.mpl.EncryptionMaterials.Builder builder = software.amazon.cryptography.mpl.EncryptionMaterials
+    software.amazon.cryptography.materialproviders.EncryptionMaterials.Builder builder = software.amazon.cryptography.materialproviders.EncryptionMaterials
       .builder(suite)
       .encryptionContext(EncryptionContext.copyOf(input.encryptionContext()))
       .requiredEncryptionContextKeys(input.requiredEncryptionContextKeys());
@@ -56,7 +56,7 @@ public final class Materials {
     Boundary.utf8List(input.requiredEncryptionContextKeys());
     try {
       return Convert.materials(
-        software.amazon.cryptography.mpl.DecryptionMaterials
+        software.amazon.cryptography.materialproviders.DecryptionMaterials
           .builder(Convert.suite(input.algorithmSuiteId()))
           .encryptionContext(EncryptionContext.copyOf(input.encryptionContext()))
           .requiredEncryptionContextKeys(input.requiredEncryptionContextKeys())

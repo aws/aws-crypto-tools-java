@@ -205,10 +205,10 @@ public enum AlgorithmSuite {
 
   /** The suite with the given 2-byte message format id. */
   public static AlgorithmSuite ofBinaryId(byte[] binaryId) {
-    software.amazon.cryptography.mpl.AlgorithmSuite core;
+    software.amazon.cryptography.materialproviders.AlgorithmSuite core;
     try {
-      core = software.amazon.cryptography.mpl.AlgorithmSuite.fromBinaryId(binaryId);
-    } catch (software.amazon.cryptography.mpl.exceptions.ValidationException e) {
+      core = software.amazon.cryptography.materialproviders.AlgorithmSuite.fromBinaryId(binaryId);
+    } catch (software.amazon.cryptography.materialproviders.exceptions.ValidationException e) {
       throw AwsCryptographicMaterialProvidersException.builder().message(e.getMessage()).build();
     }
     for (AlgorithmSuite suite : values()) {

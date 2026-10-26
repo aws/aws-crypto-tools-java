@@ -1,5 +1,7 @@
 // Native (non-Dafny) Java implementation of the AWS Cryptographic Material Providers Library,
-// with an idiomatic API in software.amazon.cryptography.mpl.
+// with an idiomatic API in software.amazon.cryptography.materialproviders and software.amazon.cryptography.keystore.
+// It replaces the Dafny-based MPL as major version 2 of the same artifact, in the same packages;
+// the two are not meant to share a classpath.
 // Behavioral reference: the Dafny source on aws-cryptographic-material-providers-library `main`;
 // the published Dafny-based MPL (`referenceMplVersion`) is the differential-test oracle.
 //
@@ -10,7 +12,7 @@ plugins {
 }
 
 group = "software.amazon.cryptography"
-version = "0.1.0-SNAPSHOT"
+version = "2.0.0-SNAPSHOT"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(8))
@@ -22,13 +24,15 @@ repositories {
 
 val junitVersion: String by project
 val awsSdkVersion: String by project
-val referenceMplVersion: String by project
 val jacksonVersion: String by project
 
-// The published Dafny-based MPL and its runtime dependencies.
-// Kept off every compile and runtime classpath: it declares the same class names as this module.
+// The published Dafny-based MPL (this artifact's 1.x line) and its runtime dependencies, copied here by :reference-mpl.
+// Kept off every compile and runtime classpath: it declares the same packages and some of the same class names as this module.
 // The differential tests load it in an isolated class loader (ReferenceMpl).
-val referenceMpl: Configuration by configurations.creating
+val referenceMpl = layout.buildDirectory.dir("reference-mpl")
+val referenceMplClasspath = CommandLineArgumentProvider {
+    listOf("-Dmpl.reference.classpath=" + referenceMpl.get().asFileTree.files.sorted().joinToString(File.pathSeparator))
+}
 
 // Usage examples, written as the ESDK and DB-ESDK (and their customers) would use the library.
 // They compile against the public API only; the tests run them against the in-process fake AWS endpoint.
@@ -62,8 +66,6 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // Reads the JSON test vectors under src/test/resources/vectors.
     testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
-
-    referenceMpl("software.amazon.cryptography:aws-cryptographic-material-providers:$referenceMplVersion")
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -73,8 +75,9 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
-    inputs.files(referenceMpl)
-    systemProperty("mpl.reference.classpath", referenceMpl.asPath)
+    dependsOn(":reference-mpl:classpath")
+    inputs.dir(referenceMpl)
+    jvmArgumentProviders.add(referenceMplClasspath)
 }
 
 tasks.check {
@@ -87,7 +90,8 @@ tasks.register<Test>("integrationTest") {
     testClassesDirs = integrationTest.output.classesDirs
     classpath = integrationTest.runtimeClasspath
     useJUnitPlatform()
-    systemProperty("mpl.reference.classpath", referenceMpl.asPath)
+    dependsOn(":reference-mpl:classpath")
+    jvmArgumentProviders.add(referenceMplClasspath)
     val profile = System.getenv("MPL_IT_PROFILE")
     onlyIf("MPL_IT_PROFILE is set") { profile != null }
     // The default client suppliers and key store clients of both MPLs use the default credential chain.

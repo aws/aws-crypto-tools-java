@@ -21,12 +21,13 @@ import java.util.Map;
 import java.util.function.LongFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.oldapi.keystore.KeyStore;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyInput;
 import software.amazon.cryptography.oldapi.materialproviders.HierarchicalHarness.Supplier;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
-import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 import software.amazon.cryptography.oldapi.materialproviders.internal.Convert;
 import software.amazon.cryptography.oldapi.materialproviders.model.AlgorithmSuiteId;
 import software.amazon.cryptography.oldapi.materialproviders.model.AwsCryptographicMaterialProvidersException;
@@ -41,7 +42,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.NoCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.SingleThreadedCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.StormTrackingCache;
 import software.amazon.cryptography.oldapi.materialproviders.model.TimeUnits;
-import software.amazon.cryptography.mpl.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
  * Differential tests of the hierarchical keyring against the published Dafny-based MPL:
@@ -127,7 +127,7 @@ class HierarchicalKeyringTest {
     for (TimeUnits units : new TimeUnits[] { TimeUnits.Seconds, TimeUnits.Milliseconds }) {
       LongFunction<Duration> unit = units == TimeUnits.Seconds ? Duration::ofSeconds : Duration::ofMillis;
       for (int grace : new int[] { 1, 5, 999, 1000, 5999 }) {
-        software.amazon.cryptography.mpl.cache.StormTrackingCache settings = software.amazon.cryptography.mpl.cache.StormTrackingCache
+        software.amazon.cryptography.materialproviders.cache.StormTrackingCache settings = software.amazon.cryptography.materialproviders.cache.StormTrackingCache
           .builder()
           .entryCapacity(10)
           .entryPruningTailSize(1)
@@ -146,7 +146,7 @@ class HierarchicalKeyringTest {
                 .keyStore(input.keyStore().impl())
                 .branchKeyId(branchKey)
                 .ttl(Duration.ofSeconds(ttl))
-                .cache(software.amazon.cryptography.mpl.cache.CacheType.stormTracking(settings))
+                .cache(software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(settings))
                 .build() == null
               ? null
               : "keyring"
@@ -185,8 +185,8 @@ class HierarchicalKeyringTest {
               .branchKeyId(branchKey)
               .ttl(Duration.ofSeconds(ttl))
               .cache(
-                software.amazon.cryptography.mpl.cache.CacheType.stormTracking(
-                  software.amazon.cryptography.mpl.cache.StormTrackingCache
+                software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(
+                  software.amazon.cryptography.materialproviders.cache.StormTrackingCache
                     .builder()
                     .entryCapacity(10)
                     .gracePeriod(Duration.ofMillis(times[0]))

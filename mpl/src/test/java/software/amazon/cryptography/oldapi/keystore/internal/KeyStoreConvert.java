@@ -10,6 +10,11 @@ import java.util.function.Supplier;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.dynamodb.model.InternalServerErrorException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
+import software.amazon.cryptography.keystore.KmsConfiguration;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.exceptions.MaterialProvidersException;
 import software.amazon.cryptography.oldapi.keystore.model.BeaconKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.BranchKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.Discovery;
@@ -19,11 +24,6 @@ import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreException;
 import software.amazon.cryptography.oldapi.keystore.model.MRDiscovery;
 import software.amazon.cryptography.oldapi.materialproviders.internal.Boundary;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.exceptions.MaterialProvidersException;
-import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
-import software.amazon.cryptography.mpl.keystore.GetKeyStoreInfoResponse;
-import software.amazon.cryptography.mpl.keystore.KmsConfiguration;
 
 /** Test adapter: old key store models to and from the native key store, and native exceptions as the old API threw them. */
 public final class KeyStoreConvert {
@@ -124,7 +124,7 @@ public final class KeyStoreConvert {
     }
   }
 
-  public static BranchKeyMaterials toOld(software.amazon.cryptography.mpl.keystore.BranchKeyMaterials materials) {
+  public static BranchKeyMaterials toOld(software.amazon.cryptography.keystore.BranchKeyMaterials materials) {
     return BranchKeyMaterials.builder()
       .branchKeyIdentifier(materials.branchKeyIdentifier())
       .branchKeyVersion(materials.branchKeyVersion())
@@ -134,7 +134,7 @@ public final class KeyStoreConvert {
   }
 
   /** The key store derives no HMAC keys, so they stay unset, as in the Dafny-based store. */
-  public static BeaconKeyMaterials toOld(software.amazon.cryptography.mpl.keystore.BeaconKeyMaterials materials) {
+  public static BeaconKeyMaterials toOld(software.amazon.cryptography.keystore.BeaconKeyMaterials materials) {
     return BeaconKeyMaterials.builder()
       .beaconKeyIdentifier(materials.beaconKeyIdentifier())
       .encryptionContext(new HashMap<>(materials.encryptionContext()))

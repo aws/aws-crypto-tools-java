@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import software.amazon.cryptography.materialproviders.internal.primitives.Ecdsa;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
 import software.amazon.cryptography.oldapi.materialproviders.model.AesWrappingAlg;
@@ -33,7 +34,6 @@ import software.amazon.cryptography.oldapi.materialproviders.model.GetEncryption
 import software.amazon.cryptography.oldapi.materialproviders.model.GetEncryptionMaterialsOutput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnDecryptOutput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnEncryptOutput;
-import software.amazon.cryptography.mpl.internal.primitives.Ecdsa;
 
 // Differential tests of the default CMM against the published Dafny-based MPL.
 // Signing key pairs and data keys are random: encryption results are compared with them masked,
@@ -248,7 +248,7 @@ class DefaultCmmTest {
 
   // The signing key signs what the verification key in the context verifies.
   private static void assertSigningKeyPairMatches(EncryptionMaterials materials, String label) {
-    software.amazon.cryptography.mpl.AlgorithmSuite suite = software.amazon.cryptography.oldapi.materialproviders.internal.Convert.suite(
+    software.amazon.cryptography.materialproviders.AlgorithmSuite suite = software.amazon.cryptography.oldapi.materialproviders.internal.Convert.suite(
       materials.algorithmSuite().id()
     );
     if (!suite.signature().isPresent()) {

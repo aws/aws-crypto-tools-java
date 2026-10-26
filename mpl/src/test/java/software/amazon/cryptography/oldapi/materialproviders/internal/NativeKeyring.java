@@ -14,12 +14,12 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
 import software.amazon.cryptography.oldapi.materialproviders.model.AwsCryptographicMaterialProvidersException;
-import software.amazon.cryptography.mpl.Keyring;
-import software.amazon.cryptography.mpl.OnDecryptRequest;
-import software.amazon.cryptography.mpl.OnEncryptRequest;
-import software.amazon.cryptography.mpl.exceptions.NoMatchingDataKeyException;
-import software.amazon.cryptography.mpl.internal.KeyringNames;
-import software.amazon.cryptography.mpl.internal.MaterialsAccess;
+import software.amazon.cryptography.materialproviders.Keyring;
+import software.amazon.cryptography.materialproviders.OnDecryptRequest;
+import software.amazon.cryptography.materialproviders.OnEncryptRequest;
+import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
+import software.amazon.cryptography.materialproviders.internal.KeyringNames;
+import software.amazon.cryptography.materialproviders.internal.MaterialsAccess;
 
 /** Test adapter: a native keyring behind the old keyring interface. */
 public final class NativeKeyring implements IKeyring {
@@ -50,7 +50,7 @@ public final class NativeKeyring implements IKeyring {
   @Override
   public OnDecryptOutput OnDecrypt(OnDecryptInput input) {
     Boundary.decryptionMaterials(input.materials());
-    List<software.amazon.cryptography.mpl.EncryptedDataKey> edks = new ArrayList<>();
+    List<software.amazon.cryptography.materialproviders.EncryptedDataKey> edks = new ArrayList<>();
     for (EncryptedDataKey edk : input.encryptedDataKeys()) {
       edks.add(Convert.edk(Boundary.encryptedDataKey(edk)));
     }
@@ -86,8 +86,8 @@ public final class NativeKeyring implements IKeyring {
   // on the first that was not (a Raw AES key's always is not), before reaching any later key's structure check.
   // The native message shows such info as hex instead.
   private static void dafnyIncorrectDataKeysFailure(
-    List<software.amazon.cryptography.mpl.EncryptedDataKey> edks,
-    software.amazon.cryptography.mpl.AlgorithmSuite suite
+    List<software.amazon.cryptography.materialproviders.EncryptedDataKey> edks,
+    software.amazon.cryptography.materialproviders.AlgorithmSuite suite
   ) {
     for (int i = 0; i < edks.size(); i++) {
       if (!isUtf8(edks.get(i).keyProviderInfo())) {

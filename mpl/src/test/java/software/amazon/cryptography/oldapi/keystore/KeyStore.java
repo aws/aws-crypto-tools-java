@@ -4,6 +4,8 @@ package software.amazon.cryptography.oldapi.keystore;
 
 import java.util.Objects;
 import java.util.function.Supplier;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.oldapi.keystore.internal.KeyStoreConvert;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyOutput;
@@ -19,8 +21,6 @@ import software.amazon.cryptography.oldapi.keystore.model.GetKeyStoreInfoOutput;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyOutput;
-import software.amazon.cryptography.mpl.EncryptionContext;
-import software.amazon.cryptography.mpl.keystore.BranchKeyStore;
 
 /** Test adapter: the Dafny-shaped key store client on top of {@link BranchKeyStore}. */
 public class KeyStore {

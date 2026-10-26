@@ -4,9 +4,9 @@ package software.amazon.cryptography.oldapi.materialproviders;
 
 import java.util.ArrayList;
 import java.util.function.Function;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.oldapi.keystore.model.KMSConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.oldapi.materialproviders.model.GetClientInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnDecryptInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.OnDecryptOutput;

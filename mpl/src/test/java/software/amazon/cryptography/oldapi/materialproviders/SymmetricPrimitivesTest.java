@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 import javax.crypto.AEADBadTagException;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.oldapi.primitives.AtomicPrimitives;
-import software.amazon.cryptography.mpl.internal.primitives.KdfCounterMode;
+import software.amazon.cryptography.materialproviders.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.oldapi.primitives.model.AESDecryptInput;
 import software.amazon.cryptography.oldapi.primitives.model.AESEncryptInput;
 import software.amazon.cryptography.oldapi.primitives.model.AESEncryptOutput;
@@ -373,7 +373,7 @@ class SymmetricPrimitivesTest {
     JsonNode vectors = vectors("kdf-counter-mode.json");
     for (JsonNode vector : vectors.get("raw")) {
       byte[] okm = KdfCounterMode.derive(
-        software.amazon.cryptography.mpl.internal.primitives.DigestAlgorithm.valueOf(vector.get("hash").asText()),
+        software.amazon.cryptography.materialproviders.internal.primitives.DigestAlgorithm.valueOf(vector.get("hash").asText()),
         hex(vector.get("IKM")),
         hex(vector.get("info")),
         vector.get("L").asInt()
