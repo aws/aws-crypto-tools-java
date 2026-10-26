@@ -4,13 +4,17 @@ The old-API model classes and extension interfaces under `src/test/java` are cop
 smithy-generated Java of the Dafny-based MPL, not written by hand. They are test-only: the test adapter
 implements the old API on the native core so the differential tests can compare it with the Dafny-based MPL.
 
-- `software/amazon/cryptography/materialproviders/model/**`
-- `software/amazon/cryptography/keystore/model/**`
-- `software/amazon/cryptography/primitives/model/**`
-- `software/amazon/cryptography/materialproviders/I{Keyring,CryptographicMaterialsManager,CryptographicMaterialsCache,ClientSupplier,BranchKeyIdSupplier}.java`
+- `software/amazon/cryptography/oldapi/materialproviders/model/**`
+- `software/amazon/cryptography/oldapi/keystore/model/**`
+- `software/amazon/cryptography/oldapi/primitives/model/**`
+- `software/amazon/cryptography/oldapi/materialproviders/I{Keyring,CryptographicMaterialsManager,CryptographicMaterialsCache,ClientSupplier,BranchKeyIdSupplier}.java`
 
 They reference no Dafny types.
-The copy drops one line per file: the "machine generated, do not modify" header.
+Upstream, they live at the same paths without `oldapi/`.
+The main sources own the upstream package names, so the copy moves the files under `oldapi`
+and adds `oldapi.` to their `package` and `import` lines.
+It also drops one line per file: the "machine generated, do not modify" header.
+The rest of the old-API test code (the adapter, its tests, and the reference oracle) lives under `oldapi` too.
 
 | Source repository | Ref |
 |---|---|
