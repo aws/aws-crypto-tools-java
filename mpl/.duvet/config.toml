@@ -1,0 +1,104 @@
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "./src/main/java/**/*.java"
+
+[[source]]
+pattern = "./src/test/java/**/*.java"
+
+[[source]]
+pattern = "./src/integrationTest/java/**/*.java"
+
+# The master key specifications (framework/master-key-interface.md, master-key-provider-interface.md,
+# aws-kms/aws-kms-mrk-aware-master-key.md, aws-kms/aws-kms-mrk-aware-master-key-provider.md) are not listed:
+# master keys are legacy AWS Encryption SDK types, implemented in the ESDK, not in this library.
+
+[[specification]]
+source = "spec/framework/algorithm-suites.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-discovery-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-ecdh-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-hierarchical-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-key-arn.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-mrk-are-unique.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-mrk-discovery-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-mrk-keyring.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-mrk-match-for-decrypt.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-mrk-multi-keyrings.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-multi-keyrings.md"
+
+[[specification]]
+source = "spec/framework/aws-kms/aws-kms-rsa-keyring.md"
+
+[[specification]]
+source = "spec/framework/branch-key-store.md"
+
+[[specification]]
+source = "spec/framework/cmm-interface.md"
+
+[[specification]]
+source = "spec/framework/commitment-policy.md"
+
+[[specification]]
+source = "spec/framework/cryptographic-materials-cache.md"
+
+[[specification]]
+source = "spec/framework/default-cmm.md"
+
+[[specification]]
+source = "spec/framework/key-agreement-schemas.md"
+
+[[specification]]
+source = "spec/framework/keyring-interface.md"
+
+[[specification]]
+source = "spec/framework/local-cryptographic-materials-cache.md"
+
+[[specification]]
+source = "spec/framework/multi-keyring.md"
+
+[[specification]]
+source = "spec/framework/raw-aes-keyring.md"
+
+[[specification]]
+source = "spec/framework/raw-ecdh-keyring.md"
+
+[[specification]]
+source = "spec/framework/raw-rsa-keyring.md"
+
+[[specification]]
+source = "spec/framework/required-encryption-context-cmm.md"
+
+[[specification]]
+source = "spec/framework/structures.md"
+
+[report.html]
+enabled = true
+
+[report.json]
+enabled = true
+
+[report.snapshot]
+enabled = false
