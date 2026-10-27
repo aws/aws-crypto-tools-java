@@ -7,9 +7,9 @@ import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.kms.model.InvalidCiphertextException;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
-import software.amazon.cryptography.dbencryptionsdk.structuredencryption.StructuredEncryptionException;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.model.InvalidCiphertextException;
+import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredEncryptionException;
 
 public final class ManipulationUtils {
 
@@ -53,8 +53,8 @@ public final class ManipulationUtils {
   }
 
   // Assert a manipulated key attribute fails specifically because it is bound into the encryption
-  // context. Every keyring attempt fails, surfacing as InvalidCiphertextException directly from
-  // KMS. Anything else is the wrong failure.
+  // context. Every keyring attempt fails, surfacing as the DB-ESDK InvalidCiphertextException.
+  // Anything else is the wrong failure.
   public static void assertProtectedByEncryptionContext(
     final DynamoDbItemEncryptor itemEncryptor,
     final Map<String, AttributeValue> manipulated,
