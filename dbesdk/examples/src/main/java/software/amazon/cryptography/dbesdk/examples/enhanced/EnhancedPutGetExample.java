@@ -164,7 +164,9 @@ public class EnhancedPutGetExample {
       );
 
     // Demonstrate we get the original item back
-    assert result.getAttribute1().equals("encrypt and sign me!");
+    if (!(result.getAttribute1().equals("encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
 
     // retrieve the same record via a Query
     final PageIterable<SimpleClass4> items = table.query(
@@ -174,8 +176,12 @@ public class EnhancedPutGetExample {
     );
     final List<SimpleClass4> itemList = new ArrayList<>();
     items.stream().forEach(p -> p.items().forEach(itemList::add));
-    assert itemList.size() == 1;
-    assert itemList.get(0).getAttribute1().equals("encrypt and sign me!");
+    if (!(itemList.size() == 1)) {
+      throw new AssertionError();
+    }
+    if (!(itemList.get(0).getAttribute1().equals("encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

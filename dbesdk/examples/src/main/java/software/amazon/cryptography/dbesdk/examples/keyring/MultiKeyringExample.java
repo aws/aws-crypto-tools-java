@@ -195,7 +195,9 @@ public class MultiKeyringExample {
     final PutItemResponse putResponse = ddbClient.putItem(putRequest);
 
     // Demonstrate that PutItem succeeded
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // 10. Get the item back from our table using the above client.
     //     The client will decrypt the item client-side using the AWS KMS
@@ -221,12 +223,15 @@ public class MultiKeyringExample {
     final GetItemResponse getResponse = ddbClient.getItem(getRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == getResponse.sdkHttpResponse().statusCode();
+    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> returnedItem = getResponse.item();
-    assert returnedItem
-      .get("sensitive_data")
-      .s()
-      .equals("encrypt and sign me!");
+    if (
+      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
+    ) {
+      throw new AssertionError();
+    }
 
     // 11. Create a new config and client with only the raw AES keyring to GET the item
     //     This is the same setup as above, except the config uses the `rawAesKeyring`.
@@ -290,13 +295,19 @@ public class MultiKeyringExample {
       onlyAesKeyringDdbClient.getItem(onlyAesKeyringGetRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == onlyAesKeyringGetResponse.sdkHttpResponse().statusCode();
+    if (!(200 == onlyAesKeyringGetResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> onlyAesKeyringReturnedItem =
       onlyAesKeyringGetResponse.item();
-    assert onlyAesKeyringReturnedItem
-      .get("sensitive_data")
-      .s()
-      .equals("encrypt and sign me!");
+    if (
+      !(onlyAesKeyringReturnedItem
+          .get("sensitive_data")
+          .s()
+          .equals("encrypt and sign me!"))
+    ) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

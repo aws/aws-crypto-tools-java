@@ -158,7 +158,9 @@ public class BasicPutGetExample {
     final PutItemResponse putResponse = ddb.putItem(putRequest);
 
     // Demonstrate that PutItem succeeded
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // 8. Get the item back from the table using the same client. The client will decrypt the item
     // client-side on the way back, and return the original plaintext item.
@@ -185,9 +187,13 @@ public class BasicPutGetExample {
     final GetItemResponse getResponse = ddb.getItem(getRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == getResponse.sdkHttpResponse().statusCode();
+    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> returnedItem = getResponse.item();
-    assert returnedItem.get("attribute1").s().equals("encrypt and sign me!");
+    if (!(returnedItem.get("attribute1").s().equals("encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

@@ -270,12 +270,16 @@ public class CompoundBeaconSearchableEncryptionExample {
     );
 
     // VirtualFields is empty because we have no Virtual Fields configured
-    assert resolveOutput.virtualFields().isEmpty();
+    if (!(resolveOutput.virtualFields().isEmpty())) {
+      throw new AssertionError();
+    }
 
     // Verify that CompoundBeacons has the expected value
     Map<String, String> cbs = new HashMap<>();
     cbs.put("last4UnitCompound", "L-5678.U-011899988199");
-    assert resolveOutput.compoundBeacons().equals(cbs);
+    if (!(resolveOutput.compoundBeacons().equals(cbs))) {
+      throw new AssertionError();
+    }
     // Note : the compound beacon actually stored in the table is not "L-5678.U-011899988199"
     // but rather something like "L-abc.U-123", as both parts are EncryptedParts
     // and therefore the text is replaced by the associated beacon
@@ -335,7 +339,9 @@ public class CompoundBeaconSearchableEncryptionExample {
 
     final PutItemResponse putResponse = ddb.putItem(putRequest);
     // Validate object put successfully
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // 14. Query for the item we just put.
     Map<String, String> expressionAttributesNames = new HashMap<>();
@@ -375,7 +381,9 @@ public class CompoundBeaconSearchableEncryptionExample {
       QueryResponse queryResponse = ddb.query(queryRequest);
       List<Map<String, AttributeValue>> attributeValues = queryResponse.items();
       // Validate query was returned successfully
-      assert 200 == queryResponse.sdkHttpResponse().statusCode();
+      if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
 
       // if no results, sleep and try again
       if (attributeValues.size() == 0) {
@@ -388,11 +396,17 @@ public class CompoundBeaconSearchableEncryptionExample {
       }
 
       // Validate only 1 item was returned: the item we just put
-      assert attributeValues.size() == 1;
+      if (!(attributeValues.size() == 1)) {
+        throw new AssertionError();
+      }
       Map<String, AttributeValue> returnedItem = attributeValues.get(0);
       // Validate the item has the expected attributes
-      assert returnedItem.get("inspector_id_last4").s().equals("5678");
-      assert returnedItem.get("unit").s().equals("011899988199");
+      if (!(returnedItem.get("inspector_id_last4").s().equals("5678"))) {
+        throw new AssertionError();
+      }
+      if (!(returnedItem.get("unit").s().equals("011899988199"))) {
+        throw new AssertionError();
+      }
       break;
     }
   }

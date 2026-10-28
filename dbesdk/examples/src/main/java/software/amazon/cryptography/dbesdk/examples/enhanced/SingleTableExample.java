@@ -216,9 +216,15 @@ public class SingleTableExample {
     final SimpleClass3 result3 = getResult.get(2).getItem(table3);
 
     // Demonstrate we get the original items back
-    assert result1.getAttribute1().equals("item1 encrypt and sign me!");
-    assert result2.getAttribute4().equals("item2 encrypt and sign me!");
-    assert result3.getAttribute6().equals("item3 encrypt and sign me!");
+    if (!(result1.getAttribute1().equals("item1 encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
+    if (!(result2.getAttribute4().equals("item2 encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
+    if (!(result3.getAttribute6().equals("item3 encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

@@ -63,13 +63,21 @@ public class GetEncryptedDataKeyDescriptionExample {
     // provider info (for AWS KMS keyrings), and the branch key ID and version (for the
     // hierarchical keyring).
     final EncryptedDataKeyDescription desc = descriptions.get(0);
-    assert desc.keyProviderId().equals(expectedKeyProviderId);
+    if (!(desc.keyProviderId().equals(expectedKeyProviderId))) {
+      throw new AssertionError();
+    }
     if (expectedKeyProviderId.startsWith("aws-kms")) {
-      assert desc.keyProviderInfo().equals(expectedKeyProviderInfo);
+      if (!(desc.keyProviderInfo().equals(expectedKeyProviderInfo))) {
+        throw new AssertionError();
+      }
     }
     if (desc.keyProviderId().equals("aws-kms-hierarchy")) {
-      assert desc.branchKeyId().equals(expectedBranchKeyId);
-      assert desc.branchKeyVersion().equals(expectedBranchKeyVersion);
+      if (!(desc.branchKeyId().equals(expectedBranchKeyId))) {
+        throw new AssertionError();
+      }
+      if (!(desc.branchKeyVersion().equals(expectedBranchKeyVersion))) {
+        throw new AssertionError();
+      }
     }
   }
 

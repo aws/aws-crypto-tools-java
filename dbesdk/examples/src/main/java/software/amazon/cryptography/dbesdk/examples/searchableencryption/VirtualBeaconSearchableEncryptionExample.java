@@ -373,12 +373,16 @@ public class VirtualBeaconSearchableEncryptionExample {
     );
 
     // CompoundBeacons is empty because we have no Compound Beacons configured
-    assert resolveOutput.compoundBeacons().isEmpty();
+    if (!(resolveOutput.compoundBeacons().isEmpty())) {
+      throw new AssertionError();
+    }
 
     // Verify that VirtualFields has the expected value
     Map<String, String> vf = new HashMap<>();
     vf.put("stateAndHasTestResult", "CAt");
-    assert resolveOutput.virtualFields().equals(vf);
+    if (!(resolveOutput.virtualFields().equals(vf))) {
+      throw new AssertionError();
+    }
 
     // 12. Create the DynamoDb Encryption Interceptor
     DynamoDbEncryptionInterceptor encryptionInterceptor =
@@ -421,8 +425,11 @@ public class VirtualBeaconSearchableEncryptionExample {
       itemWithHasTestResultPutRequest
     );
     // Assert PutItem was successful
-    assert 200 ==
-    itemWithHasTestResultPutResponse.sdkHttpResponse().statusCode();
+    if (
+      !(200 == itemWithHasTestResultPutResponse.sdkHttpResponse().statusCode())
+    ) {
+      throw new AssertionError();
+    }
 
     final PutItemRequest itemWithNoHasTestResultPutRequest = PutItemRequest
       .builder()
@@ -434,8 +441,12 @@ public class VirtualBeaconSearchableEncryptionExample {
       itemWithNoHasTestResultPutRequest
     );
     // Assert PutItem was successful
-    assert 200 ==
-    itemWithNoHasTestResultPutResponse.sdkHttpResponse().statusCode();
+    if (
+      !(200 ==
+        itemWithNoHasTestResultPutResponse.sdkHttpResponse().statusCode())
+    ) {
+      throw new AssertionError();
+    }
 
     // 15. Query by stateAndHasTestResult attribute.
     //     Note that we are constructing the query as if we were querying on plaintext values.
@@ -485,7 +496,9 @@ public class VirtualBeaconSearchableEncryptionExample {
       final QueryResponse queryResponse = ddb.query(queryRequest);
       List<Map<String, AttributeValue>> attributeValues = queryResponse.items();
       // Validate query was returned successfully
-      assert 200 == queryResponse.sdkHttpResponse().statusCode();
+      if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
 
       // if no results, sleep and try again
       if (attributeValues.size() == 0) {
@@ -498,11 +511,17 @@ public class VirtualBeaconSearchableEncryptionExample {
       }
 
       // Validate only 1 item was returned: the item with the expected attributes
-      assert attributeValues.size() == 1;
+      if (!(attributeValues.size() == 1)) {
+        throw new AssertionError();
+      }
       final Map<String, AttributeValue> returnedItem = attributeValues.get(0);
       // Validate the item has the expected attributes
-      assert returnedItem.get("state").s().equals("CA");
-      assert returnedItem.get("hasTestResult").bool().equals(true);
+      if (!(returnedItem.get("state").s().equals("CA"))) {
+        throw new AssertionError();
+      }
+      if (!(returnedItem.get("hasTestResult").bool().equals(true))) {
+        throw new AssertionError();
+      }
       break;
     }
   }

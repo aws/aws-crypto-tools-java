@@ -297,14 +297,18 @@ public class BeaconStylesSearchableEncryptionExample {
 
     PutItemResponse putResponse = ddb.putItem(putRequest);
     // Validate object put successfully
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     putRequest =
       PutItemRequest.builder().tableName(ddbTableName).item(item2).build();
 
     putResponse = ddb.putItem(putRequest);
     // Validate object put successfully
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // These filters ensure scans only match items created by this test run.
     final String widFilter = "work_id IN (:wid1, :wid2)";
@@ -331,9 +335,15 @@ public class BeaconStylesSearchableEncryptionExample {
         .build();
 
       ScanResponse scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item1);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item1))) {
+        throw new AssertionError();
+      }
 
       // 13. Test the second type of Set operation :
       // Select records where the basket attribute holds the fruit attribute
@@ -346,9 +356,15 @@ public class BeaconStylesSearchableEncryptionExample {
           .build();
 
       scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item1);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item1))) {
+        throw new AssertionError();
+      }
 
       // 14. Test the third type of Set operation :
       // Select records where the fruit attribute exists in a particular set
@@ -371,9 +387,15 @@ public class BeaconStylesSearchableEncryptionExample {
           .build();
 
       scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item2);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item2))) {
+        throw new AssertionError();
+      }
 
       // Test a Shared search. Select records where the dessert attribute matches the fruit attribute
       scanRequest =
@@ -385,9 +407,15 @@ public class BeaconStylesSearchableEncryptionExample {
           .build();
 
       scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item2);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item2))) {
+        throw new AssertionError();
+      }
 
       // 15. Test the AsSet attribute 'veggies' :
       // Select records where the veggies attribute holds a particular value
@@ -406,9 +434,15 @@ public class BeaconStylesSearchableEncryptionExample {
           .build();
 
       scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item2);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item2))) {
+        throw new AssertionError();
+      }
 
       // 16. Test the compound beacon 'work_unit' :
       expressionAttributeValues = new HashMap<>(widValues);
@@ -426,9 +460,15 @@ public class BeaconStylesSearchableEncryptionExample {
           .build();
 
       scanResponse = ddb.scan(scanRequest);
-      assert 200 == scanResponse.sdkHttpResponse().statusCode();
-      assert scanResponse.items().size() == 1;
-      assert scanResponse.items().get(0).equals(item1);
+      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().size() == 1)) {
+        throw new AssertionError();
+      }
+      if (!(scanResponse.items().get(0).equals(item1))) {
+        throw new AssertionError();
+      }
     } finally {
       // Clean up: delete both items using a plain DDB client
       final DynamoDbClient plainDdb = DynamoDbClient.create();

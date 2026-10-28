@@ -224,7 +224,9 @@ public class TableSchemaBuilderPutGetExample {
         requestBuilder.key(key)
       );
     // Demonstrate we get the original item back
-    assert decrypted.getAttribute1().equals("encrypt and sign me!");
+    if (!(decrypted.getAttribute1().equals("encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
 
     // Demonstrate, without the Enhanced Client, the record is encrypted
     try (DynamoDbClient noEncryptionDdb = DynamoDbClient.builder().build()) {
@@ -235,15 +237,29 @@ public class TableSchemaBuilderPutGetExample {
         });
       final Map<String, AttributeValue> encryptedItem = response.item();
       // Assert the Encrypted Field is in Bytes
-      assert Objects.nonNull(encryptedItem.get("attribute1").b());
+      if (!(Objects.nonNull(encryptedItem.get("attribute1").b()))) {
+        throw new AssertionError();
+      }
       // Assert the Encrypted Field is not a String
-      assert Objects.isNull(encryptedItem.get("attribute1").s());
+      if (!(Objects.isNull(encryptedItem.get("attribute1").s()))) {
+        throw new AssertionError();
+      }
       // Assert the Signed Only Field is a String and is Equal to the input
-      assert Objects.nonNull(encryptedItem.get("attribute2").s());
-      assert encryptedItem.get("attribute2").s().equals(item.getAttribute2());
+      if (!(Objects.nonNull(encryptedItem.get("attribute2").s()))) {
+        throw new AssertionError();
+      }
+      if (!(encryptedItem.get("attribute2").s().equals(item.getAttribute2()))) {
+        throw new AssertionError();
+      }
       // Assert the Not Signed, Not Encrypted Field is a String and is Equal to the input
-      assert Objects.nonNull(encryptedItem.get(":attribute3").s());
-      assert encryptedItem.get(":attribute3").s().equals(item.getAttribute3());
+      if (!(Objects.nonNull(encryptedItem.get(":attribute3").s()))) {
+        throw new AssertionError();
+      }
+      if (
+        !(encryptedItem.get(":attribute3").s().equals(item.getAttribute3()))
+      ) {
+        throw new AssertionError();
+      }
 
       // Verify the Signed Items are protected
       final DynamoDbItemEncryptor itemEncryptor = DynamoDbItemEncryptor

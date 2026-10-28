@@ -310,7 +310,9 @@ public class BasicSearchableEncryptionExample {
       .build();
 
     final PutItemResponse putResponse = ddb.putItem(putRequest);
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // 10. Query for the item we just put.
     //     Note that we are constructing the query as if we were querying on plaintext values.
@@ -392,7 +394,9 @@ public class BasicSearchableEncryptionExample {
         List<Map<String, AttributeValue>> attributeValues =
           queryResponse.items();
         // Validate query was returned successfully
-        assert 200 == queryResponse.sdkHttpResponse().statusCode();
+        if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
+          throw new AssertionError();
+        }
 
         // if no results, sleep and try again
         if (attributeValues.size() == 0) {
@@ -418,8 +422,12 @@ public class BasicSearchableEncryptionExample {
     }
     final Map<String, AttributeValue> returnedItem = allResults.get(0);
     // Validate the item has the expected attributes
-    assert returnedItem.get("inspector_id_last4").s().equals("4321");
-    assert returnedItem.get("unit").s().equals("123456789012");
+    if (!(returnedItem.get("inspector_id_last4").s().equals("4321"))) {
+      throw new AssertionError();
+    }
+    if (!(returnedItem.get("unit").s().equals("123456789012"))) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

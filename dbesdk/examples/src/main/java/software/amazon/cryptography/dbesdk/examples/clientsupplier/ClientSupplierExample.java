@@ -165,7 +165,9 @@ public class ClientSupplierExample {
     final PutItemResponse putResponse = ddbClient.putItem(putRequest);
 
     // Demonstrate that PutItem succeeded
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // 8. Get the item back from our table using the same keyring.
     //    The client will decrypt the item client-side using the MRK
@@ -188,12 +190,15 @@ public class ClientSupplierExample {
     final GetItemResponse getResponse = ddbClient.getItem(getRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == getResponse.sdkHttpResponse().statusCode();
+    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> returnedItem = getResponse.item();
-    assert returnedItem
-      .get("sensitive_data")
-      .s()
-      .equals("encrypt and sign me!");
+    if (
+      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
+    ) {
+      throw new AssertionError();
+    }
 
     // 9. Create a MRK discovery multi-keyring with a custom client supplier.
     //    A discovery MRK multi-keyring will be composed of
@@ -283,13 +288,19 @@ public class ClientSupplierExample {
       onlyReplicaKeyDdbClient.getItem(onlyReplicaKeyGetRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == onlyReplicaKeyGetResponse.sdkHttpResponse().statusCode();
+    if (!(200 == onlyReplicaKeyGetResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> onlyReplicaKeyReturnedItem =
       onlyReplicaKeyGetResponse.item();
-    assert onlyReplicaKeyReturnedItem
-      .get("sensitive_data")
-      .s()
-      .equals("encrypt and sign me!");
+    if (
+      !(onlyReplicaKeyReturnedItem
+          .get("sensitive_data")
+          .s()
+          .equals("encrypt and sign me!"))
+    ) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

@@ -130,12 +130,20 @@ public class ItemEncryptDecryptExample {
       .encryptedItem();
 
     // Demonstrate that the item has been encrypted
-    assert encryptedItem
-      .get("partition_key")
-      .s()
-      .equals("ItemEncryptDecryptExample");
-    assert encryptedItem.get("sort_key").n().equals("0");
-    assert encryptedItem.get("attribute1").b() != null;
+    if (
+      !(encryptedItem
+          .get("partition_key")
+          .s()
+          .equals("ItemEncryptDecryptExample"))
+    ) {
+      throw new AssertionError();
+    }
+    if (!(encryptedItem.get("sort_key").n().equals("0"))) {
+      throw new AssertionError();
+    }
+    if (!(encryptedItem.get("attribute1").b() != null)) {
+      throw new AssertionError();
+    }
 
     // 7. Directly decrypt the encrypted item using the DynamoDb Item Encryptor
     final Map<String, AttributeValue> decryptedItem = itemEncryptor
@@ -143,12 +151,20 @@ public class ItemEncryptDecryptExample {
       .plaintextItem();
 
     // Demonstrate that the item was decrypted successfully
-    assert decryptedItem
-      .get("partition_key")
-      .s()
-      .equals("ItemEncryptDecryptExample");
-    assert decryptedItem.get("sort_key").n().equals("0");
-    assert decryptedItem.get("attribute1").s().equals("encrypt and sign me!");
+    if (
+      !(decryptedItem
+          .get("partition_key")
+          .s()
+          .equals("ItemEncryptDecryptExample"))
+    ) {
+      throw new AssertionError();
+    }
+    if (!(decryptedItem.get("sort_key").n().equals("0"))) {
+      throw new AssertionError();
+    }
+    if (!(decryptedItem.get("attribute1").s().equals("encrypt and sign me!"))) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {

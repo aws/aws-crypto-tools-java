@@ -90,24 +90,38 @@ public class QueryRequests {
 
     final QueryResponse query1Response = ddb.query(query1Request);
     // Validate query was returned successfully
-    assert 200 == query1Response.sdkHttpResponse().statusCode();
+    if (!(200 == query1Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `meeting1`
-    assert query1Response.items().size() == 1;
+    if (!(query1Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery1 = false;
     for (Map<String, AttributeValue> item : query1Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery1 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
+        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
+          throw new AssertionError();
+        }
+        if (
+          !(item
+              .get("Attendees")
+              .l()
+              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
+        ) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery1;
+    if (!(foundKnownValueItemQuery1)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery2(String ddbTableName, DynamoDbClient ddb) {
@@ -155,24 +169,38 @@ public class QueryRequests {
 
     QueryResponse query2Response = ddb.query(query2Request);
     // Validate query was returned successfully
-    assert 200 == query2Response.sdkHttpResponse().statusCode();
+    if (!(200 == query2Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `meeting1`
-    assert query2Response.items().size() == 1;
+    if (!(query2Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery2 = false;
     for (Map<String, AttributeValue> item : query2Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery2 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
+        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
+          throw new AssertionError();
+        }
+        if (
+          !(item
+              .get("Attendees")
+              .l()
+              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
+        ) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery2;
+    if (!(foundKnownValueItemQuery2)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery3(String ddbTableName, DynamoDbClient ddb) {
@@ -237,24 +265,38 @@ public class QueryRequests {
 
     QueryResponse query3Response = ddb.query(query3Request);
     // Validate query was returned successfully
-    assert 200 == query3Response.sdkHttpResponse().statusCode();
+    if (!(200 == query3Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `reservation1`
-    assert query3Response.items().size() == 1;
+    if (!(query3Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery3 = false;
     for (Map<String, AttributeValue> item : query3Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery3 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-        assert item.get("Location").m().get("Building").s().equals("SEA33");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("barney@gmail.com").build());
+        if (!(item.get("Subject").s().equals("Scan beacons"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Building").s().equals("SEA33"))) {
+          throw new AssertionError();
+        }
+        if (
+          !(item
+              .get("Attendees")
+              .l()
+              .contains(AttributeValue.builder().s("barney@gmail.com").build()))
+        ) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery3;
+    if (!(foundKnownValueItemQuery3)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery4(String ddbTableName, DynamoDbClient ddb) {
@@ -291,20 +333,30 @@ public class QueryRequests {
 
     QueryResponse query4Response = ddb.query(query4Request);
     // Validate query was returned successfully
-    assert 200 == query4Response.sdkHttpResponse().statusCode();
+    if (!(200 == query4Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `employee1`
-    assert query4Response.items().size() == 1;
+    if (!(query4Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery4 = false;
     for (Map<String, AttributeValue> item : query4Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery4 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-        assert item.get("Location").m().get("Desk").s().equals("3");
+        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery4;
+    if (!(foundKnownValueItemQuery4)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery5(String ddbTableName, DynamoDbClient ddb) {
@@ -347,24 +399,38 @@ public class QueryRequests {
 
     QueryResponse query5Response = ddb.query(query5Request);
     // Validate query was returned successfully
-    assert 200 == query5Response.sdkHttpResponse().statusCode();
+    if (!(200 == query5Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `meeting1`
-    assert query5Response.items().size() == 1;
+    if (!(query5Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery5 = false;
     for (Map<String, AttributeValue> item : query5Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery5 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
+        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
+          throw new AssertionError();
+        }
+        if (
+          !(item
+              .get("Attendees")
+              .l()
+              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
+        ) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery5;
+    if (!(foundKnownValueItemQuery5)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery6(String ddbTableName, DynamoDbClient ddb) {
@@ -401,20 +467,28 @@ public class QueryRequests {
 
     QueryResponse query6Response = ddb.query(query6Request);
     // Validate query was returned successfully
-    assert 200 == query6Response.sdkHttpResponse().statusCode();
+    if (!(200 == query6Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket3`
-    assert query6Response.items().size() == 2;
+    if (!(query6Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery6 = false;
     for (Map<String, AttributeValue> item : query6Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery6 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
+        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery6;
+    if (!(foundKnownValueItemQuery6)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery7(String ddbTableName, DynamoDbClient ddb) {
@@ -453,24 +527,38 @@ public class QueryRequests {
 
     QueryResponse query7Response = ddb.query(query7Request);
     // Validate query was returned successfully
-    assert 200 == query7Response.sdkHttpResponse().statusCode();
+    if (!(200 == query7Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `reservation1`
-    assert query7Response.items().size() == 1;
+    if (!(query7Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery7 = false;
     for (Map<String, AttributeValue> item : query7Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery7 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("barney@gmail.com").build());
+        if (!(item.get("Subject").s().equals("Scan beacons"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
+          throw new AssertionError();
+        }
+        if (
+          !(item
+              .get("Attendees")
+              .l()
+              .contains(AttributeValue.builder().s("barney@gmail.com").build()))
+        ) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery7;
+    if (!(foundKnownValueItemQuery7)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery8(String ddbTableName, DynamoDbClient ddb) {
@@ -513,19 +601,27 @@ public class QueryRequests {
 
     QueryResponse query8Response = ddb.query(query8Request);
     // Validate query was returned successfully
-    assert 200 == query8Response.sdkHttpResponse().statusCode();
+    if (!(200 == query8Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `timecard1`
-    assert query8Response.items().size() == 1;
+    if (!(query8Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery8 = false;
     for (Map<String, AttributeValue> item : query8Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery8 = true;
-        assert item.get("ProjectName").s().equals("project_002");
+        if (!(item.get("ProjectName").s().equals("project_002"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery8;
+    if (!(foundKnownValueItemQuery8)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery9(String ddbTableName, DynamoDbClient ddb) {
@@ -562,19 +658,27 @@ public class QueryRequests {
 
     QueryResponse query9Response = ddb.query(query9Request);
     // Validate query was returned successfully
-    assert 200 == query9Response.sdkHttpResponse().statusCode();
+    if (!(200 == query9Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `employee1`
-    assert query9Response.items().size() == 1;
+    if (!(query9Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery9 = false;
     for (Map<String, AttributeValue> item : query9Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery9 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
+        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery9;
+    if (!(foundKnownValueItemQuery9)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery10(String ddbTableName, DynamoDbClient ddb) {
@@ -612,19 +716,27 @@ public class QueryRequests {
 
     QueryResponse query10Response = ddb.query(query10Request);
     // Validate query was returned successfully
-    assert 200 == query10Response.sdkHttpResponse().statusCode();
+    if (!(200 == query10Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `employee1`
-    assert query10Response.items().size() == 1;
+    if (!(query10Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery10 = false;
     for (Map<String, AttributeValue> item : query10Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery10 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
+        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery10;
+    if (!(foundKnownValueItemQuery10)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery11(String ddbTableName, DynamoDbClient ddb) {
@@ -656,20 +768,28 @@ public class QueryRequests {
 
     QueryResponse query11Response = ddb.query(query11Request);
     // Validate query was returned successfully
-    assert 200 == query11Response.sdkHttpResponse().statusCode();
+    if (!(200 == query11Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket2`
-    assert query11Response.items().size() == 2;
+    if (!(query11Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery11 = false;
     for (Map<String, AttributeValue> item : query11Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery11 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
+        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery11;
+    if (!(foundKnownValueItemQuery11)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery12(String ddbTableName, DynamoDbClient ddb) {
@@ -709,19 +829,27 @@ public class QueryRequests {
 
     QueryResponse query12Response = ddb.query(query12Request);
     // Validate query was returned successfully
-    assert 200 == query12Response.sdkHttpResponse().statusCode();
+    if (!(200 == query12Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `ticket1`
-    assert query12Response.items().size() == 1;
+    if (!(query12Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery12 = false;
     for (Map<String, AttributeValue> item : query12Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery12 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
+        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery12;
+    if (!(foundKnownValueItemQuery12)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery13(String ddbTableName, DynamoDbClient ddb) {
@@ -761,19 +889,27 @@ public class QueryRequests {
 
     QueryResponse query13Response = ddb.query(query13Request);
     // Validate query was returned successfully
-    assert 200 == query13Response.sdkHttpResponse().statusCode();
+    if (!(200 == query13Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `ticket1`
-    assert query13Response.items().size() == 1;
+    if (!(query13Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery13 = false;
     for (Map<String, AttributeValue> item : query13Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery13 = true;
-        assert item.get("Subject").s().equals("Bad bug");
+        if (!(item.get("Subject").s().equals("Bad bug"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery13;
+    if (!(foundKnownValueItemQuery13)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery14(String ddbTableName, DynamoDbClient ddb) {
@@ -814,7 +950,9 @@ public class QueryRequests {
     for (int i = 0; i < 10; ++i) {
       QueryResponse query14Response = ddb.query(query14Request);
       // Validate query was returned successfully
-      assert 200 == query14Response.sdkHttpResponse().statusCode();
+      if (!(200 == query14Response.sdkHttpResponse().statusCode())) {
+        throw new AssertionError();
+      }
 
       // if no results, sleep and try again
       if (query14Response.items().size() == 0) {
@@ -827,17 +965,25 @@ public class QueryRequests {
       }
 
       // Assert 1 item was returned: `employee1`
-      assert query14Response.items().size() == 1;
+      if (!(query14Response.items().size() == 1)) {
+        throw new AssertionError();
+      }
       // Known value test: Assert some properties on one of the items
       boolean foundKnownValueItemQuery14 = false;
       for (Map<String, AttributeValue> item : query14Response.items()) {
         if (item.get("partition_key").s().equals("employee1-java")) {
           foundKnownValueItemQuery14 = true;
-          assert item.get("EmployeeID").s().equals("emp_001");
-          assert item.get("Location").m().get("Desk").s().equals("3");
+          if (!(item.get("EmployeeID").s().equals("emp_001"))) {
+            throw new AssertionError();
+          }
+          if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
+            throw new AssertionError();
+          }
         }
       }
-      assert foundKnownValueItemQuery14;
+      if (!(foundKnownValueItemQuery14)) {
+        throw new AssertionError();
+      }
       break;
     }
   }
@@ -871,21 +1017,31 @@ public class QueryRequests {
 
     QueryResponse query15Response = ddb.query(query15Request);
     // Validate query was returned successfully
-    assert 200 == query15Response.sdkHttpResponse().statusCode();
+    if (!(200 == query15Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 4 items returned:
     // Expected to be `employee1`, `employee2`, `employee3`, and `employee4`
-    assert query15Response.items().size() == 4;
+    if (!(query15Response.items().size() == 4)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery15 = false;
     for (Map<String, AttributeValue> item : query15Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery15 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-        assert item.get("Location").m().get("Desk").s().equals("3");
+        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
+          throw new AssertionError();
+        }
+        if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery15;
+    if (!(foundKnownValueItemQuery15)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery16(String ddbTableName, DynamoDbClient ddb) {
@@ -917,20 +1073,28 @@ public class QueryRequests {
 
     QueryResponse query16Response = ddb.query(query16Request);
     // Validate query was returned successfully
-    assert 200 == query16Response.sdkHttpResponse().statusCode();
+    if (!(200 == query16Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket4`
-    assert query16Response.items().size() == 2;
+    if (!(query16Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery16 = false;
     for (Map<String, AttributeValue> item : query16Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery16 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
+        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery16;
+    if (!(foundKnownValueItemQuery16)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery17(String ddbTableName, DynamoDbClient ddb) {
@@ -971,20 +1135,28 @@ public class QueryRequests {
 
     QueryResponse query17Response = ddb.query(query17Request);
     // Validate query was returned successfully
-    assert 200 == query17Response.sdkHttpResponse().statusCode();
+    if (!(200 == query17Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 3 items returned:
     // Expected to be `ticket1`, `ticket2`, and `ticket4`
-    assert query17Response.items().size() == 3;
+    if (!(query17Response.items().size() == 3)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery17 = false;
     for (Map<String, AttributeValue> item : query17Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery17 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
+        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery17;
+    if (!(foundKnownValueItemQuery17)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery18(String ddbTableName, DynamoDbClient ddb) {
@@ -1029,19 +1201,27 @@ public class QueryRequests {
 
     QueryResponse query18Response = ddb.query(query18Request);
     // Validate query was returned successfully
-    assert 200 == query18Response.sdkHttpResponse().statusCode();
+    if (!(200 == query18Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `project1`
-    assert query18Response.items().size() == 1;
+    if (!(query18Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery18 = false;
     for (Map<String, AttributeValue> item : query18Response.items()) {
       if (item.get("partition_key").s().equals("project1-java")) {
         foundKnownValueItemQuery18 = true;
-        assert item.get("ProjectName").s().equals("project_001");
+        if (!(item.get("ProjectName").s().equals("project_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery18;
+    if (!(foundKnownValueItemQuery18)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery19(String ddbTableName, DynamoDbClient ddb) {
@@ -1074,19 +1254,27 @@ public class QueryRequests {
 
     QueryResponse query19Response = ddb.query(query19Request);
     // Validate query was returned successfully
-    assert 200 == query19Response.sdkHttpResponse().statusCode();
+    if (!(200 == query19Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `project1`
-    assert query19Response.items().size() == 1;
+    if (!(query19Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery19 = false;
     for (Map<String, AttributeValue> item : query19Response.items()) {
       if (item.get("partition_key").s().equals("project1-java")) {
         foundKnownValueItemQuery19 = true;
-        assert item.get("ProjectName").s().equals("project_001");
+        if (!(item.get("ProjectName").s().equals("project_001"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery19;
+    if (!(foundKnownValueItemQuery19)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery20(String ddbTableName, DynamoDbClient ddb) {
@@ -1129,20 +1317,28 @@ public class QueryRequests {
 
     QueryResponse query20Response = ddb.query(query20Request);
     // Validate query was returned successfully
-    assert 200 == query20Response.sdkHttpResponse().statusCode();
+    if (!(200 == query20Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `timecard1` and `timecard2`
-    assert query20Response.items().size() == 2;
+    if (!(query20Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery20 = false;
     for (Map<String, AttributeValue> item : query20Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery20 = true;
-        assert item.get("ProjectName").s().equals("project_002");
+        if (!(item.get("ProjectName").s().equals("project_002"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery20;
+    if (!(foundKnownValueItemQuery20)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery21(String ddbTableName, DynamoDbClient ddb) {
@@ -1182,19 +1378,27 @@ public class QueryRequests {
 
     QueryResponse query21Response = ddb.query(query21Request);
     // Validate query was returned successfully
-    assert 200 == query21Response.sdkHttpResponse().statusCode();
+    if (!(200 == query21Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 1 item was returned: `timecard1`
-    assert query21Response.items().size() == 1;
+    if (!(query21Response.items().size() == 1)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery21 = false;
     for (Map<String, AttributeValue> item : query21Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery21 = true;
-        assert item.get("ProjectName").s().equals("project_002");
+        if (!(item.get("ProjectName").s().equals("project_002"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery21;
+    if (!(foundKnownValueItemQuery21)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery22(String ddbTableName, DynamoDbClient ddb) {
@@ -1226,20 +1430,28 @@ public class QueryRequests {
 
     QueryResponse query22Response = ddb.query(query22Request);
     // Validate query was returned successfully
-    assert 200 == query22Response.sdkHttpResponse().statusCode();
+    if (!(200 == query22Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
-    assert query22Response.items().size() == 2;
+    if (!(query22Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery22 = false;
     for (Map<String, AttributeValue> item : query22Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery22 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
+        if (!(item.get("Subject").s().equals("Scan beacons"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery22;
+    if (!(foundKnownValueItemQuery22)) {
+      throw new AssertionError();
+    }
   }
 
   public static void runQuery23(String ddbTableName, DynamoDbClient ddb) {
@@ -1290,19 +1502,27 @@ public class QueryRequests {
 
     QueryResponse query23Response = ddb.query(query23Request);
     // Validate query was returned successfully
-    assert 200 == query23Response.sdkHttpResponse().statusCode();
+    if (!(200 == query23Response.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
-    assert query23Response.items().size() == 2;
+    if (!(query23Response.items().size() == 2)) {
+      throw new AssertionError();
+    }
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery23 = false;
     for (Map<String, AttributeValue> item : query23Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery23 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
+        if (!(item.get("Subject").s().equals("Scan beacons"))) {
+          throw new AssertionError();
+        }
       }
     }
-    assert foundKnownValueItemQuery23;
+    if (!(foundKnownValueItemQuery23)) {
+      throw new AssertionError();
+    }
   }
 }

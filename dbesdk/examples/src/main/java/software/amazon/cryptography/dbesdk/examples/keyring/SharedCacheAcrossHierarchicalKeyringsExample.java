@@ -325,7 +325,9 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
     final PutItemResponse putResponse = ddbClient.putItem(putRequest);
 
     // Demonstrate that PutItem succeeded
-    assert 200 == putResponse.sdkHttpResponse().statusCode();
+    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
 
     // Get the item back from our table using the same client.
     // The client will decrypt the item client-side, and return
@@ -343,12 +345,15 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
     final GetItemResponse getResponse = ddbClient.getItem(getRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    assert 200 == getResponse.sdkHttpResponse().statusCode();
+    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
+      throw new AssertionError();
+    }
     final Map<String, AttributeValue> returnedItem = getResponse.item();
-    assert returnedItem
-      .get("sensitive_data")
-      .s()
-      .equals("encrypt and sign me!");
+    if (
+      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
+    ) {
+      throw new AssertionError();
+    }
   }
 
   public static void main(final String[] args) {
