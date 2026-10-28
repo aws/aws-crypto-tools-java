@@ -92,7 +92,7 @@ Status: draft for planning, 2026-10-26 (final packages: same as today, new major
 | `OpaqueError` | Removed: exceptions thrown by customer code pass through unchanged |
 | `KmsException` / `DynamoDbException` rethrown as-is | `AccessDeniedException`, `ThrottlingException`, `ResourceNotFoundException`, `ServiceException` or `DispatchException`, with the SDK exception as cause (`findCause(KmsException.class)`) |
 
-The 12 kinds are VALIDATION, INVALID_MATERIALS, ENCRYPTION_CONTEXT_MISMATCH, NO_MATCHING_DATA_KEY, CRYPTOGRAPHIC, ACCESS_DENIED, RESOURCE_NOT_FOUND, THROTTLING, CONFLICT, SERVICE, DISPATCH and INTERNAL, the same as the native Rust MPL's development line.
+The 12 kinds are VALIDATION, INVALID_MATERIALS, ENCRYPTION_CONTEXT_MISMATCH, NO_MATCHING_DATA_KEY, CRYPTOGRAPHIC, ACCESS_DENIED, RESOURCE_NOT_FOUND, THROTTLING, CONFLICT, SERVICE, DISPATCH and INTERNAL.
 
 ### Before and after
 
@@ -192,6 +192,6 @@ The prototype's results:
 ## 5. Open before release
 
 1. Whether DynamoDB stays a compile dependency.
-2. Cache selection shape (`CacheType` versus passing a cache object, as the native Rust MPL does); request/response objects and `Duration` are already adopted.
+2. Cache selection shape (`CacheType` versus passing a cache object); request/response objects and `Duration` are already adopted.
 3. Spec-versus-Dafny questions C1–C3.
 4. Security sign-off for R11.
