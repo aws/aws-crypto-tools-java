@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
  * right for your particular data set:
  * https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption.html#are-beacons-right-for-me
  *
- * This class implements PutItem calls to populate a DDB table with items from our workshop. By
+ * This class implements PutItem calls to populate a DynamoDB table with items from our workshop. By
  * providing a DynamoDbClient that is configured to use searchable encryption, this class will
  * encrypt the data client side and add beacon attributes to the items. This only implements a
  * single item of each of the 6 record types from Demo.md. Adding the remaining items would extend
@@ -25,21 +25,21 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 public class PutRequests {
 
   public static void putAllItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
-    putAllMeetingItemsToTable(ddbTableName, ddb);
-    putAllEmployeeItemsToTable(ddbTableName, ddb);
-    putAllProjectItemsToTable(ddbTableName, ddb);
-    putAllReservationItemsToTable(ddbTableName, ddb);
-    putAllTicketItemsToTable(ddbTableName, ddb);
-    putAllTimecardItemsToTable(ddbTableName, ddb);
+    putAllMeetingItemsToTable(tableName, dynamoDbClient);
+    putAllEmployeeItemsToTable(tableName, dynamoDbClient);
+    putAllProjectItemsToTable(tableName, dynamoDbClient);
+    putAllReservationItemsToTable(tableName, dynamoDbClient);
+    putAllTicketItemsToTable(tableName, dynamoDbClient);
+    putAllTimecardItemsToTable(tableName, dynamoDbClient);
   }
 
   // emeeting.json
   public static void putAllMeetingItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final List<AttributeValue> meeting1AttendeeList = new ArrayList<>();
     meeting1AttendeeList.add(
@@ -52,7 +52,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting1Location = new HashMap<>();
     meeting1Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting1Location.put("Room", AttributeValue.builder().s("403").build());
-
     final Map<String, AttributeValue> meeting1 = new HashMap<>();
     meeting1.put(
       "partition_key",
@@ -77,9 +76,8 @@ public class PutRequests {
       AttributeValue.builder().l(meeting1AttendeeList).build()
     );
     meeting1.put("Subject", AttributeValue.builder().s("Scan Beacons").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting1).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting1).build()
     );
 
     final List<AttributeValue> meeting2AttendeeList = new ArrayList<>();
@@ -93,7 +91,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting2Location = new HashMap<>();
     meeting2Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting2Location.put("Room", AttributeValue.builder().s("403").build());
-
     final Map<String, AttributeValue> meeting2 = new HashMap<>();
     meeting2.put(
       "partition_key",
@@ -118,9 +115,8 @@ public class PutRequests {
       AttributeValue.builder().l(meeting2AttendeeList).build()
     );
     meeting2.put("Subject", AttributeValue.builder().s("Scan Beacons").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting2).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting2).build()
     );
 
     final List<AttributeValue> meeting3AttendeeList = new ArrayList<>();
@@ -134,7 +130,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting3Location = new HashMap<>();
     meeting3Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting3Location.put("Room", AttributeValue.builder().s("403").build());
-
     final Map<String, AttributeValue> meeting3 = new HashMap<>();
     meeting3.put(
       "partition_key",
@@ -159,9 +154,8 @@ public class PutRequests {
       AttributeValue.builder().l(meeting3AttendeeList).build()
     );
     meeting3.put("Subject", AttributeValue.builder().s("Scan Beacons").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting3).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting3).build()
     );
 
     final List<AttributeValue> meeting4AttendeeList = new ArrayList<>();
@@ -175,7 +169,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting4Location = new HashMap<>();
     meeting4Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting4Location.put("Room", AttributeValue.builder().s("403").build());
-
     final Map<String, AttributeValue> meeting4 = new HashMap<>();
     meeting4.put(
       "partition_key",
@@ -200,9 +193,8 @@ public class PutRequests {
       AttributeValue.builder().l(meeting4AttendeeList).build()
     );
     meeting4.put("Subject", AttributeValue.builder().s("Scan Beacons").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting4).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting4).build()
     );
 
     final List<AttributeValue> meeting5AttendeeList = new ArrayList<>();
@@ -216,7 +208,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting5Location = new HashMap<>();
     meeting5Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting5Location.put("Room", AttributeValue.builder().s("407").build());
-
     final Map<String, AttributeValue> meeting5 = new HashMap<>();
     meeting5.put(
       "partition_key",
@@ -241,9 +232,8 @@ public class PutRequests {
       AttributeValue.builder().l(meeting5AttendeeList).build()
     );
     meeting5.put("Subject", AttributeValue.builder().s("DB ESDK").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting5).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting5).build()
     );
 
     final List<AttributeValue> meeting6AttendeeList = new ArrayList<>();
@@ -257,7 +247,6 @@ public class PutRequests {
     final Map<String, AttributeValue> meeting6Location = new HashMap<>();
     meeting6Location.put("Floor", AttributeValue.builder().s("12").build());
     meeting6Location.put("Room", AttributeValue.builder().s("407").build());
-
     final Map<String, AttributeValue> meeting6 = new HashMap<>();
     meeting6.put(
       "partition_key",
@@ -282,16 +271,15 @@ public class PutRequests {
       AttributeValue.builder().l(meeting6AttendeeList).build()
     );
     meeting6.put("Subject", AttributeValue.builder().s("DB ESDK").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(meeting6).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(meeting6).build()
     );
   }
 
   // employee.json
   public static void putAllEmployeeItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final Map<String, AttributeValue> employee1Location = new HashMap<>();
     employee1Location.put("Building", AttributeValue.builder().s("44").build());
@@ -301,7 +289,6 @@ public class PutRequests {
       "City",
       AttributeValue.builder().s("Seattle").build()
     );
-
     final Map<String, AttributeValue> employee1 = new HashMap<>();
     employee1.put(
       "partition_key",
@@ -325,9 +312,8 @@ public class PutRequests {
       "Location",
       AttributeValue.builder().m(employee1Location).build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(employee1).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(employee1).build()
     );
 
     final Map<String, AttributeValue> employee2Location = new HashMap<>();
@@ -338,7 +324,6 @@ public class PutRequests {
       "City",
       AttributeValue.builder().s("Seattle").build()
     );
-
     final Map<String, AttributeValue> employee2 = new HashMap<>();
     employee2.put(
       "partition_key",
@@ -362,9 +347,8 @@ public class PutRequests {
       "Location",
       AttributeValue.builder().m(employee2Location).build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(employee2).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(employee2).build()
     );
 
     final Map<String, AttributeValue> employee3Location = new HashMap<>();
@@ -375,7 +359,6 @@ public class PutRequests {
       "City",
       AttributeValue.builder().s("Seattle").build()
     );
-
     final Map<String, AttributeValue> employee3 = new HashMap<>();
     employee3.put(
       "partition_key",
@@ -399,9 +382,8 @@ public class PutRequests {
       "Location",
       AttributeValue.builder().m(employee3Location).build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(employee3).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(employee3).build()
     );
 
     final Map<String, AttributeValue> employee4Location = new HashMap<>();
@@ -409,7 +391,6 @@ public class PutRequests {
     employee4Location.put("Floor", AttributeValue.builder().s("1").build());
     employee4Location.put("Desk", AttributeValue.builder().s("3").build());
     employee4Location.put("City", AttributeValue.builder().s("NYC").build());
-
     final Map<String, AttributeValue> employee4 = new HashMap<>();
     employee4.put(
       "partition_key",
@@ -433,16 +414,15 @@ public class PutRequests {
       "Location",
       AttributeValue.builder().m(employee4Location).build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(employee4).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(employee4).build()
     );
   }
 
   // project.json
   public static void putAllProjectItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final Map<String, AttributeValue> project1 = new HashMap<>();
     project1.put(
@@ -469,9 +449,8 @@ public class PutRequests {
       "ProjectTarget",
       AttributeValue.builder().s("2024-01-01").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(project1).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(project1).build()
     );
 
     final Map<String, AttributeValue> project2 = new HashMap<>();
@@ -496,9 +475,8 @@ public class PutRequests {
       "ProjectTarget",
       AttributeValue.builder().s("2024-01-01").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(project2).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(project2).build()
     );
 
     final Map<String, AttributeValue> project3 = new HashMap<>();
@@ -520,9 +498,8 @@ public class PutRequests {
       "ProjectTarget",
       AttributeValue.builder().s("2023-02-27").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(project3).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(project3).build()
     );
 
     final Map<String, AttributeValue> project4 = new HashMap<>();
@@ -544,16 +521,15 @@ public class PutRequests {
       "ProjectTarget",
       AttributeValue.builder().s("2021-09-05").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(project4).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(project4).build()
     );
   }
 
   // reservation.json
   public static void putAllReservationItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final List<AttributeValue> reservation1AttendeeList = new ArrayList<>();
     reservation1AttendeeList.add(
@@ -563,7 +539,7 @@ public class PutRequests {
       AttributeValue.builder().s("barney@gmail.com").build()
     );
 
-    final HashMap<String, AttributeValue> reservation1Location =
+    final Map<String, AttributeValue> reservation1Location =
       new HashMap<>();
     reservation1Location.put(
       "Building",
@@ -598,11 +574,10 @@ public class PutRequests {
       "Subject",
       AttributeValue.builder().s("Scan beacons").build()
     );
-
-    ddb.putItem(
+    dynamoDbClient.putItem(
       PutItemRequest
         .builder()
-        .tableName(ddbTableName)
+        .tableName(tableName)
         .item(reservation1)
         .build()
     );
@@ -615,7 +590,7 @@ public class PutRequests {
       AttributeValue.builder().s("barney@gmail.com").build()
     );
 
-    final HashMap<String, AttributeValue> reservation2Location =
+    final Map<String, AttributeValue> reservation2Location =
       new HashMap<>();
     reservation2Location.put(
       "Building",
@@ -647,11 +622,10 @@ public class PutRequests {
       AttributeValue.builder().l(reservation2AttendeeList).build()
     );
     reservation2.put("Subject", AttributeValue.builder().s("DB ESDK").build());
-
-    ddb.putItem(
+    dynamoDbClient.putItem(
       PutItemRequest
         .builder()
-        .tableName(ddbTableName)
+        .tableName(tableName)
         .item(reservation2)
         .build()
     );
@@ -659,8 +633,8 @@ public class PutRequests {
 
   // ticket.json
   public static void putAllTicketItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final Map<String, AttributeValue> ticket1 = new HashMap<>();
     ticket1.put(
@@ -689,9 +663,8 @@ public class PutRequests {
       "Message",
       AttributeValue.builder().s("This bug looks pretty bad").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(ticket1).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(ticket1).build()
     );
 
     final Map<String, AttributeValue> ticket2 = new HashMap<>();
@@ -721,9 +694,8 @@ public class PutRequests {
       "Message",
       AttributeValue.builder().s("Charlie should handle this").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(ticket2).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(ticket2).build()
     );
 
     final Map<String, AttributeValue> ticket3 = new HashMap<>();
@@ -753,9 +725,8 @@ public class PutRequests {
       "Message",
       AttributeValue.builder().s("This seems simple enough").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(ticket3).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(ticket3).build()
     );
 
     final Map<String, AttributeValue> ticket4 = new HashMap<>();
@@ -785,16 +756,15 @@ public class PutRequests {
       "Message",
       AttributeValue.builder().s("that's in able's code").build()
     );
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(ticket4).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(ticket4).build()
     );
   }
 
   // timecard.json
   public static void putAllTimecardItemsToTable(
-    String ddbTableName,
-    DynamoDbClient ddb
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
     final Map<String, AttributeValue> timecard1 = new HashMap<>();
     timecard1.put(
@@ -815,9 +785,8 @@ public class PutRequests {
     );
     timecard1.put("Hours", AttributeValue.builder().s("40").build());
     timecard1.put("Role", AttributeValue.builder().s("SDE3").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(timecard1).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(timecard1).build()
     );
 
     final Map<String, AttributeValue> timecard2 = new HashMap<>();
@@ -839,9 +808,8 @@ public class PutRequests {
     );
     timecard2.put("Hours", AttributeValue.builder().s("20").build());
     timecard2.put("Role", AttributeValue.builder().s("PM").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(timecard2).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(timecard2).build()
     );
 
     final Map<String, AttributeValue> timecard3 = new HashMap<>();
@@ -863,9 +831,8 @@ public class PutRequests {
     );
     timecard3.put("Hours", AttributeValue.builder().s("40").build());
     timecard3.put("Role", AttributeValue.builder().s("SDE3").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(timecard3).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(timecard3).build()
     );
 
     final Map<String, AttributeValue> timecard4 = new HashMap<>();
@@ -887,9 +854,8 @@ public class PutRequests {
     );
     timecard4.put("Hours", AttributeValue.builder().s("20").build());
     timecard4.put("Role", AttributeValue.builder().s("PM").build());
-
-    ddb.putItem(
-      PutItemRequest.builder().tableName(ddbTableName).item(timecard4).build()
+    dynamoDbClient.putItem(
+      PutItemRequest.builder().tableName(tableName).item(timecard4).build()
     );
   }
 }

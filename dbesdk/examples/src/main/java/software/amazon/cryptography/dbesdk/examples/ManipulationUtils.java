@@ -17,16 +17,16 @@ public final class ManipulationUtils {
 
   public static class ManipulationException extends RuntimeException {
 
-    public ManipulationException(String msg) {
-      super(msg);
+    public ManipulationException(String message) {
+      super(message);
     }
 
     public ManipulationException(Throwable throwable) {
       super(throwable);
     }
 
-    public ManipulationException(String msg, Throwable throwable) {
-      super(msg, throwable);
+    public ManipulationException(String message, Throwable throwable) {
+      super(message, throwable);
     }
   }
 
@@ -39,7 +39,7 @@ public final class ManipulationUtils {
     boolean manipulationProof = false;
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (StructuredEncryptionException ex) {
+    } catch (StructuredEncryptionException exception) {
       manipulationProof = true;
     }
     if (!manipulationProof) {
@@ -61,18 +61,18 @@ public final class ManipulationUtils {
     final String attributeName
   ) {
     boolean manipulationProof = false;
-    final String exceptionMsg = String.format(
+    final String exceptionMessage = String.format(
       "Attribute Named %s was supposedly manipulated but did not fail Encryption Context" +
       " Check! (Or at least it did not fail it as expected!)",
       attributeName
     );
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (InvalidCiphertextException ex) {
+    } catch (InvalidCiphertextException exception) {
       manipulationProof = true;
     }
     if (!manipulationProof) {
-      throw new ManipulationException(exceptionMsg);
+      throw new ManipulationException(exceptionMessage);
     }
   }
 
@@ -85,7 +85,7 @@ public final class ManipulationUtils {
   ) {
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (StructuredEncryptionException ex) {
+    } catch (StructuredEncryptionException exception) {
       throw new ManipulationException(
         String.format(
           "Attribute Named %s was supposedly manipulated and is NOT SIGNED " +
@@ -94,7 +94,7 @@ public final class ManipulationUtils {
           attributeName,
           manipulated.get(attributeName)
         ),
-        ex
+        exception
       );
     }
   }

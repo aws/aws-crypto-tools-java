@@ -2,14 +2,14 @@ package software.amazon.cryptography.dbesdk.examples.keystore;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 
 /*
  The Hierarchical Keyring Example and Searchable Encryption Examples rely on the existence of a
- DDB-backed key store with pre-existing branch key material or beacon key material.
+ DynamoDB-backed key store with pre-existing branch key material or beacon key material.
 
- See the "Create KeyStore Table Example" for how to first set up the DDB Table that will back this
+ See the "Create KeyStore Table Example" for how to first set up the DynamoDB Table that will back this
  KeyStore.
 
  This example demonstrates configuring a KeyStore and then using a helper method to create a branch
@@ -20,13 +20,13 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 */
 public class CreateKeyStoreKeyExample {
 
-  public static String keyStoreCreateKey(
+  public static String createBranchKey(
     String keyStoreTableName,
     String logicalKeyStoreName,
     String kmsKeyArn
   ) {
     // 1. Configure your KeyStore resource. This SHOULD be the same configuration that was used to
-    // create the DDB table in the "Create KeyStore Table Example".
+    // create the DynamoDB table in the "Create KeyStore Table Example".
     final BranchKeyStore keyStore = BranchKeyStore
       .builder()
       .ddbClient(DynamoDbClient.create())
@@ -38,7 +38,7 @@ public class CreateKeyStoreKeyExample {
 
     // 2. Create a new branch key and beacon key in our KeyStore. Both the branch key and the beacon
     // key will share an Id. This creation is eventually consistent.
-    return keyStore.createKey();
+    return keyStore.createKey().branchKeyIdentifier();
   }
 
   public static void main(final String[] args) {
@@ -50,6 +50,6 @@ public class CreateKeyStoreKeyExample {
     final String keyStoreTableName = args[0];
     final String logicalKeyStoreName = args[1];
     final String kmsKeyArn = args[2];
-    keyStoreCreateKey(keyStoreTableName, logicalKeyStoreName, kmsKeyArn);
+    createBranchKey(keyStoreTableName, logicalKeyStoreName, kmsKeyArn);
   }
 }

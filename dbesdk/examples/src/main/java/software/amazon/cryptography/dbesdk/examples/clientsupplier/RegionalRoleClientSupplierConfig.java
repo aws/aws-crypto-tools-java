@@ -26,7 +26,7 @@ public class RegionalRoleClientSupplierConfig {
     regionIamRoleMap = Collections.unmodifiableMap(roles);
   }
 
-  public Map<String, String> getRegionIamRoleMap() {
+  public Map<String, String> regionIamRoleMap() {
     return regionIamRoleMap;
   }
 }

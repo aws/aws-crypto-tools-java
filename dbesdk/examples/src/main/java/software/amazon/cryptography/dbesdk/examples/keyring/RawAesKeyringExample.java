@@ -6,16 +6,14 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbesdk.examples.ExampleUtils;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
@@ -23,9 +21,9 @@ import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 
 /*
- This example sets up DynamoDb Encryption for the AWS SDK client using the raw AES Keyring. This
+ This example sets up DynamoDB Encryption for the AWS SDK client using the raw AES Keyring. This
  keyring takes in an AES key and uses that key to protect the data keys that encrypt and decrypt
- DynamoDb table items.
+ DynamoDB table items.
 
  This example takes in an `aesKeyBytes` parameter. This parameter should be a 256-bit AES key as a
  byte[]. If this example is run through the class' main method, it will create a new key. In
@@ -33,180 +31,164 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  existing key from a secure key management system (e.g. an HSM).
 
  This example encrypts a test item using the provided AES key and puts the encrypted item to the
- provided DynamoDb table. Then, it gets the item from the table and decrypts it.
+ provided DynamoDB table. Then, it gets the item from the table and decrypts it.
 
- Running this example requires access to the DDB Table whose name is provided in CLI arguments. This
+ Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
  table must be configured with the following primary key configuration:
    - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (S)
+   - Sort key is named "sort_key" with type (N)
 */
 public class RawAesKeyringExample {
 
-  public static void rawAesKeyringPutGet(
-    String ddbTableName,
+  public static void putAndGetItem(
+    String tableName,
     byte[] aesKeyBytes
   ) {
     // 1. Create the keyring.
-    //    The DynamoDb encryption client uses this to encrypt and decrypt items.
+    //    The DynamoDB encryption client uses this to encrypt and decrypt items.
     final Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
-      .wrappingKey(SecretBytes.of(aesKeyBytes))
+      .wrappingKey(SecretBytes.copyOf(aesKeyBytes))
       .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
       .build();
 
-    // 2. Configure which attributes are encrypted and/or signed when writing new items.
-    //    For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    //    we must explicitly configure how they should be treated during item encryption:
-    //      - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //      - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //      - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("partition_key", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("sort_key", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put(
-      "sensitive_data",
-      CryptoAction.ENCRYPT_AND_SIGN
-    );
+    // 2. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Every attribute you write must either have an action or start with the prefix set in the
+    //    next step; writing an item with any other attribute fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
 
-    // 3. Configure which attributes we expect to be included in the signature
-    //    when reading items. There are two options for configuring this:
+    // 3. Decide which attributes are left out of the signature. Two separate settings do this. They
+    //    do different jobs, and you can use either one, both, or neither:
     //
-    //    - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //      When defining your DynamoDb schema and deciding on attribute names,
-    //      choose a distinguishing prefix (such as ":") for all attributes that
-    //      you do not want to include in the signature.
-    //      This has two main benefits:
-    //      - It is easier to reason about the security and authenticity of data within your item
-    //        when all unauthenticated data is easily distinguishable by their attribute name.
-    //      - If you need to add new unauthenticated attributes in the future,
-    //        you can easily make the corresponding update to your `attributeActionsOnEncrypt`
-    //        and immediately start writing to that new attribute, without
-    //        any other configuration update needed.
-    //      Once you configure this field, it is not safe to update it.
+    //    - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text
+    //      is treated as doNothing, without being listed anywhere. It lets you add new unsigned
+    //      attributes later just by naming them with the prefix, with no configuration change. Pick
+    //      the prefix before you write any items, and do not change it afterwards.
     //
-    //    - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //      a set of attributes that should be considered unauthenticated when encountered
-    //      on read. Be careful if you use this configuration. Do not remove an attribute
-    //      name from this configuration, even if you are no longer writing with that attribute,
-    //      as old items may still include this attribute, and our configuration needs to know
-    //      to continue to exclude this attribute from the signature scope.
-    //      If you add new attribute names to this field, you must first deploy the update to this
-    //      field to all readers in your host fleet before deploying the update to start writing
-    //      with that new attribute.
+    //    - doNothing("name", ...) lists specific attributes by name, for unsigned attributes whose
+    //      names do not start with the prefix. Never remove a name from this list while items that
+    //      have that attribute may still be in the table, or reading those items fails. To add a
+    //      name, first update the configuration on every reader, and only then start writing the
+    //      new attribute.
     //
-    //   For this example, we currently authenticate all attributes. To make it easier to
-    //   add unauthenticated attributes in the future, we define a prefix ":" for such attributes.
-    final String unsignAttrPrefix = ":";
+    //    This example sets the prefix ":" so that unsigned attributes can be added later. The items
+    //    it writes do not have any yet.
 
-    // 4. Create the DynamoDb Encryption configuration for the table we will be writing to.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from the choices above.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
-      .keyring(rawAesKeyring)
-      .allowedUnsignedAttributePrefix(unsignAttrPrefix)
+      .encryptAndSign("sensitive_data")
+      .doNothingPrefix(":")
       .build();
-    tableConfigs.put(ddbTableName, config);
 
-    // 5. Create the DynamoDb Encryption Interceptor
+    // 4. Create the DynamoDB Encryption configuration for the table we will be writing to.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(rawAesKeyring)
+      .build();
+
+    // 5. Create the DynamoDB Encryption Interceptor
     final DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // 7. Put an item into our table using the above client.
+      //    Before the item gets sent to DynamoDB, it will be encrypted
+      //    client-side, according to our configuration.
+      final Map<String, AttributeValue> item = new HashMap<>();
+      item.put(
+        "partition_key",
+        AttributeValue
+          .builder()
+          .s(ExampleUtils.uniquePartitionKey("rawAesKeyringItem"))
+          .build()
+      );
+      item.put("sort_key", AttributeValue.builder().n("0").build());
+      item.put(
+        "sensitive_data",
+        AttributeValue.builder().s("encrypt and sign me!").build()
+      );
+      final PutItemRequest putRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(item)
         .build();
 
-    // 6. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
+      dynamoDbClient.putItem(putRequest);
+
+      // 8. Get the item back from our table using the same client.
+      //    The client will decrypt the item client-side, and return
+      //    back the original item.
+      final Map<String, AttributeValue> keyToGet = new HashMap<>();
+      keyToGet.put(
+        "partition_key",
+        AttributeValue
           .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
+          .s(ExampleUtils.uniquePartitionKey("rawAesKeyringItem"))
           .build()
-      )
-      .build();
-
-    // 7. Put an item into our table using the above client.
-    //    Before the item gets sent to DynamoDb, it will be encrypted
-    //    client-side, according to our configuration.
-    final Map<String, AttributeValue> item = new HashMap<>();
-    item.put(
-      "partition_key",
-      AttributeValue
+      );
+      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
+      final GetItemRequest getRequest = GetItemRequest
         .builder()
-        .s(ExampleUtils.uniquePk("rawAesKeyringItem"))
-        .build()
-    );
-    item.put("sort_key", AttributeValue.builder().n("0").build());
-    item.put(
-      "sensitive_data",
-      AttributeValue.builder().s("encrypt and sign me!").build()
-    );
+        .key(keyToGet)
+        .tableName(tableName)
+        .build();
 
-    final PutItemRequest putRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(item)
-      .build();
+      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
-    final PutItemResponse putResponse = ddb.putItem(putRequest);
-
-    // Demonstrate that PutItem succeeded
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-
-    // 8. Get the item back from our table using the same client.
-    //    The client will decrypt the item client-side, and return
-    //    back the original item.
-    final Map<String, AttributeValue> keyToGet = new HashMap<>();
-    keyToGet.put(
-      "partition_key",
-      AttributeValue
-        .builder()
-        .s(ExampleUtils.uniquePk("rawAesKeyringItem"))
-        .build()
-    );
-    keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-
-    final GetItemRequest getRequest = GetItemRequest
-      .builder()
-      .key(keyToGet)
-      .tableName(ddbTableName)
-      .build();
-
-    final GetItemResponse getResponse = ddb.getItem(getRequest);
-
-    // Demonstrate that GetItem succeeded and returned the decrypted item
-    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-    final Map<String, AttributeValue> returnedItem = getResponse.item();
-    if (
-      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
-    ) {
-      throw new AssertionError();
+      // Demonstrate that GetItem succeeded and returned the decrypted item
+      final Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
     }
   }
 
   public static void main(final String[] args) {
-    if (args.length <= 0) {
+    if (args.length < 1) {
       throw new IllegalArgumentException(
-        "To run this example, include the ddbTable in args"
+        "To run this example, include the table name in args"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
 
     // Generate a new AES key
     final byte[] aesKeyBytes = generateAesKeyBytes();
 
-    rawAesKeyringPutGet(ddbTableName, aesKeyBytes);
+    putAndGetItem(tableName, aesKeyBytes);
   }
 
   static byte[] generateAesKeyBytes() {
@@ -214,14 +196,17 @@ public class RawAesKeyringExample {
     // In practice, you should not generate this key in your code, and should instead
     //     retrieve this key from a secure key management system (e.g. HSM).
     // This key is created here for example purposes only and should not be used for any other purpose.
-    final KeyGenerator aesGen;
+    final KeyGenerator aesKeyGenerator;
     try {
-      aesGen = KeyGenerator.getInstance("AES");
-    } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException("No such algorithm", e);
+      aesKeyGenerator = KeyGenerator.getInstance("AES");
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException(
+        "This JVM does not support AES key generation",
+        exception
+      );
     }
-    aesGen.init(256, new SecureRandom());
-    final SecretKey encryptionKey = aesGen.generateKey();
+    aesKeyGenerator.init(256, new SecureRandom());
+    final SecretKey encryptionKey = aesKeyGenerator.generateKey();
     return encryptionKey.getEncoded();
   }
 }

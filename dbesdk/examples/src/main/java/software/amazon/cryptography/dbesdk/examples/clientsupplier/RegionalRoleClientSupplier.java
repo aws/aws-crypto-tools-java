@@ -1,6 +1,5 @@
 package software.amazon.cryptography.dbesdk.examples.clientsupplier;
 
-import java.util.Map;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -26,31 +25,31 @@ public class RegionalRoleClientSupplier implements ClientSupplier {
 
   @Override
   public KmsClient getClient(String region) {
-    final Map<String, String> regionIamRoleMap = config.getRegionIamRoleMap();
-    if (!regionIamRoleMap.containsKey(region)) {
+    final String roleArn = config.regionIamRoleMap().get(region);
+    if (roleArn == null) {
       throw new IllegalArgumentException(
         "No IAM role configured for region " + region
       );
     }
-    final String arn = regionIamRoleMap.get(region);
-    final Credentials creds = stsClient
+    final Credentials credentials = stsClient
       .assumeRole(
         AssumeRoleRequest
           .builder()
-          .roleArn(arn)
+          .roleArn(roleArn)
           .durationSeconds(900) // 15 minutes is the minimum value
           .roleSessionName("Java-Client-Supplier-Example-Session")
           .build()
       )
       .credentials();
+
     return KmsClient
       .builder()
       .credentialsProvider(
         StaticCredentialsProvider.create(
           AwsSessionCredentials.create(
-            creds.accessKeyId(),
-            creds.secretAccessKey(),
-            creds.sessionToken()
+            credentials.accessKeyId(),
+            credentials.secretAccessKey(),
+            credentials.sessionToken()
           )
         )
       )

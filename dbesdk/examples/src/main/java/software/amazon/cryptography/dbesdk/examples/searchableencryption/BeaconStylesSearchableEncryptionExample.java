@@ -1,35 +1,30 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconStyle;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconVersion;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeacon;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SearchConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.SignedPart;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SingleKeyStore;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /*
  This example demonstrates how to use Beacons Styles on Standard Beacons on encrypted attributes,
@@ -37,9 +32,9 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
  database that stores food information. This is an extension of the
  "BasicSearchableEncryptionExample" in this directory and uses the same table schema.
 
- Running this example requires access to a DDB table with the following key configuration:
+ Running this example requires access to a DynamoDB table with the following key configuration:
    - Partition key is named "work_id" with type (S)
-   - Sort key is named "inspection_time" with type (S)
+   - Sort key is named "inspection_date" with type (S)
 
  In this example for storing food information, this schema is utilized for the data:
   - "work_id" stores a unique identifier for a unit inspection work order (v4 UUID)
@@ -51,138 +46,122 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
   - "work_type" stores a unit inspection category
 
  The example requires the following ordered input command line parameters:
-   1. DDB table name for table to put/query data from
+   1. DynamoDB table name for table to put/query data from
    2. Branch key ID for a branch key that was previously created in your key store. See the
       CreateKeyStoreKeyExample.
    3. Branch key wrapping KMS key ARN for the KMS key used to create the branch key with ID
       provided in arg 2
-   4. Branch key DDB table ARN for the DDB table representing the branch key store
+   4. Branch key DynamoDB table ARN for the DynamoDB table representing the branch key store
 */
 
 public class BeaconStylesSearchableEncryptionExample {
 
-  public static void putItemQueryItemWithBeaconStyles(
-    String ddbTableName,
+  public static void putAndScanItems(
+    String tableName,
     String branchKeyId,
     String branchKeyWrappingKmsKeyArn,
-    String branchKeyDdbTableName
+    String keyStoreTableName
   ) {
     // 1. Create Beacons.
-    List<StandardBeacon> standardBeaconList = new ArrayList<>();
-
     // The fruit beacon allows searching on the encrypted fruit attribute
     // We have selected 30 as an example beacon length, but you should go to
     // https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/choosing-beacon-length.html
     // when creating your beacons.
-    StandardBeacon fruitBeacon = StandardBeacon
+    final StandardBeacon fruitBeacon = StandardBeacon
       .builder()
       .name("fruit")
-      .length(30)
+      .bitLength(30)
       .build();
-    standardBeaconList.add(fruitBeacon);
 
     // The basket beacon allows searching on the encrypted basket attribute
     // basket is used as a Set, and therefore needs a beacon style to reflect that.
     // Further, we need to be able to compare the items in basket to the fruit attribute
     // so we `share` this beacon with `fruit`.
     // Since we need both of these things, we use the SharedSet style.
-    StandardBeacon basketBeacon = StandardBeacon
+    final StandardBeacon basketBeacon = StandardBeacon
       .builder()
       .name("basket")
-      .length(30)
+      .bitLength(30)
       .style(BeaconStyle.sharedSet("fruit"))
       .build();
-    standardBeaconList.add(basketBeacon);
 
     // The dessert beacon allows searching on the encrypted dessert attribute
     // We need to be able to compare the dessert attribute to the fruit attribute
     // so we `share` this beacon with `fruit`.
-    StandardBeacon dessertBeacon = StandardBeacon
+    final StandardBeacon dessertBeacon = StandardBeacon
       .builder()
       .name("dessert")
-      .length(30)
+      .bitLength(30)
       .style(BeaconStyle.shared("fruit"))
       .build();
-    standardBeaconList.add(dessertBeacon);
 
     // The veggieBeacon allows searching on the encrypted veggies attribute
     // veggies is used as a Set, and therefore needs a beacon style to reflect that.
-    StandardBeacon veggieBeacon = StandardBeacon
+    final StandardBeacon veggieBeacon = StandardBeacon
       .builder()
       .name("veggies")
-      .length(30)
+      .bitLength(30)
       .style(BeaconStyle.asSet())
       .build();
-    standardBeaconList.add(veggieBeacon);
 
     // The workTypeBeacon allows searching on the encrypted work_type attribute
     // We only use it as part of the compound work_unit beacon,
     // so we disable its use as a standalone beacon
-    StandardBeacon workTypeBeacon = StandardBeacon
+    final StandardBeacon workTypeBeacon = StandardBeacon
       .builder()
       .name("work_type")
-      .length(30)
+      .bitLength(30)
       .style(BeaconStyle.partOnly())
       .build();
-    standardBeaconList.add(workTypeBeacon);
 
     // Here we build a compound beacon from work_id and work_type
     // If we had tried to make a StandardBeacon from work_type, we would have seen an error
     // because work_type is "PartOnly"
-    List<EncryptedPart> encryptedPartList = new ArrayList<>();
-    EncryptedPart work_typePart = EncryptedPart
+    final EncryptedPart workTypePart = EncryptedPart
       .builder()
       .name("work_type")
       .prefix("T-")
       .build();
-    encryptedPartList.add(work_typePart);
 
-    List<SignedPart> signedPartList = new ArrayList<>();
-    SignedPart work_idPart = SignedPart
+    final SignedPart workIdPart = SignedPart
       .builder()
       .name("work_id")
       .prefix("I-")
       .build();
-    signedPartList.add(work_idPart);
 
-    List<CompoundBeacon> compoundBeaconList = new ArrayList<>();
-    CompoundBeacon work_unitBeacon = CompoundBeacon
+    final CompoundBeacon workUnitBeacon = CompoundBeacon
       .builder()
       .name("work_unit")
       .split(".")
-      .encrypted(encryptedPartList)
-      .signed(signedPartList)
+      .encrypted(workTypePart)
+      .signed(workIdPart)
       .build();
-    compoundBeaconList.add(work_unitBeacon);
 
     // 2. Configure the Keystore
     //    These are the same constructions as in the Basic example, which describes these in more detail.
-    BranchKeyStore keyStore = BranchKeyStore
+    final BranchKeyStore keyStore = BranchKeyStore
       .builder()
       .kmsClient(KmsClient.create())
       .ddbClient(DynamoDbClient.create())
-      .ddbTableName(branchKeyDdbTableName)
-      .logicalKeyStoreName(branchKeyDdbTableName)
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(keyStoreTableName)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(branchKeyWrappingKmsKeyArn))
       .build();
 
-    // 3. Create BeaconVersion.
+    // 3. Create BeaconConfig.
     //    This is similar to the Basic example
-    List<BeaconVersion> beaconVersions = new ArrayList<>();
-    beaconVersions.add(
-      BeaconVersion
-        .builder()
-        .standardBeacons(standardBeaconList)
-        .compoundBeacons(compoundBeaconList)
-        .version(1) // MUST be 1
-        .keyStore(keyStore)
-        .keySource(
-          BeaconKeySource.single(
-            SingleKeyStore.builder().keyId(branchKeyId).cacheTtl(6000).build()
-          )
-        )
-        .build()
-    );
+    final BeaconConfig beaconConfig = BeaconConfig
+      .builder()
+      .standardBeacons(fruitBeacon, basketBeacon, dessertBeacon, veggieBeacon, workTypeBeacon)
+      .compoundBeacons(workUnitBeacon)
+      .keyStore(keyStore)
+      .keySource(
+        BeaconKeySource
+          .singleBeaconKey(branchKeyId)
+          .cacheTtl(Duration.ofSeconds(6000))
+          .build()
+      )
+      .build();
 
     // 4. Create a Hierarchical Keyring
     //    This is the same configuration as in the Basic example.
@@ -190,39 +169,53 @@ public class BeaconStylesSearchableEncryptionExample {
       .builder()
       .branchKeyId(branchKeyId)
       .keyStore(keyStore)
-      .ttlSeconds(6000L)
+      .ttl(Duration.ofSeconds(6000))
       .build();
 
-    // 5. Configure which attributes are encrypted and/or signed when writing new items.
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("work_id", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("inspection_date", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("dessert", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("fruit", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("basket", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("veggies", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("work_type", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
+    // 5. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Every attribute you write must have an action; writing an item with any other attribute
+    //    fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
 
-    // 6. Create the DynamoDb Encryption configuration for the table we will be writing to.
-    //    The beaconVersions are added to the search configuration.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from these choices.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("work_id")
       .sortKeyName("inspection_date")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
-      .keyring(kmsKeyring)
-      .search(
-        SearchConfig
-          .builder()
-          .writeVersion(1) // MUST be 1
-          .versions(beaconVersions)
-          .build()
-      )
+      // Beaconized attributes must be encrypted
+      .encryptAndSign("dessert", "fruit", "basket", "veggies", "work_type")
       .build();
-    tableConfigs.put(ddbTableName, config);
+
+    // 6. Create the DynamoDB Encryption configuration for the table we will be writing to.
+    //    The beacon configuration is added to the table configuration.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(kmsKeyring)
+      .beaconConfig(beaconConfig)
+      .build();
 
     // Generate unique work_id values for this run to avoid collisions with stale items
     final String workId1 = UUID.randomUUID().toString();
@@ -237,16 +230,14 @@ public class BeaconStylesSearchableEncryptionExample {
     );
     item1.put("dessert", AttributeValue.builder().s("cake").build());
     item1.put("fruit", AttributeValue.builder().s("banana").build());
-    ArrayList<String> basket = new ArrayList<>();
-    basket.add("apple");
-    basket.add("banana");
-    basket.add("pear");
-    item1.put("basket", AttributeValue.builder().ss(basket).build());
-    ArrayList<String> veggies = new ArrayList<>();
-    veggies.add("beans");
-    veggies.add("carrots");
-    veggies.add("celery");
-    item1.put("veggies", AttributeValue.builder().ss(veggies).build());
+    item1.put(
+      "basket",
+      AttributeValue.builder().ss("apple", "banana", "pear").build()
+    );
+    item1.put(
+      "veggies",
+      AttributeValue.builder().ss("beans", "carrots", "celery").build()
+    );
     item1.put("work_type", AttributeValue.builder().s("small").build());
 
     // 8. Create item two, specifically with "dessert == fruit", and "fruit not in basket".
@@ -258,257 +249,199 @@ public class BeaconStylesSearchableEncryptionExample {
     );
     item2.put("fruit", AttributeValue.builder().s("orange").build());
     item2.put("dessert", AttributeValue.builder().s("orange").build());
-    basket = new ArrayList<>();
-    basket.add("blackberry");
-    basket.add("blueberry");
-    basket.add("strawberry");
-    item2.put("basket", AttributeValue.builder().ss(basket).build());
-    veggies = new ArrayList<>();
-    veggies.add("beans");
-    veggies.add("carrots");
-    veggies.add("peas");
-    item2.put("veggies", AttributeValue.builder().ss(veggies).build());
+    item2.put(
+      "basket",
+      AttributeValue
+        .builder()
+        .ss("blackberry", "blueberry", "strawberry")
+        .build()
+    );
+    item2.put(
+      "veggies",
+      AttributeValue.builder().ss("beans", "carrots", "peas").build()
+    );
     item2.put("work_type", AttributeValue.builder().s("large").build());
+    // 9. Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
-    // 9. Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // 10. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // 11. Add the two items
+      PutItemRequest putRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(item1)
         .build();
 
-    // 10. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
+      dynamoDbClient.putItem(putRequest);
+
+      putRequest =
+        PutItemRequest.builder().tableName(tableName).item(item2).build();
+
+      dynamoDbClient.putItem(putRequest);
+
+      // These filters ensure scans only match items created by this test run.
+      final String widFilter = "work_id IN (:wid1, :wid2)";
+      final Map<String, AttributeValue> widValues = new HashMap<>();
+      widValues.put(":wid1", AttributeValue.builder().s(workId1).build());
+      widValues.put(":wid2", AttributeValue.builder().s(workId2).build());
+      try {
+        // 12. Test the first type of Set operation :
+        // Select records where the basket attribute holds a particular value
+        Map<String, AttributeValue> expressionAttributeValues = new HashMap<>(
+          widValues
+        );
+        expressionAttributeValues.put(
+          ":value",
+          AttributeValue.builder().s("banana").build()
+        );
+
+        ScanRequest scanRequest = ScanRequest
           .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
-
-    // 11. Add the two items
-    PutItemRequest putRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(item1)
-      .build();
-
-    PutItemResponse putResponse = ddb.putItem(putRequest);
-    // Validate object put successfully
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-
-    putRequest =
-      PutItemRequest.builder().tableName(ddbTableName).item(item2).build();
-
-    putResponse = ddb.putItem(putRequest);
-    // Validate object put successfully
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-
-    // These filters ensure scans only match items created by this test run.
-    final String widFilter = "work_id IN (:wid1, :wid2)";
-    final Map<String, AttributeValue> widValues = new HashMap<>();
-    widValues.put(":wid1", AttributeValue.builder().s(workId1).build());
-    widValues.put(":wid2", AttributeValue.builder().s(workId2).build());
-
-    try {
-      // 12. Test the first type of Set operation :
-      // Select records where the basket attribute holds a particular value
-      Map<String, AttributeValue> expressionAttributeValues = new HashMap<>(
-        widValues
-      );
-      expressionAttributeValues.put(
-        ":value",
-        AttributeValue.builder().s("banana").build()
-      );
-
-      ScanRequest scanRequest = ScanRequest
-        .builder()
-        .tableName(ddbTableName)
-        .filterExpression(widFilter + " AND contains(basket, :value)")
-        .expressionAttributeValues(expressionAttributeValues)
-        .build();
-
-      ScanResponse scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item1))) {
-        throw new AssertionError();
-      }
-
-      // 13. Test the second type of Set operation :
-      // Select records where the basket attribute holds the fruit attribute
-      scanRequest =
-        ScanRequest
-          .builder()
-          .tableName(ddbTableName)
-          .filterExpression(widFilter + " AND contains(basket, fruit)")
-          .expressionAttributeValues(widValues)
-          .build();
-
-      scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item1))) {
-        throw new AssertionError();
-      }
-
-      // 14. Test the third type of Set operation :
-      // Select records where the fruit attribute exists in a particular set
-      ArrayList<String> basket3 = new ArrayList<>();
-      basket3.add("boysenberry");
-      basket3.add("grape");
-      basket3.add("orange");
-      expressionAttributeValues = new HashMap<>(widValues);
-      expressionAttributeValues.put(
-        ":value",
-        AttributeValue.builder().ss(basket3).build()
-      );
-
-      scanRequest =
-        ScanRequest
-          .builder()
-          .tableName(ddbTableName)
-          .filterExpression(widFilter + " AND contains(:value, fruit)")
+          .tableName(tableName)
+          .filterExpression(widFilter + " AND contains(basket, :value)")
           .expressionAttributeValues(expressionAttributeValues)
           .build();
 
-      scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item2))) {
-        throw new AssertionError();
-      }
+        ScanResponse scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item1);
 
-      // Test a Shared search. Select records where the dessert attribute matches the fruit attribute
-      scanRequest =
-        ScanRequest
-          .builder()
-          .tableName(ddbTableName)
-          .filterExpression(widFilter + " AND dessert = fruit")
-          .expressionAttributeValues(widValues)
-          .build();
+        // 13. Test the second type of Set operation :
+        // Select records where the basket attribute holds the fruit attribute
+        scanRequest =
+          ScanRequest
+            .builder()
+            .tableName(tableName)
+            .filterExpression(widFilter + " AND contains(basket, fruit)")
+            .expressionAttributeValues(widValues)
+            .build();
 
-      scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item2))) {
-        throw new AssertionError();
-      }
+        scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item1);
 
-      // 15. Test the AsSet attribute 'veggies' :
-      // Select records where the veggies attribute holds a particular value
-      expressionAttributeValues = new HashMap<>(widValues);
-      expressionAttributeValues.put(
-        ":value",
-        AttributeValue.builder().s("peas").build()
-      );
+        // 14. Test the third type of Set operation :
+        // Select records where the fruit attribute exists in a particular set
+        expressionAttributeValues = new HashMap<>(widValues);
+        expressionAttributeValues.put(
+          ":value",
+          AttributeValue.builder().ss("boysenberry", "grape", "orange").build()
+        );
 
-      scanRequest =
-        ScanRequest
-          .builder()
-          .tableName(ddbTableName)
-          .filterExpression(widFilter + " AND contains(veggies, :value)")
-          .expressionAttributeValues(expressionAttributeValues)
-          .build();
+        scanRequest =
+          ScanRequest
+            .builder()
+            .tableName(tableName)
+            .filterExpression(widFilter + " AND contains(:value, fruit)")
+            .expressionAttributeValues(expressionAttributeValues)
+            .build();
 
-      scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item2))) {
-        throw new AssertionError();
-      }
+        scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item2);
 
-      // 16. Test the compound beacon 'work_unit' :
-      expressionAttributeValues = new HashMap<>(widValues);
-      expressionAttributeValues.put(
-        ":value",
-        AttributeValue.builder().s("I-" + workId1 + ".T-small").build()
-      );
+        // Test a Shared search. Select records where the dessert attribute matches the fruit attribute
+        scanRequest =
+          ScanRequest
+            .builder()
+            .tableName(tableName)
+            .filterExpression(widFilter + " AND dessert = fruit")
+            .expressionAttributeValues(widValues)
+            .build();
 
-      scanRequest =
-        ScanRequest
-          .builder()
-          .tableName(ddbTableName)
-          .filterExpression(widFilter + " AND work_unit = :value")
-          .expressionAttributeValues(expressionAttributeValues)
-          .build();
+        scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item2);
 
-      scanResponse = ddb.scan(scanRequest);
-      if (!(200 == scanResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
+        // 15. Test the AsSet attribute 'veggies' :
+        // Select records where the veggies attribute holds a particular value
+        expressionAttributeValues = new HashMap<>(widValues);
+        expressionAttributeValues.put(
+          ":value",
+          AttributeValue.builder().s("peas").build()
+        );
+
+        scanRequest =
+          ScanRequest
+            .builder()
+            .tableName(tableName)
+            .filterExpression(widFilter + " AND contains(veggies, :value)")
+            .expressionAttributeValues(expressionAttributeValues)
+            .build();
+
+        scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item2);
+
+        // 16. Test the compound beacon 'work_unit' :
+        expressionAttributeValues = new HashMap<>(widValues);
+        expressionAttributeValues.put(
+          ":value",
+          AttributeValue.builder().s("I-" + workId1 + ".T-small").build()
+        );
+
+        scanRequest =
+          ScanRequest
+            .builder()
+            .tableName(tableName)
+            .filterExpression(widFilter + " AND work_unit = :value")
+            .expressionAttributeValues(expressionAttributeValues)
+            .build();
+
+        scanResponse = dynamoDbClient.scan(scanRequest);
+        assert scanResponse.items().size() == 1;
+        assert scanResponse.items().get(0).equals(item1);
+      } finally {
+        // Clean up: delete both items using a plain DynamoDB client
+        try (DynamoDbClient plainDynamoDbClient = DynamoDbClient.create()) {
+          final Map<String, AttributeValue> key1 = new HashMap<>();
+          key1.put("work_id", AttributeValue.builder().s(workId1).build());
+          key1.put(
+            "inspection_date",
+            AttributeValue.builder().s("2023-06-13").build()
+          );
+          plainDynamoDbClient.deleteItem(
+            DeleteItemRequest.builder().tableName(tableName).key(key1).build()
+          );
+          final Map<String, AttributeValue> key2 = new HashMap<>();
+          key2.put("work_id", AttributeValue.builder().s(workId2).build());
+          key2.put(
+            "inspection_date",
+            AttributeValue.builder().s("2023-06-13").build()
+          );
+          plainDynamoDbClient.deleteItem(
+            DeleteItemRequest.builder().tableName(tableName).key(key2).build()
+          );
+        }
       }
-      if (!(scanResponse.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      if (!(scanResponse.items().get(0).equals(item1))) {
-        throw new AssertionError();
-      }
-    } finally {
-      // Clean up: delete both items using a plain DDB client
-      final DynamoDbClient plainDdb = DynamoDbClient.create();
-      Map<String, AttributeValue> key1 = new HashMap<>();
-      key1.put("work_id", AttributeValue.builder().s(workId1).build());
-      key1.put(
-        "inspection_date",
-        AttributeValue.builder().s("2023-06-13").build()
-      );
-      plainDdb.deleteItem(
-        DeleteItemRequest.builder().tableName(ddbTableName).key(key1).build()
-      );
-      Map<String, AttributeValue> key2 = new HashMap<>();
-      key2.put("work_id", AttributeValue.builder().s(workId2).build());
-      key2.put(
-        "inspection_date",
-        AttributeValue.builder().s("2023-06-13").build()
-      );
-      plainDdb.deleteItem(
-        DeleteItemRequest.builder().tableName(ddbTableName).key(key2).build()
-      );
     }
   }
 
   public static void main(final String[] args) {
     if (args.length < 4) {
       throw new IllegalArgumentException(
-        "To run this example, include ddbTableName as args[0], branchKeyId as args[1], " +
-        "branchKeyWrappingKmsKeyId as args[2], and branchKeyDdbTableName as args[3]"
+        "To run this example, include tableName as args[0], branchKeyId as args[1], " +
+        "branchKeyWrappingKmsKeyArn as args[2], and keyStoreTableName as args[3]"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String branchKeyId = args[1];
-    final String branchKeyWrappingKmsKeyId = args[2];
-    final String branchKeyDdbTableName = args[3];
-    putItemQueryItemWithBeaconStyles(
-      ddbTableName,
+    final String branchKeyWrappingKmsKeyArn = args[2];
+    final String keyStoreTableName = args[3];
+    putAndScanItems(
+      tableName,
       branchKeyId,
-      branchKeyWrappingKmsKeyId,
-      branchKeyDdbTableName
+      branchKeyWrappingKmsKeyArn,
+      keyStoreTableName
     );
   }
 }

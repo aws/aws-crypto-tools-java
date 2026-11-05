@@ -1,39 +1,36 @@
 package software.amazon.cryptography.dbesdk.examples.enhanced;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import java.util.stream.Collectors;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.enhanced.dynamodb.model.GetItemEnhancedRequest;
 import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEnhancedClientEncryption;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEnhancedTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.EnhancedClientSchemas;
 import software.amazon.cryptography.dbesdk.examples.ExampleUtils;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
 /*
- This example sets up DynamoDb Encryption for the DynamoDb Enhanced Client and uses the high level
- putItem() and getItem() APIs to demonstrate putting a client-side encrypted item into DynamoDb and
- then retrieving and decrypting that item from DynamoDb.
+ This example sets up DynamoDB Encryption for the DynamoDB Enhanced Client and uses the high level
+ putItem() and getItem() APIs to demonstrate putting a client-side encrypted item into DynamoDB and
+ then retrieving and decrypting that item from DynamoDB.
 
- Running this example requires access to the DDB Table whose name is provided in CLI arguments. This
+ Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
  table must be configured with the following primary key configuration:
    - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (S)
+   - Sort key is named "sort_key" with type (N)
 */
 public class EnhancedPutGetExample {
 
-  public static void putItemGetItem(String kmsKeyId, String ddbTableName) {
+  public static void putAndGetItem(String kmsKeyId, String tableName) {
     // 1. Create a Keyring. This Keyring will be responsible for protecting the data keys that
     //    protect your data. For this example, we will create a AWS KMS Keyring with the AWS KMS Key
     //    we want to use. We will use the AWS KMS MRK Multi Keyring, as it will correctly handle both
@@ -54,144 +51,127 @@ public class EnhancedPutGetExample {
       SimpleClass4.class
     );
 
-    // 3. Configure which attributes we expect to be included in the signature
-    //    when reading items. There are two options for configuring this:
+    // 3. Decide which attributes are left out of the signature. In your item classes, an attribute
+    //    marked as doNothing (with the DynamoDbEncryptionDoNothing annotation or the DoNothingTag)
+    //    is already left out. On top of that, you can set a prefix:
     //
-    //    - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //      When defining your DynamoDb schema and deciding on attribute names,
-    //      choose a distinguishing prefix (such as ":") for all attributes that
-    //      you do not want to include in the signature.
-    //      This has two main benefits:
-    //      - It is easier to reason about the security and authenticity of data within your item
-    //        when all unauthenticated data is easily distinguishable by their attribute name.
-    //      - If you need to add new unauthenticated attributes in the future,
-    //        you can immediately start writing to a new `DynamoDbEncryptionDoNothing` attribute
-    //        as long as it's name uses this prefix, without any other configuration update needed.
-    //      Once you configure this field, it is not safe to update it.
+    //    - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text
+    //      is treated as doNothing. It lets you add new unsigned attributes later just by naming
+    //      them with the prefix. Pick the prefix before you write any items, and do not change it
+    //      afterwards.
     //
-    //    - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //      a set of attributes that should be considered unauthenticated when encountered
-    //      on read. Be careful if you use this configuration. Do not remove an attribute
-    //      name from this configuration, even if you are no longer writing with that attribute,
-    //      as old items may still include this attribute, and our configuration needs to know
-    //      to continue to exclude this attribute from the signature scope.
-    //      If you add new attribute names to this field, you must first deploy the update to this
-    //      field to all readers in your host fleet before deploying the update to start writing
-    //      with that new attribute.
+    //    Never remove the doNothing marking from an attribute while items that have that attribute
+    //    may still be in the table, or reading those items fails. To mark a new attribute as
+    //    doNothing, first update every reader, and only then start writing the new attribute.
     //
-    //   For this example, we have designed our DynamoDb table such that any attribute name with
-    //   the ":" prefix should be considered unauthenticated.
-    final String unsignAttrPrefix = ":";
+    //    This example sets the prefix ":". Its item class already marks ":attribute3" as doNothing;
+    //    the prefix also lets you add more ":" attributes later without changing the class
+    //    annotations.
 
-    // 4. Create the DynamoDb Encryption configuration for the table we will be writing to
-    final Map<String, DynamoDbEnhancedTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    tableConfigs.put(
-      ddbTableName,
-      DynamoDbEnhancedTableEncryptionConfig
+    // Build the schema from the annotations and the prefix. SimpleClass4 marks attribute4 with
+    // @DynamoDbEncryptionSignAndIncludeInEncryptionContext, so this schema must also include the
+    // primary key in the encryption context.
+    final ItemEncryptionSchema schema = EnhancedClientSchemas
+      .fromTableSchemas(tableSchema)
+      .signAndIncludePrimaryKeysInEncryptionContext(true)
+      .doNothingPrefix(":")
+      .build();
+
+    // 4. Create the DynamoDB Encryption configuration for the table we will be writing to
+    final DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(kmsKeyring)
+      // Specifying an algorithm suite is not required,
+      // but is done here to demonstrate how to do so.
+      // We suggest using the
+      // `ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384` suite,
+      // which includes AES-GCM with key derivation, signing, and key commitment.
+      // This is also the default algorithm suite if one is not specified in this config.
+      // For more information on supported algorithm suites, see:
+      //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
+      .algorithmSuiteId(
+        AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
+      )
+      .build();
+
+    // 5. Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(tableConfig).build();
+
+    // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .logicalTableName(ddbTableName)
-        .keyring(kmsKeyring)
-        .allowedUnsignedAttributePrefix(unsignAttrPrefix)
-        .schemaOnEncrypt(tableSchema)
-        // Specifying an algorithm suite is not required,
-        // but is done here to demonstrate how to do so.
-        // We suggest using the
-        // `ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384` suite,
-        // which includes AES-GCM with key derivation, signing, and key commitment.
-        // This is also the default algorithm suite if one is not specified in this config.
-        // For more information on supported algorithm suites, see:
-        //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
-        .algorithmSuiteId(
-          AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
         )
         .build()
-    );
-
-    // 5. Create the DynamoDb Encryption Interceptor, using the DynamoDbEnhancedClientEncryption helper
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEnhancedClientEncryption.createDynamoDbEncryptionInterceptor(
-        tableConfigs
+    ) {
+      // 7. Create the DynamoDbEnhancedClient using the AWS SDK Client created above,
+      //    and create a Table with your modelled class
+      final DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
+        .builder()
+        .dynamoDbClient(dynamoDbClient)
+        .build();
+      final DynamoDbTable<SimpleClass4> table = enhancedClient.table(
+        tableName,
+        tableSchema
       );
 
-    // 6. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
+      // 8. Put an item into your table using the DynamoDB Enhanced Client.
+      //    The item will be encrypted client-side according to your
+      //    configuration above before it is sent to DynamoDB.
+      final SimpleClass4 item = new SimpleClass4();
+      item.setPartitionKey(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"));
+      item.setSortKey(0);
+      item.setAttribute1("encrypt and sign me!");
+      item.setAttribute2("sign me!");
+      item.setAttribute3("ignore me!");
+      item.setAttribute4("sign and include me!");
 
-    // 7. Create the DynamoDbEnhancedClient using the AWS SDK Client created above,
-    //    and create a Table with your modelled class
-    final DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
-      .builder()
-      .dynamoDbClient(ddb)
-      .build();
-    final DynamoDbTable<SimpleClass4> table = enhancedClient.table(
-      ddbTableName,
-      tableSchema
-    );
+      table.putItem(item);
 
-    // 8. Put an item into your table using the DynamoDb Enhanced Client.
-    //    The item will be encrypted client-side according to your
-    //    configuration above before it is sent to DynamoDb.
-    final SimpleClass4 item = new SimpleClass4();
-    item.setPartitionKey(ExampleUtils.uniquePk("EnhancedPutGetExample"));
-    item.setSortKey(0);
-    item.setAttribute1("encrypt and sign me!");
-    item.setAttribute2("sign me!");
-    item.setAttribute3("ignore me!");
-    item.setAttribute4("sign and include me!");
+      // 9. Get the item back from the table using the DynamoDB Enhanced Client.
+      //    The item will be decrypted client-side, and you will get back the
+      //    original item.
+      final Key key = Key
+        .builder()
+        .partitionValue(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"))
+        .sortValue(0)
+        .build();
 
-    table.putItem(item);
+      final SimpleClass4 result =
+        table.getItem(requestBuilder -> requestBuilder.key(key));
 
-    // 9. Get the item back from the table using the DynamoDb Enhanced Client.
-    //    The item will be decrypted client-side, and you will get back the
-    //    original item.
-    final Key key = Key
-      .builder()
-      .partitionValue(ExampleUtils.uniquePk("EnhancedPutGetExample"))
-      .sortValue(0)
-      .build();
+      // Demonstrate we get the original item back
+      assert "encrypt and sign me!".equals(result.getAttribute1());
 
-    final SimpleClass4 result =
-      table.getItem((GetItemEnhancedRequest.Builder requestBuilder) ->
-        requestBuilder.key(key)
+      // retrieve the same record via a Query
+      final PageIterable<SimpleClass4> items = table.query(
+        QueryConditional.keyEqualTo(keyBuilder ->
+          keyBuilder.partitionValue(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"))
+        )
       );
-
-    // Demonstrate we get the original item back
-    if (!(result.getAttribute1().equals("encrypt and sign me!"))) {
-      throw new AssertionError();
-    }
-
-    // retrieve the same record via a Query
-    final PageIterable<SimpleClass4> items = table.query(
-      QueryConditional.keyEqualTo(k ->
-        k.partitionValue(ExampleUtils.uniquePk("EnhancedPutGetExample"))
-      )
-    );
-    final List<SimpleClass4> itemList = new ArrayList<>();
-    items.stream().forEach(p -> p.items().forEach(itemList::add));
-    if (!(itemList.size() == 1)) {
-      throw new AssertionError();
-    }
-    if (!(itemList.get(0).getAttribute1().equals("encrypt and sign me!"))) {
-      throw new AssertionError();
+      final List<SimpleClass4> itemList = items
+        .items()
+        .stream()
+        .collect(Collectors.toList());
+      assert itemList.size() == 1;
+      assert "encrypt and sign me!".equals(itemList.get(0).getAttribute1());
     }
   }
 
   public static void main(final String[] args) {
     if (args.length < 2) {
       throw new IllegalArgumentException(
-        "To run this example, include the kmsKeyId as args[0] and ddbTableName as args[1]"
+        "To run this example, include the kmsKeyId as args[0] and tableName as args[1]"
       );
     }
     final String kmsKeyId = args[0];
-    final String ddbTableName = args[1];
-    putItemGetItem(kmsKeyId, ddbTableName);
+    final String tableName = args[1];
+    putAndGetItem(kmsKeyId, tableName);
   }
 }

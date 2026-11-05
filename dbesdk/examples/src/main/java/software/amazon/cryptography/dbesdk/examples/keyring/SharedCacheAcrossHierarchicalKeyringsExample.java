@@ -1,24 +1,23 @@
 package software.amazon.cryptography.dbesdk.examples.keyring;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /*
  This example demonstrates how to use a shared cache across multiple Hierarchical Keyrings. With
@@ -61,8 +60,8 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
  Please make sure that you set all of Partition ID, Logical Key Store Name and Branch Key ID
  to be the same for two Hierarchical Keyrings if and only if you want them to share cache entries.
 
- This example sets up DynamoDb Encryption for the AWS SDK client using the Hierarchical Keyring,
- which establishes a key hierarchy where "branch" keys are persisted in DynamoDb. These branch keys
+ This example sets up DynamoDB Encryption for the AWS SDK client using the Hierarchical Keyring,
+ which establishes a key hierarchy where "branch" keys are persisted in DynamoDB. These branch keys
  are used to protect your data keys, and these branch keys are themselves protected by a root KMS
  Key.
 
@@ -74,10 +73,10 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
  Keyrings, or different Logical Key Store Names of the Key Store instances, then the keyrings will
  NOT be able to share cache entries.
 
- Running this example requires access to the DDB Table whose name is provided in CLI arguments. This
+ Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
  table must be configured with the following primary key configuration:
    - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (S)
+   - Sort key is named "sort_key" with type (N)
 
  This example also requires using a KMS Key whose ARN is provided in CLI arguments. You need the
  following access on this key:
@@ -86,13 +85,13 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 */
 public class SharedCacheAcrossHierarchicalKeyringsExample {
 
-  public static void sharedCacheAcrossHierarchicalKeyringsPutGet(
-    String ddbTableName,
+  public static void putAndGetItem(
+    String tableName,
     String branchKeyId,
     String keyStoreTableName,
     String logicalKeyStoreName,
     String partitionId,
-    String kmsKeyId
+    String kmsKeyArn
   ) {
     // 1. Create the CryptographicMaterialsCache (CMC) to share across multiple Hierarchical Keyrings
     //    using the Material Providers Library
@@ -122,7 +121,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
       .ddbTableName(keyStoreTableName)
       .logicalKeyStoreName(logicalKeyStoreName)
       .kmsClient(KmsClient.create())
-      .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyId))
+      .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
       .build();
 
     // 4. Create the Hierarchical Keyring HK1 with Key Store instance K1, partitionId,
@@ -142,171 +141,171 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
       .keyStore(keystore1)
       .branchKeyId(branchKeyId)
       // This dictates how often we call back to KMS to authorize use of the branch keys
-      .ttlSeconds(600L)
+      .ttl(Duration.ofSeconds(600))
       .cache(sharedCache)
       .partitionId(partitionId)
       .build();
 
-    // 5. Configure which attributes are encrypted and/or signed when writing new items.
-    //    For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    //    we must explicitly configure how they should be treated during item encryption:
-    //      - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //      - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //      - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("partition_key", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("sort_key", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put(
-      "sensitive_data",
-      CryptoAction.ENCRYPT_AND_SIGN
-    );
-
-    // 6. Get the DDB Client for Hierarchical Keyring 1.
-    final DynamoDbClient ddbClient1 = getDdbClient(
-      ddbTableName,
-      hierarchicalKeyring1,
-      attributeActionsOnEncrypt
-    );
-
-    // 7. Encrypt Decrypt roundtrip with ddbClient1
-    putGetItems(ddbTableName, ddbClient1);
-
-    // Through the above encrypt and decrypt roundtrip, the cache will be populated and
-    // the cache entries can be used by another Hierarchical Keyring with the
-    // - Same Partition ID
-    // - Same Logical Key Store Name of the Key Store for the Hierarchical Keyring
-    // - Same Branch Key ID
-
-    // 8. Configure your KeyStore resource keystore2.
-    //       This SHOULD be the same configuration that you used
-    //       to initially create and populate your physical KeyStore.
-    //    Note that keyStoreTableName is the physical Key Store,
-    //    and keystore2 is instances of this physical Key Store.
-
-    // Note that for this example, keystore2 is identical to keystore1.
-    // You can optionally change configurations like KMS Client or KMS Key ID based
-    // on your use-case.
-    // Make sure you have the required permissions to use different configurations.
-
-    // - If you want to share cache entries across two keyrings HK1 and HK2,
-    //   you should set the Logical Key Store Names for both
-    //   Key Store instances (K1 and K2) to be the same.
-    // - If you set the Logical Key Store Names for K1 and K2 to be different,
-    //   HK1 (which uses Key Store instance K1) and HK2 (which uses Key Store
-    //   instance K2) will NOT be able to share cache entries.
-    final BranchKeyStore keystore2 = BranchKeyStore
-      .builder()
-      .ddbClient(DynamoDbClient.create())
-      .ddbTableName(keyStoreTableName)
-      .logicalKeyStoreName(logicalKeyStoreName)
-      .kmsClient(KmsClient.create())
-      .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyId))
-      .build();
-
-    // 9. Create the Hierarchical Keyring HK2 with Key Store instance K2, the shared Cache
-    //    and the same partitionId and BranchKeyId used in HK1 because we want to share cache entries
-    //    (and experience cache HITS).
-
-    // Please make sure that you read the guidance on how to set Partition ID, Logical Key Store Name and
-    // Branch Key ID at the top of this example before creating Hierarchical Keyrings with a Shared Cache.
-    // partitionId for this example is a random UUID
-    final Keyring hierarchicalKeyring2 = AwsKmsHierarchicalKeyring
-      .builder()
-      .keyStore(keystore2)
-      .branchKeyId(branchKeyId)
-      // This dictates how often we call back to KMS to authorize use of the branch keys
-      .ttlSeconds(600L)
-      .cache(sharedCache)
-      .partitionId(partitionId)
-      .build();
-
-    // 10. Get the DDB Client for Hierarchical Keyring 2.
-    final DynamoDbClient ddbClient2 = getDdbClient(
-      ddbTableName,
-      hierarchicalKeyring2,
-      attributeActionsOnEncrypt
-    );
-
-    // 11. Encrypt Decrypt roundtrip with ddbClient2
-    putGetItems(ddbTableName, ddbClient2);
-  }
-
-  public static DynamoDbClient getDdbClient(
-    String ddbTableName,
-    Keyring hierarchicalKeyring,
-    Map<String, CryptoAction> attributeActionsOnEncrypt
-  ) {
-    // Configure which attributes we expect to be included in the signature
-    // when reading items. There are two options for configuring this:
+    // 5. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Every attribute you write must either have an action or start with the prefix set below;
+    //    writing an item with any other attribute fails.
     //
-    // - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //   When defining your DynamoDb schema and deciding on attribute names,
-    //   choose a distinguishing prefix (such as ":") for all attributes that
-    //   you do not want to include in the signature.
-    //   This has two main benefits:
-    //   - It is easier to reason about the security and authenticity of data within your item
-    //     when all unauthenticated data is easily distinguishable by their attribute name.
-    //   - If you need to add new unauthenticated attributes in the future,
-    //     you can easily make the corresponding update to your `attributeActionsOnEncrypt`
-    //     and immediately start writing to that new attribute, without
-    //     any other configuration update needed.
-    //   Once you configure this field, it is not safe to update it.
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
     //
-    // - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //   a set of attributes that should be considered unauthenticated when encountered
-    //   on read. Be careful if you use this configuration. Do not remove an attribute
-    //   name from this configuration, even if you are no longer writing with that attribute,
-    //   as old items may still include this attribute, and our configuration needs to know
-    //   to continue to exclude this attribute from the signature scope.
-    //   If you add new attribute names to this field, you must first deploy the update to this
-    //   field to all readers in your host fleet before deploying the update to start writing
-    //   with that new attribute.
+    //    Then decide which attributes are left out of the signature. Two separate settings do this.
+    //    They do different jobs, and you can use either one, both, or neither:
     //
-    //   For this example, we currently authenticate all attributes. To make it easier to
-    //   add unauthenticated attributes in the future, we define a prefix ":" for such attributes.
-    final String unsignAttrPrefix = ":";
+    //    - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text
+    //      is treated as doNothing, without being listed anywhere. It lets you add new unsigned
+    //      attributes later just by naming them with the prefix, with no configuration change. Pick
+    //      the prefix before you write any items, and do not change it afterwards.
+    //
+    //    - doNothing("name", ...) lists specific attributes by name, for unsigned attributes whose
+    //      names do not start with the prefix. Never remove a name from this list while items that
+    //      have that attribute may still be in the table, or reading those items fails. To add a
+    //      name, first update the configuration on every reader, and only then start writing the
+    //      new attribute.
+    //
+    //    This example sets the prefix ":" so that unsigned attributes can be added later. The items
+    //    it writes do not have any yet.
 
-    // Create the DynamoDb Encryption configuration for the table we will be writing to.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from the choices above.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
-      .keyring(hierarchicalKeyring)
-      .allowedUnsignedAttributePrefix(unsignAttrPrefix)
+      .encryptAndSign("sensitive_data")
+      .doNothingPrefix(":")
       .build();
-    tableConfigs.put(ddbTableName, config);
 
-    // Create the DynamoDb Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // 6. Get the DynamoDB Client for Hierarchical Keyring 1.
+    try (
+      DynamoDbClient dynamoDbClient1 = createDynamoDbClient(
+        tableName,
+        hierarchicalKeyring1,
+        schema
+      )
+    ) {
+      // 7. Encrypt Decrypt roundtrip with dynamoDbClient1
+      putAndGetItemWithClient(tableName, dynamoDbClient1);
+
+      // Through the above encrypt and decrypt roundtrip, the cache will be populated and
+      // the cache entries can be used by another Hierarchical Keyring with the
+      // - Same Partition ID
+      // - Same Logical Key Store Name of the Key Store for the Hierarchical Keyring
+      // - Same Branch Key ID
+
+      // 8. Configure your KeyStore resource keystore2.
+      //       This SHOULD be the same configuration that you used
+      //       to initially create and populate your physical KeyStore.
+      //    Note that keyStoreTableName is the physical Key Store,
+      //    and keystore2 is instances of this physical Key Store.
+
+      // Note that for this example, keystore2 is identical to keystore1.
+      // You can optionally change configurations like KMS Client or KMS Key ID based
+      // on your use-case.
+      // Make sure you have the required permissions to use different configurations.
+
+      // - If you want to share cache entries across two keyrings HK1 and HK2,
+      //   you should set the Logical Key Store Names for both
+      //   Key Store instances (K1 and K2) to be the same.
+      // - If you set the Logical Key Store Names for K1 and K2 to be different,
+      //   HK1 (which uses Key Store instance K1) and HK2 (which uses Key Store
+      //   instance K2) will NOT be able to share cache entries.
+      final BranchKeyStore keystore2 = BranchKeyStore
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .ddbClient(DynamoDbClient.create())
+        .ddbTableName(keyStoreTableName)
+        .logicalKeyStoreName(logicalKeyStoreName)
+        .kmsClient(KmsClient.create())
+        .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
         .build();
 
-    // Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddbClient = DynamoDbClient
+      // 9. Create the Hierarchical Keyring HK2 with Key Store instance K2, the shared Cache
+      //    and the same partitionId and BranchKeyId used in HK1 because we want to share cache entries
+      //    (and experience cache HITS).
+
+      // Please make sure that you read the guidance on how to set Partition ID, Logical Key Store Name and
+      // Branch Key ID at the top of this example before creating Hierarchical Keyrings with a Shared Cache.
+      // partitionId for this example is a random UUID
+      final Keyring hierarchicalKeyring2 = AwsKmsHierarchicalKeyring
+        .builder()
+        .keyStore(keystore2)
+        .branchKeyId(branchKeyId)
+        // This dictates how often we call back to KMS to authorize use of the branch keys
+        .ttl(Duration.ofSeconds(600))
+        .cache(sharedCache)
+        .partitionId(partitionId)
+        .build();
+
+      // 10. Get the DynamoDB Client for Hierarchical Keyring 2.
+      try (
+        DynamoDbClient dynamoDbClient2 = createDynamoDbClient(
+          tableName,
+          hierarchicalKeyring2,
+          schema
+        )
+      ) {
+        // 11. Encrypt Decrypt roundtrip with dynamoDbClient2
+        putAndGetItemWithClient(tableName, dynamoDbClient2);
+      }
+    }
+  }
+
+  public static DynamoDbClient createDynamoDbClient(
+    String tableName,
+    Keyring hierarchicalKeyring,
+    ItemEncryptionSchema schema
+  ) {
+    // Create the DynamoDB Encryption configuration for the table we will be writing to.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(hierarchicalKeyring)
+      .build();
+
+    // Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    final DynamoDbClient dynamoDbClient = DynamoDbClient
+      .builder()
+      .overrideConfiguration(overrides ->
+        overrides.addExecutionInterceptor(encryptionInterceptor)
       )
       .build();
 
-    return ddbClient;
+    return dynamoDbClient;
   }
 
-  public static void putGetItems(
-    String ddbTableName,
-    DynamoDbClient ddbClient
+  public static void putAndGetItemWithClient(
+    String tableName,
+    DynamoDbClient dynamoDbClient
   ) {
-    // Put an item into our table using the given ddb client.
-    // Before the item gets sent to DynamoDb, it will be encrypted
+    // Put an item into our table using the given DynamoDB client.
+    // Before the item gets sent to DynamoDB, it will be encrypted
     // client-side, according to our configuration.
     final Map<String, AttributeValue> item = new HashMap<>();
     item.put("partition_key", AttributeValue.builder().s("id").build());
@@ -315,19 +314,13 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
       "sensitive_data",
       AttributeValue.builder().s("encrypt and sign me!").build()
     );
-
     final PutItemRequest putRequest = PutItemRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .item(item)
       .build();
 
-    final PutItemResponse putResponse = ddbClient.putItem(putRequest);
-
-    // Demonstrate that PutItem succeeded
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    dynamoDbClient.putItem(putRequest);
 
     // Get the item back from our table using the same client.
     // The client will decrypt the item client-side, and return
@@ -335,47 +328,39 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
     final Map<String, AttributeValue> keyToGet = new HashMap<>();
     keyToGet.put("partition_key", AttributeValue.builder().s("id").build());
     keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-
     final GetItemRequest getRequest = GetItemRequest
       .builder()
       .key(keyToGet)
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .build();
 
-    final GetItemResponse getResponse = ddbClient.getItem(getRequest);
+    final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
     // Demonstrate that GetItem succeeded and returned the decrypted item
-    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
     final Map<String, AttributeValue> returnedItem = getResponse.item();
-    if (
-      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
-    ) {
-      throw new AssertionError();
-    }
+    assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
   }
 
   public static void main(final String[] args) {
     if (args.length < 6) {
       throw new IllegalArgumentException(
-        "To run this example, include the ddbTable, branchKeyId, " +
-        "keyStoreTableName, logicalKeyStoreName, partitionId, and kmsKeyId in args"
+        "To run this example, include the table name, branchKeyId, " +
+        "keyStoreTableName, logicalKeyStoreName, partitionId, and kmsKeyArn in args"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String branchKeyId = args[1];
     final String keyStoreTableName = args[2];
     final String logicalKeyStoreName = args[3];
     final String partitionId = args[4];
-    final String kmsKeyId = args[5];
-    sharedCacheAcrossHierarchicalKeyringsPutGet(
-      ddbTableName,
+    final String kmsKeyArn = args[5];
+    putAndGetItem(
+      tableName,
       branchKeyId,
       keyStoreTableName,
       logicalKeyStoreName,
       partitionId,
-      kmsKeyId
+      kmsKeyArn
     );
   }
 }

@@ -1,52 +1,45 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconVersion;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SearchConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SingleKeyStore;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualTransform;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.ResolveAttributesInput;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.ResolveAttributesOutput;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /*
- This example demonstrates how to set up a virtual field from two DDB attributes, create a standard
+ This example demonstrates how to set up a virtual field from two DynamoDB attributes, create a standard
  beacon with that field, put an item with that beacon, and query against that beacon.
 
- A virtual field is a field consisting of a transformation of one or more attributes in a DDB item.
+ A virtual field is a field consisting of a transformation of one or more attributes in a DynamoDB item.
  Virtual fields are useful in querying against encrypted fields that only have a handful of possible
  values. They allow you to take fields with few possible values, concatenate them to other fields,
  then query against the combined field. This enables using these types of fields in queries while
  making it infeasible to identify which beacon values encode the few possible distinct plaintexts.
- This is explained in more detail below. Virtual fields are not stored in the DDB table. However,
+ This is explained in more detail below. Virtual fields are not stored in the DynamoDB table. However,
  they are used to construct a beacon, the value of which is stored.
 
  For more information on virtual fields, see
    https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/beacons.html#virtual-field
 
- For our example, we will construct a virtual field from two DDB attributes `state` and
+ For our example, we will construct a virtual field from two DynamoDB attributes `state` and
  `hasTestResult` as `state`+prefix(`hasTestResult`, 1). We will then create a beacon out of this
  virtual field and use it to search.
 
@@ -89,9 +82,9 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
  possible values, this gives us both desired properties; we can query against both attributes while
  hiding information from the underlying data. This is demonstrated in more detail below.
 
- Running this example requires access to a DDB table with the following primary key configuration:
+ Running this example requires access to a DynamoDB table with the following primary key configuration:
    - Partition key is named "customer_id" with type (S)
-   - Sort key is named "create_time" with type (S)
+   - Sort key is named "create_time" with type (N)
  This table must have a Global Secondary Index (GSI) configured named "stateAndHasTestResult-index":
    - Partition key is named "aws_dbe_b_stateAndHasTestResult" with type (S)
 
@@ -105,22 +98,22 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
     available.
 
  The example requires the following ordered input command line parameters:
-   1. DDB table name for table to put/query data from
+   1. DynamoDB table name for table to put/query data from
    2. Branch key ID for a branch key that was previously created in your key store. See the
       CreateKeyStoreKeyExample.
    3. Branch key wrapping KMS key ARN for the KMS key used to create the branch key
-   4. Branch key DDB table name for the DDB table representing the branch key store
+   4. Branch key DynamoDB table name for the DynamoDB table representing the branch key store
 */
 
 public class VirtualBeaconSearchableEncryptionExample {
 
   private static final String GSI_NAME = "stateAndHasTestResult-index";
 
-  public static void putItemQueryItemWithVirtualBeacon(
-    String ddbTableName,
+  public static void putAndQueryItems(
+    String tableName,
     String branchKeyId,
     String branchKeyWrappingKmsKeyArn,
-    String branchKeyDdbTableName
+    String keyStoreTableName
   ) {
     // 1. Construct a length-1 prefix virtual transform.
     //    `hasTestResult` is a binary attribute, containing either `true` or `false`.
@@ -132,41 +125,32 @@ public class VirtualBeaconSearchableEncryptionExample {
     //    Virtual transform operations treat all attributes as strings
     //    (i.e. the boolean value `true` is interpreted as a string "true"),
     //    so its length-1 prefix is just "t".
-    List<VirtualTransform> length1PrefixVirtualTransformList =
-      new ArrayList<>();
-    VirtualTransform length1PrefixVirtualTransform = VirtualTransform.prefix(1);
-    length1PrefixVirtualTransformList.add(length1PrefixVirtualTransform);
+    final VirtualTransform length1PrefixVirtualTransform =
+      VirtualTransform.prefix(1);
 
     // 2. Construct the VirtualParts required for the VirtualField
-    VirtualPart hasTestResultPart = VirtualPart
+    final VirtualPart hasTestResultPart = VirtualPart
       .builder()
-      .loc("hasTestResult")
+      .location("hasTestResult")
       // Here, we apply the length-1 prefix virtual transform
-      .trans(length1PrefixVirtualTransformList)
+      .transforms(length1PrefixVirtualTransform)
       .build();
-    VirtualPart statePart = VirtualPart
+    final VirtualPart statePart = VirtualPart
       .builder()
-      .loc("state")
+      .location("state")
       // Note that we do not apply any transform to the `state` attribute,
       // and the virtual field will read in the attribute as-is.
       .build();
 
     // 3. Construct the VirtualField from the VirtualParts
-    //    Note that the order that virtual parts are added to the virtualPartList
+    //    Note that the order in which virtual parts are passed to parts(...)
     //    dictates the order in which they are concatenated to build the virtual field.
-    //    You must add virtual parts in the same order on write as you do on read.
-    List<VirtualPart> virtualPartList = new ArrayList<>();
-    virtualPartList.add(statePart);
-    virtualPartList.add(hasTestResultPart);
-
-    VirtualField stateAndHasTestResultField = VirtualField
+    //    You must pass the virtual parts in the same order on write as you do on read.
+    final VirtualField stateAndHasTestResultField = VirtualField
       .builder()
       .name("stateAndHasTestResult")
-      .parts(virtualPartList)
+      .parts(statePart, hasTestResultPart)
       .build();
-
-    List<VirtualField> virtualFieldList = new ArrayList<>();
-    virtualFieldList.add(stateAndHasTestResultField);
 
     // 4. Configure our beacon.
     //    The virtual field is assumed to hold a US 2-letter state abbreviation
@@ -206,118 +190,118 @@ public class VirtualBeaconSearchableEncryptionExample {
     //    With a well-distributed dataset (112 values), for a particular beacon we expect
     //    (112/32) = 3.5 combinations of abbreviation + true/false attribute
     //    sharing that beacon value.
-    List<StandardBeacon> standardBeaconList = new ArrayList<>();
-    StandardBeacon stateAndHasTestResultBeacon = StandardBeacon
+    final StandardBeacon stateAndHasTestResultBeacon = StandardBeacon
       .builder()
       // This name is the same as our virtual field's name above
       .name("stateAndHasTestResult")
-      .length(5)
+      .bitLength(5)
       .build();
-    standardBeaconList.add(stateAndHasTestResultBeacon);
 
     // 5. Configure Keystore.
     //    This example expects that you have already set up a KeyStore with a single branch key.
     //    See the "CreateKeyStoreTableExample" and "CreateKeyStoreKeyExample" files for how to do this.
     //    After you create a branch key, you should persist its ID for use in this example.
-    BranchKeyStore keyStore = BranchKeyStore
+    final BranchKeyStore keyStore = BranchKeyStore
       .builder()
       .kmsClient(KmsClient.create())
       .ddbClient(DynamoDbClient.create())
-      .ddbTableName(branchKeyDdbTableName)
-      .logicalKeyStoreName(branchKeyDdbTableName)
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(keyStoreTableName)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(branchKeyWrappingKmsKeyArn))
       .build();
 
-    // 6. Create BeaconVersion.
-    //    The BeaconVersion inside the list holds the list of beacons on the table.
-    //    The BeaconVersion also stores information about the keystore.
-    //    BeaconVersion must be provided:
+    // 6. Create BeaconConfig.
+    //    The BeaconConfig holds the list of beacons on the table.
+    //    The BeaconConfig also stores information about the keystore.
+    //    BeaconConfig must be provided:
     //      - keyStore: The keystore configured in the previous step.
     //      - keySource: A configuration for the key source.
-    //        For simple use cases, we can configure a 'singleKeySource' which
-    //        statically configures a single beaconKey. That is the approach this example takes.
+    //        For simple use cases, use BeaconKeySource.singleBeaconKey, which uses one beacon
+    //        key for every item. That is the approach this example takes.
     //        For use cases where you want to use different beacon keys depending on the data
     //        (for example if your table holds data for multiple tenants, and you want to use
-    //        a different beacon key per tenant), look into configuring a MultiKeyStore:
+    //        a different beacon key per tenant), use BeaconKeySource.multipleBeaconKeys:
     //          https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption-multitenant.html
     //    We also provide our standard beacon list and virtual fields here.
-    List<BeaconVersion> beaconVersions = new ArrayList<>();
-    beaconVersions.add(
-      BeaconVersion
-        .builder()
-        .virtualFields(virtualFieldList)
-        .standardBeacons(standardBeaconList)
-        .version(1) // MUST be 1
-        .keyStore(keyStore)
-        .keySource(
-          BeaconKeySource.single(
-            SingleKeyStore
-              .builder()
-              // `keyId` references a beacon key.
-              // For every branch key we create in the keystore,
-              // we also create a beacon key.
-              // This beacon key is not the same as the branch key,
-              // but is created with the same ID as the branch key.
-              .keyId(branchKeyId)
-              .cacheTtl(6000)
-              .build()
-          )
-        )
-        .build()
-    );
+    final BeaconConfig beaconConfig = BeaconConfig
+      .builder()
+      .virtualFields(stateAndHasTestResultField)
+      .standardBeacons(stateAndHasTestResultBeacon)
+      .keyStore(keyStore)
+      .keySource(
+        // The argument is a beacon key ID.
+        // For every branch key we create in the keystore,
+        // we also create a beacon key.
+        // This beacon key is not the same as the branch key,
+        // but is created with the same ID as the branch key.
+        BeaconKeySource
+          .singleBeaconKey(branchKeyId)
+          .cacheTtl(Duration.ofSeconds(6000))
+          .build()
+      )
+      .build();
 
     // 7. Create a Hierarchical Keyring
     //    This is a KMS keyring that utilizes the keystore table.
     //    This config defines how items are encrypted and decrypted.
-    //    NOTE: You should configure this to use the same keystore as your search config.
+    //    NOTE: You should configure this to use the same keystore as your beacon configuration.
     final Keyring kmsKeyring = AwsKmsHierarchicalKeyring
       .builder()
       .branchKeyId(branchKeyId)
       .keyStore(keyStore)
-      .ttlSeconds(6000L)
+      .ttl(Duration.ofSeconds(6000))
       .build();
 
-    // 8. Configure which attributes are encrypted and/or signed when writing new items.
-    //    For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    //    we must explicitly configure how they should be treated during item encryption:
-    //      - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //      - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //      - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    //    Any attributes that will be used in beacons must be configured as ENCRYPT_AND_SIGN.
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("customer_id", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("create_time", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("state", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put(
-      "hasTestResult",
-      CryptoAction.ENCRYPT_AND_SIGN
-    ); // Beaconized attributes must be encrypted
+    // 8. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Attributes used in beacons must use encryptAndSign.
+    //    Every attribute you write must have an action; writing an item with any other attribute
+    //    fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
 
-    // 9. Create the DynamoDb Encryption configuration for the table we will be writing to.
-    //    The beaconVersions are added to the search configuration.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from these choices.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("customer_id")
       .sortKeyName("create_time")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
-      .keyring(kmsKeyring)
-      .search(
-        SearchConfig
-          .builder()
-          .writeVersion(1) // MUST be 1
-          .versions(beaconVersions)
-          .build()
-      )
+      // Beaconized attributes must be encrypted
+      .encryptAndSign("state", "hasTestResult")
       .build();
-    tableConfigs.put(ddbTableName, config);
+
+    // 9. Create the DynamoDB Encryption configuration for the table we will be writing to.
+    //    The beacon configuration is added to the table configuration.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(kmsKeyring)
+      .beaconConfig(beaconConfig)
+      .build();
 
     // 10. Create test items
 
     // Create item with hasTestResult=true
-    final HashMap<String, AttributeValue> itemWithHasTestResult =
+    final Map<String, AttributeValue> itemWithHasTestResult =
       new HashMap<>();
     itemWithHasTestResult.put(
       "customer_id",
@@ -337,7 +321,7 @@ public class VirtualBeaconSearchableEncryptionExample {
     );
 
     // Create item with hasTestResult=false
-    final HashMap<String, AttributeValue> itemWithNoHasTestResult =
+    final Map<String, AttributeValue> itemWithNoHasTestResult =
       new HashMap<>();
     itemWithNoHasTestResult.put(
       "customer_id",
@@ -357,190 +341,153 @@ public class VirtualBeaconSearchableEncryptionExample {
     );
 
     // 11. If developing or debugging, verify config by checking virtual field values directly
-    final DynamoDbEncryptionTransforms trans = DynamoDbEncryptionTransforms
+    final DynamoDbEncryptionTransforms transformClient = DynamoDbEncryptionTransforms
       .builder()
-      .tableEncryptionConfigs(tableConfigs)
+      .tableConfigs(config)
       .build();
-
-    final ResolveAttributesInput resolveInput = ResolveAttributesInput
-      .builder()
-      .tableName(ddbTableName)
-      .item(itemWithHasTestResult)
-      .version(1)
-      .build();
-    final ResolveAttributesOutput resolveOutput = trans.resolveAttributes(
-      resolveInput
-    );
 
     // CompoundBeacons is empty because we have no Compound Beacons configured
-    if (!(resolveOutput.compoundBeacons().isEmpty())) {
-      throw new AssertionError();
-    }
+    assert transformClient
+      .resolveCompoundBeacons(tableName, itemWithHasTestResult)
+      .isEmpty();
 
     // Verify that VirtualFields has the expected value
-    Map<String, String> vf = new HashMap<>();
-    vf.put("stateAndHasTestResult", "CAt");
-    if (!(resolveOutput.virtualFields().equals(vf))) {
-      throw new AssertionError();
-    }
+    final Map<String, String> expectedVirtualFields = new HashMap<>();
+    expectedVirtualFields.put("stateAndHasTestResult", "CAt");
+    assert transformClient
+      .resolveVirtualFields(tableName, itemWithHasTestResult)
+      .equals(expectedVirtualFields);
 
-    // 12. Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // 12. Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // 13. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // 14. Put two items into our table using the above client.
+      //     The two items will differ only in their `customer_id` attribute (primary key)
+      //         and their `hasTestResult` attribute.
+      //     We will query against these items to demonstrate how to use our setup above
+      //         to query against our `stateAndHasTestResult` beacon.
+      //     Before the item gets sent to DynamoDB, it will be encrypted
+      //         client-side, according to our configuration.
+      //     Since our configuration includes a beacon on a virtual field named
+      //         `stateAndHasTestResult`, the client will add an attribute
+      //         to the item with name `aws_dbe_b_stateAndHasTestResult`.
+      //         Its value will be an HMAC truncated to as many bits as the
+      //         beacon's `bitLength` setting; i.e. 5.
+
+      final PutItemRequest itemWithHasTestResultPutRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(itemWithHasTestResult)
         .build();
 
-    // 13. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
+      dynamoDbClient.putItem(itemWithHasTestResultPutRequest);
 
-    // 14. Put two items into our table using the above client.
-    //     The two items will differ only in their `customer_id` attribute (primary key)
-    //         and their `hasTestResult` attribute.
-    //     We will query against these items to demonstrate how to use our setup above
-    //         to query against our `stateAndHasTestResult` beacon.
-    //     Before the item gets sent to DynamoDb, it will be encrypted
-    //         client-side, according to our configuration.
-    //     Since our configuration includes a beacon on a virtual field named
-    //         `stateAndHasTestResult`, the client will add an attribute
-    //         to the item with name `aws_dbe_b_stateAndHasTestResult`.
-    //         Its value will be an HMAC truncated to as many bits as the
-    //         beacon's `length` parameter; i.e. 5.
+      final PutItemRequest itemWithNoHasTestResultPutRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(itemWithNoHasTestResult)
+        .build();
 
-    final PutItemRequest itemWithHasTestResultPutRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(itemWithHasTestResult)
-      .build();
+      dynamoDbClient.putItem(itemWithNoHasTestResultPutRequest);
 
-    final PutItemResponse itemWithHasTestResultPutResponse = ddb.putItem(
-      itemWithHasTestResultPutRequest
-    );
-    // Assert PutItem was successful
-    if (
-      !(200 == itemWithHasTestResultPutResponse.sdkHttpResponse().statusCode())
-    ) {
-      throw new AssertionError();
-    }
+      // 15. Query by stateAndHasTestResult attribute.
+      //     Note that we are constructing the query as if we were querying on plaintext values.
+      //     However, the DynamoDB encryption client will detect that this attribute name has a beacon configured.
+      //     The client will add the beaconized attribute name and attribute value to the query,
+      //         and transform the query to use the beaconized name and value.
+      //     Internally, the client will query for and receive all items with a matching HMAC value in the beacon field.
+      //     This may include a number of "false positives" with different ciphertext, but the same truncated HMAC.
+      //     e.g. if truncate(HMAC("CAt"), 5) == truncate(HMAC("DCf"), 5), the query will return both items.
+      //     The client will decrypt all returned items to determine which ones have the expected attribute values,
+      //         and only surface items with the correct plaintext to the user.
+      //     This procedure is internal to the client and is abstracted away from the user;
+      //     e.g. the user will only see "CAt" and never "DCf", though the actual query returned both.
+      final Map<String, String> expressionAttributeNames = new HashMap<>();
+      expressionAttributeNames.put(
+        "#stateAndHasTestResult",
+        "stateAndHasTestResult"
+      );
+      final Map<String, AttributeValue> expressionAttributeValues =
+        new HashMap<>();
+      // We are querying for the item with `state`="CA" and `hasTestResult`=`true`.
+      // Since we added virtual parts as `state` then `hasTestResult`,
+      //     we must write our query expression in the same order.
+      // We constructed our virtual field as `state`+`hasTestResult`,
+      //     so we add the two parts in that order.
+      // Since we also created a virtual transform that truncated `hasTestResult`
+      //     to its length-1 prefix, i.e. "true" -> "t",
+      //     we write that field as its length-1 prefix in the query.
+      expressionAttributeValues.put(
+        ":stateAndHasTestResult",
+        AttributeValue.builder().s("CAt").build()
+      );
 
-    final PutItemRequest itemWithNoHasTestResultPutRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(itemWithNoHasTestResult)
-      .build();
+      final QueryRequest queryRequest = QueryRequest
+        .builder()
+        .tableName(tableName)
+        .indexName(GSI_NAME)
+        .keyConditionExpression("#stateAndHasTestResult = :stateAndHasTestResult")
+        .expressionAttributeNames(expressionAttributeNames)
+        .expressionAttributeValues(expressionAttributeValues)
+        .build();
 
-    final PutItemResponse itemWithNoHasTestResultPutResponse = ddb.putItem(
-      itemWithNoHasTestResultPutRequest
-    );
-    // Assert PutItem was successful
-    if (
-      !(200 ==
-        itemWithNoHasTestResultPutResponse.sdkHttpResponse().statusCode())
-    ) {
-      throw new AssertionError();
-    }
+      // GSIs do not update instantly
+      // so if the results come back empty
+      // we retry after a short sleep
+      final int maxQueryAttempts = 10;
+      final Duration pollInterval = Duration.ofMillis(20);
+      for (int attempt = 0; attempt < maxQueryAttempts; attempt++) {
+        final List<Map<String, AttributeValue>> attributeValues = dynamoDbClient
+          .query(queryRequest)
+          .items();
 
-    // 15. Query by stateAndHasTestResult attribute.
-    //     Note that we are constructing the query as if we were querying on plaintext values.
-    //     However, the DDB encryption client will detect that this attribute name has a beacon configured.
-    //     The client will add the beaconized attribute name and attribute value to the query,
-    //         and transform the query to use the beaconized name and value.
-    //     Internally, the client will query for and receive all items with a matching HMAC value in the beacon field.
-    //     This may include a number of "false positives" with different ciphertext, but the same truncated HMAC.
-    //     e.g. if truncate(HMAC("CAt"), 5) == truncate(HMAC("DCf"), 5), the query will return both items.
-    //     The client will decrypt all returned items to determine which ones have the expected attribute values,
-    //         and only surface items with the correct plaintext to the user.
-    //     This procedure is internal to the client and is abstracted away from the user;
-    //     e.g. the user will only see "CAt" and never "DCf", though the actual query returned both.
-    Map<String, String> expressionAttributesNames = new HashMap<>();
-    expressionAttributesNames.put(
-      "#stateAndHasTestResult",
-      "stateAndHasTestResult"
-    );
-
-    Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
-    // We are querying for the item with `state`="CA" and `hasTestResult`=`true`.
-    // Since we added virtual parts as `state` then `hasTestResult`,
-    //     we must write our query expression in the same order.
-    // We constructed our virtual field as `state`+`hasTestResult`,
-    //     so we add the two parts in that order.
-    // Since we also created a virtual transform that truncated `hasTestResult`
-    //     to its length-1 prefix, i.e. "true" -> "t",
-    //     we write that field as its length-1 prefix in the query.
-    expressionAttributeValues.put(
-      ":stateAndHasTestResult",
-      AttributeValue.builder().s("CAt").build()
-    );
-
-    QueryRequest queryRequest = QueryRequest
-      .builder()
-      .tableName(ddbTableName)
-      .indexName(GSI_NAME)
-      .keyConditionExpression("#stateAndHasTestResult = :stateAndHasTestResult")
-      .expressionAttributeNames(expressionAttributesNames)
-      .expressionAttributeValues(expressionAttributeValues)
-      .build();
-
-    // GSIs do not update instantly
-    // so if the results come back empty
-    // we retry after a short sleep
-    for (int i = 0; i < 10; ++i) {
-      final QueryResponse queryResponse = ddb.query(queryRequest);
-      List<Map<String, AttributeValue>> attributeValues = queryResponse.items();
-      // Validate query was returned successfully
-      if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
-
-      // if no results, sleep and try again
-      if (attributeValues.size() == 0) {
-        try {
-          Thread.sleep(20);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
+        // if no results, sleep and try again
+        if (attributeValues.isEmpty()) {
+          try {
+            Thread.sleep(pollInterval.toMillis());
+          } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+          continue;
         }
-        continue;
-      }
 
-      // Validate only 1 item was returned: the item with the expected attributes
-      if (!(attributeValues.size() == 1)) {
-        throw new AssertionError();
+        // Validate only 1 item was returned: the item with the expected attributes
+        assert attributeValues.size() == 1;
+        final Map<String, AttributeValue> returnedItem = attributeValues.get(0);
+        // Validate the item has the expected attributes
+        assert returnedItem.get("state").s().equals("CA");
+        assert returnedItem.get("hasTestResult").bool();
+        break;
       }
-      final Map<String, AttributeValue> returnedItem = attributeValues.get(0);
-      // Validate the item has the expected attributes
-      if (!(returnedItem.get("state").s().equals("CA"))) {
-        throw new AssertionError();
-      }
-      if (!(returnedItem.get("hasTestResult").bool().equals(true))) {
-        throw new AssertionError();
-      }
-      break;
     }
   }
 
   public static void main(final String[] args) {
     if (args.length < 4) {
       throw new IllegalArgumentException(
-        "To run this example, include ddbTableName as args[0], branchKeyId as args[1], branchKeyWrappingKmsKeyId as args[2], and branchKeyDdbTableName as args[3]"
+        "To run this example, include tableName as args[0], branchKeyId as args[1], branchKeyWrappingKmsKeyArn as args[2], and keyStoreTableName as args[3]"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String branchKeyId = args[1];
     final String branchKeyWrappingKmsKeyArn = args[2];
-    final String branchKeyDdbTableName = args[3];
-    putItemQueryItemWithVirtualBeacon(
-      ddbTableName,
+    final String keyStoreTableName = args[3];
+    putAndQueryItems(
+      tableName,
       branchKeyId,
       branchKeyWrappingKmsKeyArn,
-      branchKeyDdbTableName
+      keyStoreTableName
     );
   }
 }

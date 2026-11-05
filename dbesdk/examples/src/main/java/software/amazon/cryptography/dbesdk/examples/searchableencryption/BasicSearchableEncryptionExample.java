@@ -1,37 +1,33 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconVersion;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SearchConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SingleKeyStore;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /*
  This example demonstrates how to set up a beacon on an encrypted attribute, put an item with the
  beacon, and query against that beacon. This example follows a use case of a database that stores
  unit inspection information.
 
- Running this example requires access to a DDB table with the following key configuration:
+ Running this example requires access to a DynamoDB table with the following key configuration:
    - Partition key is named "work_id" with type (S)
    - Sort key is named "inspection_date" with type (S)
  This table must have a Global Secondary Index (GSI) configured named "last4-unit-index":
@@ -45,32 +41,31 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
   - "unit" stores a 12-digit serial number for the unit being inspected
 
  The example requires the following ordered input command line parameters:
-   1. DDB table name for table to put/query data from
+   1. DynamoDB table name for table to put/query data from
    2. Branch key ID for a branch key that was previously created in your key store. See the
       CreateKeyStoreKeyExample.
    3. Branch key wrapping KMS key ARN for the KMS key used to create the branch key with ID
       provided in arg 2
-   4. Branch key DDB table name for the DDB table representing the branch key store
+   4. Branch key DynamoDB table name for the DynamoDB table representing the branch key store
 */
 
 public class BasicSearchableEncryptionExample {
 
   private static final String GSI_NAME = "last4-unit-index";
 
-  public static void putItemQueryItemWithBeacon(
-    String ddbTableName,
+  public static void putAndQueryItem(
+    String tableName,
     String branchKeyId,
     String branchKeyWrappingKmsKeyArn,
-    String branchKeyDdbTableName
+    String keyStoreTableName
   ) {
     // 1. Configure Beacons.
     //    The beacon name must be the name of a table attribute that will be encrypted.
-    //    The `length` parameter dictates how many bits are in the beacon attribute value.
+    //    The `bitLength` setting dictates how many bits are in the beacon attribute value.
     //    The following link provides guidance on choosing a beacon length:
     //        https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/choosing-beacon-length.html
-    List<StandardBeacon> standardBeaconList = new ArrayList<>();
 
-    // The configured DDB table has a GSI on the `aws_dbe_b_inspector_id_last4` AttributeName.
+    // The configured DynamoDB table has a GSI on the `aws_dbe_b_inspector_id_last4` AttributeName.
     // This field holds the last 4 digits of an inspector ID.
     // For our example, this field may range from 0 to 9,999 (10,000 possible values).
     // For our example, we assume a full inspector ID is an integer
@@ -118,15 +113,14 @@ public class BasicSearchableEncryptionExample {
     // With a sufficiently large number of well-distributed inspector IDs,
     //    for a particular beacon we expect (10,000/1,024) ~= 9.8 4-digit inspector ID suffixes
     //    sharing that beacon value.
-    StandardBeacon last4Beacon = StandardBeacon
+    final StandardBeacon last4Beacon = StandardBeacon
       .builder()
       .name("inspector_id_last4")
-      .length(10)
+      .bitLength(10)
       .numberOfPartitions(1)
       .build();
-    standardBeaconList.add(last4Beacon);
 
-    // The configured DDB table has a GSI on the `aws_dbe_b_unit` AttributeName.
+    // The configured DynamoDB table has a GSI on the `aws_dbe_b_unit` AttributeName.
     // This field holds a unit serial number.
     // For this example, this is a 12-digit integer from 0 to 999,999,999,999 (10^12 possible values).
     // We will assume values for this attribute are uniformly distributed across this range using 1 partitions.
@@ -152,300 +146,274 @@ public class BasicSearchableEncryptionExample {
     // With a sufficiently large number of well-distributed inspector IDs,
     //    for a particular beacon we expect (10^12/2^30) ~= 931.3 unit serial numbers
     //    sharing that beacon value.
-    StandardBeacon unitBeacon = StandardBeacon
+    final StandardBeacon unitBeacon = StandardBeacon
       .builder()
       .name("unit")
-      .length(30)
+      .bitLength(30)
       .numberOfPartitions(1)
       .build();
-    standardBeaconList.add(unitBeacon);
 
     // 2. Configure Keystore.
-    //    The keystore is a separate DDB table where the client stores encryption and decryption materials.
-    //    In order to configure beacons on the DDB client, you must configure a keystore.
+    //    The keystore is a separate DynamoDB table where the client stores encryption and decryption materials.
+    //    In order to configure beacons on the DynamoDB client, you must configure a keystore.
     //
     //    This example expects that you have already set up a KeyStore with a single branch key.
     //    See the "Create KeyStore Table Example" and "Create KeyStore Key Example" for how to do this.
     //    After you create a branch key, you should persist its ID for use in this example.
-    BranchKeyStore keyStore = BranchKeyStore
+    final BranchKeyStore keyStore = BranchKeyStore
       .builder()
       .kmsClient(KmsClient.create())
       .ddbClient(DynamoDbClient.create())
-      .ddbTableName(branchKeyDdbTableName)
-      .logicalKeyStoreName(branchKeyDdbTableName)
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(keyStoreTableName)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(branchKeyWrappingKmsKeyArn))
       .build();
 
-    // 3. Create BeaconVersion.
-    //    The BeaconVersion inside the list holds the list of beacons on the table.
-    //    The BeaconVersion also stores information about the keystore.
-    //    The BeaconVersion parameter specifies the maximumNumberOfPartitions associated with a given beacon configuration.
-    //    "maximumNumberOfPartitions" must be greater than "numberOfPartitions"; we set it to 8 to allow room for future expansion.
-    //    BeaconVersion must be provided:
+    // 3. Create BeaconConfig.
+    //    The BeaconConfig holds the list of beacons on the table.
+    //    The BeaconConfig also stores information about the keystore.
+    //    The BeaconConfig parameter specifies the maximumNumberOfPartitions associated with a given beacon configuration.
+    //    "maximumNumberOfPartitions" must be greater than "numberOfPartitions"; we set it to 2 to allow room for future expansion.
+    //    BeaconConfig must be provided:
     //      - keyStore: The keystore configured in step 2.
     //      - keySource: A configuration for the key source.
-    //        For simple use cases, we can configure a 'singleKeySource' which
-    //        statically configures a single beaconKey. That is the approach this example takes.
+    //        For simple use cases, use BeaconKeySource.singleBeaconKey, which uses one beacon
+    //        key for every item. That is the approach this example takes.
     //        For use cases where you want to use different beacon keys depending on the data
     //        (for example if your table holds data for multiple tenants, and you want to use
-    //        a different beacon key per tenant), look into configuring a MultiKeyStore:
+    //        a different beacon key per tenant), use BeaconKeySource.multipleBeaconKeys:
     //          https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption-multitenant.html
-    List<BeaconVersion> beaconVersions = new ArrayList<>();
-    beaconVersions.add(
-      BeaconVersion
-        .builder()
-        .standardBeacons(standardBeaconList)
-        .version(1) // MUST be 1
-        .maximumNumberOfPartitions(2)
-        //.defaultNumberOfPartitions(1)  //For beacons that do not require partitioning, only a single partition is used. must be 0 < defaultNumberOfPartitions < maximumNumberOfPartitions.
-        .keyStore(keyStore)
-        .keySource(
-          BeaconKeySource.single(
-            SingleKeyStore
-              .builder()
-              // `keyId` references a beacon key.
-              // For every branch key we create in the keystore,
-              // we also create a beacon key.
-              // This beacon key is not the same as the branch key,
-              // but is created with the same ID as the branch key.
-              .keyId(branchKeyId)
-              .cacheTtl(6000)
-              .build()
-          )
-        )
-        .build()
-    );
+    final BeaconConfig beaconConfig = BeaconConfig
+      .builder()
+      .standardBeacons(last4Beacon, unitBeacon)
+      .maximumNumberOfPartitions(2)
+      // A beacon that does not require partitioning uses a single partition. To set that
+      // explicitly, add defaultNumberOfPartitions, which must be greater than 0 and less
+      // than maximumNumberOfPartitions.
+      .keyStore(keyStore)
+      .keySource(
+        // The argument is a beacon key ID.
+        // For every branch key we create in the keystore,
+        // we also create a beacon key.
+        // This beacon key is not the same as the branch key,
+        // but is created with the same ID as the branch key.
+        BeaconKeySource
+          .singleBeaconKey(branchKeyId)
+          .cacheTtl(Duration.ofSeconds(6000))
+          .build()
+      )
+      .build();
 
     // 4. Create a Hierarchical Keyring
     //    This is a KMS keyring that utilizes the keystore table.
     //    This config defines how items are encrypted and decrypted.
-    //    NOTE: You should configure this to use the same keystore as your search config.
+    //    NOTE: You should configure this to use the same keystore as your beacon configuration.
     final Keyring kmsKeyring = AwsKmsHierarchicalKeyring
       .builder()
       .branchKeyId(branchKeyId)
       .keyStore(keyStore)
-      .ttlSeconds(6000L)
+      .ttl(Duration.ofSeconds(6000))
       .build();
 
-    // 5. Configure which attributes are encrypted and/or signed when writing new items.
-    //    For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    //    we must explicitly configure how they should be treated during item encryption:
-    //      - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //      - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //      - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    //    Any attributes that will be used in beacons must be configured as ENCRYPT_AND_SIGN.
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("work_id", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("inspection_date", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put(
-      "inspector_id_last4",
-      CryptoAction.ENCRYPT_AND_SIGN
-    ); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("unit", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
+    // 5. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Attributes used in beacons must use encryptAndSign.
+    //    Every attribute you write must have an action; writing an item with any other attribute
+    //    fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
 
-    // 6. Create the DynamoDb Encryption configuration for the table we will be writing to.
-    //    The beaconVersions are added to the search configuration.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from these choices.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("work_id")
       .sortKeyName("inspection_date")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
-      .keyring(kmsKeyring)
-      .search(
-        SearchConfig
-          .builder()
-          .writeVersion(1) // MUST be 1
-          .versions(beaconVersions)
-          .build()
-      )
+      // Beaconized attributes must be encrypted
+      .encryptAndSign("inspector_id_last4", "unit")
       .build();
-    tableConfigs.put(ddbTableName, config);
 
-    // 7. Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // 6. Create the DynamoDB Encryption configuration for the table we will be writing to.
+    //    The beacon configuration is added to the table configuration.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
+      .keyring(kmsKeyring)
+      .beaconConfig(beaconConfig)
+      .build();
+
+    // 7. Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // 8. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // 9. Put an item into our table using the above client.
+      //    Before the item gets sent to DynamoDB, it will be encrypted
+      //        client-side, according to our configuration.
+      //    Since our configuration includes beacons for `inspector_id_last4` and `unit`,
+      //        the client will add two additional attributes to the item. These attributes will have names
+      //        `aws_dbe_b_inspector_id_last4` and `aws_dbe_b_unit`. Their values will be HMACs
+      //        truncated to as many bits as the beacon's `bitLength` setting; e.g.
+      //    aws_dbe_b_inspector_id_last4 = truncate(HMAC("4321"), 10)
+      //    aws_dbe_b_unit = truncate(HMAC("123456789012"), 30)
+      final Map<String, AttributeValue> item = new HashMap<>();
+      item.put(
+        "work_id",
+        AttributeValue
+          .builder()
+          .s("1313ba89-5661-41eb-ba6c-cb1b4cb67b2d")
+          .build()
+      );
+      item.put(
+        "inspection_date",
+        AttributeValue.builder().s("2023-06-13").build()
+      );
+      item.put("inspector_id_last4", AttributeValue.builder().s("4321").build());
+      item.put("unit", AttributeValue.builder().s("123456789012").build());
+      final PutItemRequest putRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(item)
         .build();
 
-    // 8. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
+      dynamoDbClient.putItem(putRequest);
 
-    // 9. Put an item into our table using the above client.
-    //    Before the item gets sent to DynamoDb, it will be encrypted
-    //        client-side, according to our configuration.
-    //    Since our configuration includes beacons for `inspector_id_last4` and `unit`,
-    //        the client will add two additional attributes to the item. These attributes will have names
-    //        `aws_dbe_b_inspector_id_last4` and `aws_dbe_b_unit`. Their values will be HMACs
-    //        truncated to as many bits as the beacon's `length` parameter; e.g.
-    //    aws_dbe_b_inspector_id_last4 = truncate(HMAC("4321"), 10)
-    //    aws_dbe_b_unit = truncate(HMAC("123456789012"), 30)
-    final Map<String, AttributeValue> item = new HashMap<>();
-    item.put(
-      "work_id",
-      AttributeValue.builder().s("1313ba89-5661-41eb-ba6c-cb1b4cb67b2d").build()
-    );
-    item.put(
-      "inspection_date",
-      AttributeValue.builder().s("2023-06-13").build()
-    );
-    item.put("inspector_id_last4", AttributeValue.builder().s("4321").build());
-    item.put("unit", AttributeValue.builder().s("123456789012").build());
+      // 10. Query for the item we just put.
+      //     Note that we are constructing the query as if we were querying on plaintext values.
+      //     However, the DynamoDB encryption client will detect that this attribute name has a beacon configured.
+      //     The client will add the beaconized attribute name and attribute value to the query,
+      //         and transform the query to use the beaconized name and value.
+      //     Internally, the client will query for and receive all items with a matching HMAC value in the beacon field.
+      //     This may include a number of "false positives" with different ciphertext, but the same truncated HMAC.
+      //     e.g. if truncate(HMAC("123456789012"), 30)
+      //          == truncate(HMAC("098765432109"), 30),
+      //     the query will return both items.
+      //     The client will decrypt all returned items to determine which ones have the expected attribute values,
+      //         and only surface items with the correct plaintext to the user.
+      //     This procedure is internal to the client and is abstracted away from the user;
+      //     e.g. the user will only see "123456789012" and never
+      //        "098765432109", though the actual query returned both.
 
-    final PutItemRequest putRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(item)
-      .build();
+      final List<Map<String, AttributeValue>> allResults = new ArrayList<>();
 
-    final PutItemResponse putResponse = ddb.putItem(putRequest);
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-
-    // 10. Query for the item we just put.
-    //     Note that we are constructing the query as if we were querying on plaintext values.
-    //     However, the DDB encryption client will detect that this attribute name has a beacon configured.
-    //     The client will add the beaconized attribute name and attribute value to the query,
-    //         and transform the query to use the beaconized name and value.
-    //     Internally, the client will query for and receive all items with a matching HMAC value in the beacon field.
-    //     This may include a number of "false positives" with different ciphertext, but the same truncated HMAC.
-    //     e.g. if truncate(HMAC("123456789012"), 30)
-    //          == truncate(HMAC("098765432109"), 30),
-    //     the query will return both items.
-    //     The client will decrypt all returned items to determine which ones have the expected attribute values,
-    //         and only surface items with the correct plaintext to the user.
-    //     This procedure is internal to the client and is abstracted away from the user;
-    //     e.g. the user will only see "123456789012" and never
-    //        "098765432109", though the actual query returned both.
-
-    List<Map<String, AttributeValue>> allResults = new ArrayList<>();
-
-    Map<String, String> expressionAttributesNames = new HashMap<>();
-    expressionAttributesNames.put("#last4", "inspector_id_last4");
-    expressionAttributesNames.put("#unit", "unit");
-
-    Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
-    expressionAttributeValues.put(
-      ":last4",
-      AttributeValue.builder().s("4321").build()
-    );
-    expressionAttributeValues.put(
-      ":unit",
-      AttributeValue.builder().s("123456789012").build()
-    );
-
-    QueryRequest queryRequest = QueryRequest
-      .builder()
-      .tableName(ddbTableName)
-      .indexName(GSI_NAME)
-      .keyConditionExpression("#last4 = :last4 and #unit = :unit")
-      .expressionAttributeNames(expressionAttributesNames)
-      .expressionAttributeValues(expressionAttributeValues)
-      .build();
-
-    DynamoDbEncryptionTransforms transformClient = DynamoDbEncryptionTransforms
-      .builder()
-      .tableEncryptionConfigs(tableConfigs)
-      .build();
-
-    // The number can be obtained using transformClient.getNumberOfQueries(query)
-    int numQueries = transformClient
-      .getNumberOfQueries(queryRequest)
-      .numberOfQueries();
-    if (numQueries != 1) {
-      throw new RuntimeException(
-        "Expected to query 1 partitions, but numQueries is " + numQueries
-      );
-    }
-
-    //We need to query for all possible partitions
-    for (int partition = 0; partition < numQueries; partition++) {
+      final Map<String, String> expressionAttributeNames = new HashMap<>();
+      expressionAttributeNames.put("#last4", "inspector_id_last4");
+      expressionAttributeNames.put("#unit", "unit");
+      final Map<String, AttributeValue> expressionAttributeValues =
+        new HashMap<>();
       expressionAttributeValues.put(
-        ":aws_dbe_partition",
-        AttributeValue.builder().n(Integer.toString(partition)).build()
+        ":last4",
+        AttributeValue.builder().s("4321").build()
+      );
+      expressionAttributeValues.put(
+        ":unit",
+        AttributeValue.builder().s("123456789012").build()
       );
 
-      QueryRequest updatedQueryRequest = QueryRequest
+      final QueryRequest queryRequest = QueryRequest
         .builder()
-        .tableName(ddbTableName)
+        .tableName(tableName)
         .indexName(GSI_NAME)
         .keyConditionExpression("#last4 = :last4 and #unit = :unit")
-        .expressionAttributeNames(expressionAttributesNames)
+        .expressionAttributeNames(expressionAttributeNames)
         .expressionAttributeValues(expressionAttributeValues)
         .build();
 
-      // GSIs do not update instantly
-      // so if the results come back empty
-      // we retry after a short sleep
-      for (int i = 0; i < 10; ++i) {
-        final QueryResponse queryResponse = ddb.query(updatedQueryRequest);
-        List<Map<String, AttributeValue>> attributeValues =
-          queryResponse.items();
-        // Validate query was returned successfully
-        if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
-          throw new AssertionError();
-        }
+      final DynamoDbEncryptionTransforms transformClient =
+        DynamoDbEncryptionTransforms.builder().tableConfigs(config).build();
 
-        // if no results, sleep and try again
-        if (attributeValues.size() == 0) {
-          try {
-            Thread.sleep(20);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+      // A beacon can be split across several partitions, and a query on it then has to be sent
+      // once for each partition. partitionQueries builds one request per partition, with the
+      // partition number already filled in; it does not call DynamoDB itself. The beacons in this
+      // example use one partition each, so there is exactly one request.
+      final List<QueryRequest> partitionQueries =
+        transformClient.partitionQueries(queryRequest);
+      if (partitionQueries.size() != 1) {
+        throw new IllegalStateException(
+          "Expected to query 1 partitions, but numQueries is " +
+          partitionQueries.size()
+        );
+      }
+
+      // Send every request through the encrypting client and collect the results.
+      // GSIs do not update instantly, so if a partition's query comes back empty,
+      // wait briefly and query that partition again.
+      final int maxQueryAttempts = 10;
+      final Duration pollInterval = Duration.ofMillis(20);
+      for (final QueryRequest partitionQuery : partitionQueries) {
+        for (int attempt = 0; attempt < maxQueryAttempts; attempt++) {
+          final List<Map<String, AttributeValue>> partitionResults =
+            dynamoDbClient.query(partitionQuery).items();
+          if (!partitionResults.isEmpty()) {
+            // Adding the result for this partition
+            allResults.addAll(partitionResults);
+            break;
           }
-          continue;
-        } else {
-          // Adding the result for this partition
-          allResults.addAll(attributeValues);
-          break;
+          try {
+            Thread.sleep(pollInterval.toMillis());
+          } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            break;
+          }
         }
       }
-    }
 
-    // Validate only 1 item was returned: the item we just put
-    if (allResults.size() != 1) {
-      throw new RuntimeException(
-        "Expected exactly one result, got " + allResults.size()
-      );
-    }
-    final Map<String, AttributeValue> returnedItem = allResults.get(0);
-    // Validate the item has the expected attributes
-    if (!(returnedItem.get("inspector_id_last4").s().equals("4321"))) {
-      throw new AssertionError();
-    }
-    if (!(returnedItem.get("unit").s().equals("123456789012"))) {
-      throw new AssertionError();
+      // Validate only 1 item was returned: the item we just put
+      if (allResults.size() != 1) {
+        throw new IllegalStateException(
+          "Expected exactly one result, got " + allResults.size()
+        );
+      }
+      final Map<String, AttributeValue> returnedItem = allResults.get(0);
+      // Validate the item has the expected attributes
+      assert returnedItem.get("inspector_id_last4").s().equals("4321");
+      assert returnedItem.get("unit").s().equals("123456789012");
     }
   }
 
   public static void main(final String[] args) {
     if (args.length < 4) {
       throw new IllegalArgumentException(
-        "To run this example, include ddbTableName as args[0], " +
-        "branchKeyId as args[1], branchKeyWrappingKmsKeyId as args[2], and branchKeyDdbTableName as args[3]"
+        "To run this example, include tableName as args[0], " +
+        "branchKeyId as args[1], branchKeyWrappingKmsKeyArn as args[2], and keyStoreTableName as args[3]"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String branchKeyId = args[1];
     final String branchKeyWrappingKmsKeyArn = args[2];
-    final String branchKeyDdbTableName = args[3];
-    putItemQueryItemWithBeacon(
-      ddbTableName,
+    final String keyStoreTableName = args[3];
+    putAndQueryItem(
+      tableName,
       branchKeyId,
       branchKeyWrappingKmsKeyArn,
-      branchKeyDdbTableName
+      keyStoreTableName
     );
   }
 }

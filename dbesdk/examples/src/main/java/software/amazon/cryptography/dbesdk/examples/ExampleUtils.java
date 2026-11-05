@@ -27,7 +27,7 @@ public final class ExampleUtils {
    * Returns a partition key value unique to this JVM process. Example: "rawEcdhKeyringItem" becomes
    * "rawEcdhKeyringItem-482913"
    */
-  public static String uniquePk(String base) {
-    return base + "-" + TEST_SUFFIX;
+  public static String uniquePartitionKey(String baseName) {
+    return baseName + "-" + TEST_SUFFIX;
   }
 }

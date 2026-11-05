@@ -3,7 +3,7 @@ package software.amazon.cryptography.dbesdk.examples.itemencryptor;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptorConfig;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
@@ -11,20 +11,20 @@ import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
 /*
- This example sets up a DynamoDb Item Encryptor and uses the EncryptItem and DecryptItem APIs to
- directly encrypt and decrypt an existing DynamoDb item. You should use the DynamoDb Item Encryptor
- if you already have a DynamoDb Item to encrypt or decrypt, and do not need to make a Put or Get
- call to DynamoDb. For example, if you are using DynamoDb Streams, you may already be working with
- an encrypted item obtained from DynamoDb, and want to directly decrypt the item.
+ This example sets up a DynamoDB Item Encryptor and uses the EncryptItem and DecryptItem APIs to
+ directly encrypt and decrypt an existing DynamoDB item. You should use the DynamoDB Item Encryptor
+ if you already have a DynamoDB Item to encrypt or decrypt, and do not need to make a Put or Get
+ call to DynamoDB. For example, if you are using DynamoDB Streams, you may already be working with
+ an encrypted item obtained from DynamoDB, and want to directly decrypt the item.
 
- Running this example requires access to the DDB Table whose name is provided in CLI arguments. This
+ Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
  table must be configured with the following primary key configuration:
    - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (S)
+   - Sort key is named "sort_key" with type (N)
 */
 public class ItemEncryptDecryptExample {
 
-  public static void encryptAndDecrypt(String kmsKeyId, String ddbTableName) {
+  public static void encryptAndDecrypt(String kmsKeyId, String tableName) {
     // 1. Create a Keyring. This Keyring will be responsible for protecting the data keys that
     // protect your data. For this example, we will create a AWS KMS Keyring with the AWS KMS Key we
     // want to use. We will use the AWS KMS MRK Multi Keyring, as it will correctly handle both
@@ -34,58 +34,64 @@ public class ItemEncryptDecryptExample {
       .generator(kmsKeyId)
       .build();
 
-    // 2. Configure which attributes are encrypted and/or signed when writing new items.
-    //    For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    //    we must explicitly configure how they should be treated during item encryption:
-    //      - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //      - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //      - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("partition_key", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("sort_key", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("attribute1", CryptoAction.ENCRYPT_AND_SIGN);
-    attributeActionsOnEncrypt.put("attribute2", CryptoAction.SIGN_ONLY);
-    attributeActionsOnEncrypt.put(":attribute3", CryptoAction.DO_NOTHING);
+    // 2. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Every attribute you write must either have an action or start with the prefix set in the
+    //    next step; writing an item with any other attribute fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
 
-    // 3. Configure which attributes we expect to be included in the signature
-    //    when reading items. There are two options for configuring this:
+    // 3. Decide which attributes are left out of the signature. Two separate settings do this. They
+    //    do different jobs, and you can use either one, both, or neither:
     //
-    //    - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //      When defining your DynamoDb schema and deciding on attribute names,
-    //      choose a distinguishing prefix (such as ":") for all attributes that
-    //      you do not want to include in the signature.
-    //      This has two main benefits:
-    //      - It is easier to reason about the security and authenticity of data within your item
-    //        when all unauthenticated data is easily distinguishable by their attribute name.
-    //      - If you need to add new unauthenticated attributes in the future,
-    //        you can easily make the corresponding update to your `attributeActionsOnEncrypt`
-    //        and immediately start writing to that new attribute, without
-    //        any other configuration update needed.
-    //      Once you configure this field, it is not safe to update it.
+    //    - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text
+    //      is treated as doNothing, without being listed anywhere. It lets you add new unsigned
+    //      attributes later just by naming them with the prefix, with no configuration change. Pick
+    //      the prefix before you write any items, and do not change it afterwards.
     //
-    //    - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //      a set of attributes that should be considered unauthenticated when encountered
-    //      on read. Be careful if you use this configuration. Do not remove an attribute
-    //      name from this configuration, even if you are no longer writing with that attribute,
-    //      as old items may still include this attribute, and our configuration needs to know
-    //      to continue to exclude this attribute from the signature scope.
-    //      If you add new attribute names to this field, you must first deploy the update to this
-    //      field to all readers in your host fleet before deploying the update to start writing
-    //      with that new attribute.
+    //    - doNothing("name", ...) lists specific attributes by name, for unsigned attributes whose
+    //      names do not start with the prefix. Never remove a name from this list while items that
+    //      have that attribute may still be in the table, or reading those items fails. To add a
+    //      name, first update the configuration on every reader, and only then start writing the
+    //      new attribute.
     //
-    //   For this example, we have designed our DynamoDb table such that any attribute name with
-    //   the ":" prefix should be considered unauthenticated.
-    final String unsignAttrPrefix = ":";
+    //    This example sets the prefix ":". The item it writes has one such attribute,
+    //    ":attribute3", so that attribute is not signed and does not need to be listed.
 
-    // 4. Create the configuration for the DynamoDb Item Encryptor
-    final DynamoDbItemEncryptorConfig config = DynamoDbItemEncryptorConfig
+    // Build the schema from the choices above.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
+      .encryptAndSign("attribute1")
+      .signOnly("attribute2")
+      .doNothingPrefix(":")
+      .build();
+
+    // 4. Create the configuration for the DynamoDB Item Encryptor
+    final DynamoDbItemEncryptorConfig config = DynamoDbItemEncryptorConfig
+      .builder()
+      .logicalTableName(tableName)
+      .schema(schema)
       .keyring(kmsKeyring)
-      .allowedUnsignedAttributePrefix(unsignAttrPrefix)
       // Specifying an algorithm suite is not required,
       // but is done here to demonstrate how to do so.
       // We suggest using the
@@ -99,13 +105,13 @@ public class ItemEncryptDecryptExample {
       )
       .build();
 
-    // 5. Create the DynamoDb Item Encryptor
+    // 5. Create the DynamoDB Item Encryptor
     final DynamoDbItemEncryptor itemEncryptor = DynamoDbItemEncryptor
       .builder()
       .config(config)
       .build();
 
-    // 6. Directly encrypt a DynamoDb item using the DynamoDb Item Encryptor
+    // 6. Directly encrypt a DynamoDB item using the DynamoDB Item Encryptor
     final Map<String, AttributeValue> originalItem = new HashMap<>();
     originalItem.put(
       "partition_key",
@@ -124,57 +130,34 @@ public class ItemEncryptDecryptExample {
       ":attribute3",
       AttributeValue.builder().s("ignore me!").build()
     );
-
     final Map<String, AttributeValue> encryptedItem = itemEncryptor
       .encryptItem(originalItem)
       .encryptedItem();
 
     // Demonstrate that the item has been encrypted
-    if (
-      !(encryptedItem
-          .get("partition_key")
-          .s()
-          .equals("ItemEncryptDecryptExample"))
-    ) {
-      throw new AssertionError();
-    }
-    if (!(encryptedItem.get("sort_key").n().equals("0"))) {
-      throw new AssertionError();
-    }
-    if (!(encryptedItem.get("attribute1").b() != null)) {
-      throw new AssertionError();
-    }
+    assert encryptedItem.get("partition_key").s().equals("ItemEncryptDecryptExample");
+    assert encryptedItem.get("sort_key").n().equals("0");
+    assert encryptedItem.get("attribute1").b() != null;
 
-    // 7. Directly decrypt the encrypted item using the DynamoDb Item Encryptor
+    // 7. Directly decrypt the encrypted item using the DynamoDB Item Encryptor
     final Map<String, AttributeValue> decryptedItem = itemEncryptor
       .decryptItem(encryptedItem)
       .plaintextItem();
 
     // Demonstrate that the item was decrypted successfully
-    if (
-      !(decryptedItem
-          .get("partition_key")
-          .s()
-          .equals("ItemEncryptDecryptExample"))
-    ) {
-      throw new AssertionError();
-    }
-    if (!(decryptedItem.get("sort_key").n().equals("0"))) {
-      throw new AssertionError();
-    }
-    if (!(decryptedItem.get("attribute1").s().equals("encrypt and sign me!"))) {
-      throw new AssertionError();
-    }
+    assert decryptedItem.get("partition_key").s().equals("ItemEncryptDecryptExample");
+    assert decryptedItem.get("sort_key").n().equals("0");
+    assert decryptedItem.get("attribute1").s().equals("encrypt and sign me!");
   }
 
   public static void main(final String[] args) {
     if (args.length < 2) {
       throw new IllegalArgumentException(
-        "To run this example, include the kmsKeyId as args[0] and ddbTableName as args[1]"
+        "To run this example, include the kmsKeyId as args[0] and tableName as args[1]"
       );
     }
     final String kmsKeyId = args[0];
-    final String ddbTableName = args[1];
-    encryptAndDecrypt(kmsKeyId, ddbTableName);
+    final String tableName = args[1];
+    encryptAndDecrypt(kmsKeyId, tableName);
   }
 }

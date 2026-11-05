@@ -2,13 +2,10 @@ package software.amazon.cryptography.dbesdk.examples.keyring;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringWriter;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -26,19 +23,17 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.bouncycastle.util.io.pem.PemWriter;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyRequest;
 import software.amazon.awssdk.services.kms.model.GetPublicKeyResponse;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbesdk.examples.ExampleUtils;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
@@ -47,16 +42,15 @@ import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
 
 /*
- These examples set up DynamoDb Encryption for the AWS SDK client using the AWS KMS ECDH Keyring.
+ These examples set up DynamoDB Encryption for the AWS SDK client using the AWS KMS ECDH Keyring.
  This keyring, depending on its KeyAgreement scheme, takes in the sender's KMS ECC Key ARN, and the
  recipient's ECC Public Key to derive a shared secret. The keyring uses the shared secret to derive
- a data key to protect the data keys that encrypt and decrypt DynamoDb table items.
+ a data key to protect the data keys that encrypt and decrypt DynamoDB table items.
 
-
- Running these examples require access to the DDB Table whose name is provided in CLI arguments.
+ Running these examples require access to the DynamoDB Table whose name is provided in CLI arguments.
  This table must be configured with the following primary key configuration:
    - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (S)
+   - Sort key is named "sort_key" with type (N)
 */
 public class KmsEcdhKeyringExample {
 
@@ -68,20 +62,20 @@ public class KmsEcdhKeyringExample {
   /*
     This example takes in the sender's KMS ECC key ARN, the sender's public key, the recipient's
     public key, and the algorithm definition where the ECC keys lie. The eccKeyArn parameter takes
-    in the sender's KMS ECC key ARN, the eccPublicKeySenderFileName parameter takes in the sender's
-    public key that corresponds to the eccKeyArn, the eccPublicKeyRecipientFileName parameter takes
+    in the sender's KMS ECC key ARN, the eccPublicKeySenderFilename parameter takes in the sender's
+    public key that corresponds to the eccKeyArn, the eccPublicKeyRecipientFilename parameter takes
     in the recipient's public key, and the Curve Specification where the keys lie.
 
     Both public keys MUST be UTF8 PEM-encoded X.509 public key, also known as
     SubjectPublicKeyInfo (SPKI).
 
     This example encrypts a test item using the provided ECC keys and puts the encrypted item to the
-    provided DynamoDb table. Then, it gets the item from the table and decrypts it.
+    provided DynamoDB table. Then, it gets the item from the table and decrypts it.
 
-    Running this example requires access to the DDB Table whose name is provided in CLI arguments.
+    Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments.
     This table must be configured with the following primary key configuration:
       - Partition key is named "partition_key" with type (S)
-      - Sort key is named "sort_key" with type (S)
+      - Sort key is named "sort_key" with type (N)
     This example also requires access to a KMS ECC key. Our tests provide a KMS ECC Key ARN
     that anyone can use, but you can also provide your own KMS ECC key.
     To use your own KMS ECC key, you must have either:
@@ -94,11 +88,11 @@ public class KmsEcdhKeyringExample {
     sender public key. This examples uses another distinct KMS ECC Public Key, it does not have
     to be a KMS key; it can be a valid SubjectPublicKeyInfo (SPKI) Public Key.
   */
-  public static void kmsEcdhKeyringGetItemPutItem(
-    String ddbTableName,
+  public static void putAndGetItem(
+    String tableName,
     String eccKeyArn,
-    String eccPublicKeySenderFileName,
-    String eccPublicKeyRecipientFileName
+    String eccPublicKeySenderFilename,
+    String eccPublicKeyRecipientFilename
   ) {
     // Load UTF-8 encoded public key PEM files as DER encoded bytes.
     // You may provide your own PEM files to use here. If you provide this, it MUST
@@ -107,10 +101,10 @@ public class KmsEcdhKeyringExample {
     // the KMS ECC key, retrieve its public key, and store it
     // in a PEM file for example use.
     final byte[] recipientPublicKeyDer = loadPublicKeyBytes(
-      eccPublicKeyRecipientFileName
+      eccPublicKeyRecipientFilename
     );
     final byte[] senderPublicKeyDer = loadPublicKeyBytes(
-      eccPublicKeySenderFileName
+      eccPublicKeySenderFilename
     );
 
     // Create a KMS ECDH keyring.
@@ -122,7 +116,7 @@ public class KmsEcdhKeyringExample {
     // the recipient's private key and the sender's public key. In both scenarios the shared secret will be the same.
     // For more information on this configuration see:
     // https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-kms-ecdh-keyring.html#kms-ecdh-create
-    // The DynamoDb encryption client uses this keyring to encrypt and decrypt items.
+    // The DynamoDB encryption client uses this keyring to encrypt and decrypt items.
     // This keyring takes in:
     //  - kmsClient
     //  - kmsKeyId: Must be an ARN representing a KMS ECC key meant for KeyAgreement
@@ -146,7 +140,7 @@ public class KmsEcdhKeyringExample {
       )
       .build();
 
-    putGetItemWithKeyring(kmsEcdhKeyring, ddbTableName);
+    putAndGetItemWithKeyring(kmsEcdhKeyring, tableName);
   }
 
   // This example takes in the recipient's KMS ECC key ARN via the eccRecipientKeyArn parameter.
@@ -154,10 +148,10 @@ public class KmsEcdhKeyringExample {
   // This example attempts to decrypt a test item using the provided eccRecipientKeyArn, it does so
   // by checking if the message header contains the recipient's public key.
   //
-  // Running this example requires access to the DDB Table whose name is provided in CLI arguments.
+  // Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments.
   // This table must be configured with the following primary key configuration:
   //   - Partition key is named "partition_key" with type (S)
-  //   - Sort key is named "sort_key" with type (S)
+  //   - Sort key is named "sort_key" with type (N)
   // This example also requires access to a KMS ECC key.
   // Our tests provide a KMS ECC Key ARN that anyone can use, but you can also provide your own
   // KMS ECC key.
@@ -165,8 +159,8 @@ public class KmsEcdhKeyringExample {
   //   - kms:GetPublicKey permissions on that key.
   // This example will call kms:GetPublicKey on keyring creation.
   // You must also have kms:DeriveSharedSecret permissions on the KMS ECC key.
-  public static void kmsEcdhDiscoveryGetItem(
-    String ddbTableName,
+  public static void getItemWithDiscoveryKeyring(
+    String tableName,
     String eccRecipientKeyArn
   ) {
     // Create a KMS ECDH keyring.
@@ -176,7 +170,7 @@ public class KmsEcdhKeyringExample {
     // will AWS KMS to derive the shared from the recipient's KMS ECC Key ARN and the sender's public key;
     // For more information on this configuration see:
     // https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-kms-ecdh-keyring.html#kms-ecdh-discovery
-    // The DynamoDb encryption client uses this to encrypt and decrypt items.
+    // The DynamoDB encryption client uses this to encrypt and decrypt items.
     // This keyring takes in:
     //  - kmsClient
     //  - recipientKmsIdentifier: Must be an ARN representing a KMS ECC key meant for KeyAgreement
@@ -190,67 +184,72 @@ public class KmsEcdhKeyringExample {
       )
       .build();
 
-    getItemWithKeyring(kmsEcdhKeyring, ddbTableName);
+    getItemWithKeyring(kmsEcdhKeyring, tableName);
   }
 
   private static void getItemWithKeyring(
     Keyring kmsEcdhKeyring,
-    String ddbTableName
+    String tableName
   ) {
-    // Configure which attributes are encrypted and/or signed when writing new items.
-    // For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    // we must explicitly configure how they should be treated during item encryption:
-    //   - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //   - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //   - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    final Map<String, CryptoAction> attributeActions = new HashMap<>();
-    attributeActions.put("partition_key", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActions.put("sort_key", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActions.put("sensitive_data", CryptoAction.ENCRYPT_AND_SIGN);
+    // Decide how each attribute of your items is protected. Give each attribute one of these
+    // actions:
+    // - encryptAndSign: the value is encrypted, so it cannot be read without the keys your keyring
+    //   uses, and it is covered by the item's signature, so any change to it is detected when the
+    //   item is read.
+    // - signOnly: the value is stored as plain, readable text, but it is covered by the signature,
+    //   so any change to it is detected.
+    // - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //   keyring each time the item is encrypted or decrypted, for example so that a branch key ID
+    //   supplier can pick a different key for each tenant. Using this action also requires
+    //   signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    // - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //   change to it is NOT detected.
+    // Every attribute you write must either have an action or start with the prefix set below;
+    // writing an item with any other attribute fails.
+    //
+    // Do not give the partition key or the sort key (together, the table's primary key) an action.
+    // DynamoDB needs to read them to find the item, so they can never be encrypted, and the library
+    // always signs them for you. By default they are signed like signOnly, and their values are
+    // still handed to your keyring, in an encoded form. If you call
+    // signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    // signAndIncludeInEncryptionContext instead: their values are handed to your keyring as plain
+    // text, and you can give other attributes the signAndIncludeInEncryptionContext action.
 
-    // Configure which attributes we expect to be included in the signature
-    // when reading items. There are two options for configuring this:
+    // Decide which attributes are left out of the signature. Two separate settings do this. They do
+    // different jobs, and you can use either one, both, or neither:
     //
-    // - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //   When defining your DynamoDb schema and deciding on attribute names,
-    //   choose a distinguishing prefix (such as ":") for all attributes that
-    //   you do not want to include in the signature.
-    //   This has two main benefits:
-    //   - It is easier to reason about the security and authenticity of data within your item
-    //     when all unauthenticated data is easily distinguishable by their attribute name.
-    //   - If you need to add new unauthenticated attributes in the future,
-    //     you can easily make the corresponding update to your `attributeActions`
-    //     and immediately start writing to that new attribute, without
-    //     any other configuration update needed.
-    //   Once you configure this field, it is not safe to update it.
+    // - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text is
+    //   treated as doNothing, without being listed anywhere. It lets you add new unsigned
+    //   attributes later just by naming them with the prefix, with no configuration change. Pick
+    //   the prefix before you write any items, and do not change it afterwards.
     //
-    // - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //   a set of attributes that should be considered unauthenticated when encountered
-    //   on read. Be careful if you use this configuration. Do not remove an attribute
-    //   name from this configuration, even if you are no longer writing with that attribute,
-    //   as old items may still include this attribute, and our configuration needs to know
-    //   to continue to exclude this attribute from the signature scope.
-    //   If you add new attribute names to this field, you must first deploy the update to this
-    //   field to all readers in your host fleet before deploying the update to start writing
-    //   with that new attribute.
+    // - doNothing("name", ...) lists specific attributes by name, for unsigned attributes whose
+    //   names do not start with the prefix. Never remove a name from this list while items that
+    //   have that attribute may still be in the table, or reading those items fails. To add a name,
+    //   first update the configuration on every reader, and only then start writing the new
+    //   attribute.
     //
-    // For this example, we currently authenticate all attributes. To make it easier to
-    // add unauthenticated attributes in the future, we define a prefix ":" for such attributes.
-    final String unsignAttrPrefix = ":";
+    // This example sets the prefix ":" so that unsigned attributes can be added later. The items it
+    // writes do not have any yet.
 
-    // Create the DynamoDb Encryption configuration for the table we will be writing to.
-    // Note: To use the KMS ECDH keyring, your table config must specify an algorithmSuite
-    // that does not use asymmetric signing.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from the choices above.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
-      .attributeActionsOnEncrypt(attributeActions)
+      .encryptAndSign("sensitive_data")
+      .doNothingPrefix(":")
+      .build();
+
+    // Create the DynamoDB Encryption configuration for the table we will be writing to.
+    // Note: To use the KMS ECDH keyring, your table config must specify an algorithmSuite
+    // that does not use asymmetric signing.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
       .keyring(kmsEcdhKeyring)
-      .allowedUnsignedAttributePrefix(unsignAttrPrefix)
       // Specify algorithmSuite without asymmetric signing here
       // As of v3.0.0, the only supported algorithmSuite without asymmetric signing is
       // ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384.
@@ -258,117 +257,110 @@ public class KmsEcdhKeyringExample {
         AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
       )
       .build();
-    tableConfigs.put(ddbTableName, config);
 
-    // Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // Get the item back from our table using the client.
+      // The client will decrypt the item client-side using the ECDH keyring
+      // and return the original item.
+      final Map<String, AttributeValue> keyToGet = new HashMap<>();
+      keyToGet.put(
+        "partition_key",
+        AttributeValue
+          .builder()
+          .s(ExampleUtils.uniquePartitionKey("awsKmsEcdhKeyringItem"))
+          .build()
+      );
+      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
+
+      final GetItemRequest getRequest = GetItemRequest
+        .builder()
+        .key(keyToGet)
+        .tableName(tableName)
         .build();
 
-    // Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddbClient = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
+      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
-    // Get the item back from our table using the client.
-    // The client will decrypt the item client-side using the ECDH keyring
-    // and return the original item.
-    final Map<String, AttributeValue> keyToGet = new HashMap<>();
-    keyToGet.put(
-      "partition_key",
-      AttributeValue
-        .builder()
-        .s(ExampleUtils.uniquePk("awsKmsEcdhKeyringItem"))
-        .build()
-    );
-    keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-
-    final GetItemRequest getRequest = GetItemRequest
-      .builder()
-      .key(keyToGet)
-      .tableName(ddbTableName)
-      .build();
-
-    final GetItemResponse getResponse = ddbClient.getItem(getRequest);
-
-    // Demonstrate that GetItem succeeded and returned the decrypted item
-    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-    final Map<String, AttributeValue> returnedItem = getResponse.item();
-    if (
-      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
-    ) {
-      throw new AssertionError();
+      // Demonstrate that GetItem succeeded and returned the decrypted item
+      final Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
     }
   }
 
-  private static void putGetItemWithKeyring(
+  private static void putAndGetItemWithKeyring(
     Keyring awsKmsEcdhKeyring,
-    String ddbTableName
+    String tableName
   ) {
-    // Configure which attributes are encrypted and/or signed when writing new items.
-    // For each attribute that may exist on the items we plan to write to our DynamoDbTable,
-    // we must explicitly configure how they should be treated during item encryption:
-    //   - ENCRYPT_AND_SIGN: The attribute is encrypted and included in the signature
-    //   - SIGN_ONLY: The attribute not encrypted, but is still included in the signature
-    //   - DO_NOTHING: The attribute is not encrypted and not included in the signature
-    final Map<String, CryptoAction> attributeActions = new HashMap<>();
-    attributeActions.put("partition_key", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActions.put("sort_key", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActions.put("sensitive_data", CryptoAction.ENCRYPT_AND_SIGN);
+    // Decide how each attribute of your items is protected. Give each attribute one of these
+    // actions:
+    // - encryptAndSign: the value is encrypted, so it cannot be read without the keys your keyring
+    //   uses, and it is covered by the item's signature, so any change to it is detected when the
+    //   item is read.
+    // - signOnly: the value is stored as plain, readable text, but it is covered by the signature,
+    //   so any change to it is detected.
+    // - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //   keyring each time the item is encrypted or decrypted, for example so that a branch key ID
+    //   supplier can pick a different key for each tenant. Using this action also requires
+    //   signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    // - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //   change to it is NOT detected.
+    // Every attribute you write must either have an action or start with the prefix set below;
+    // writing an item with any other attribute fails.
+    //
+    // Do not give the partition key or the sort key (together, the table's primary key) an action.
+    // DynamoDB needs to read them to find the item, so they can never be encrypted, and the library
+    // always signs them for you. By default they are signed like signOnly, and their values are
+    // still handed to your keyring, in an encoded form. If you call
+    // signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    // signAndIncludeInEncryptionContext instead: their values are handed to your keyring as plain
+    // text, and you can give other attributes the signAndIncludeInEncryptionContext action.
 
-    // Configure which attributes we expect to be included in the signature
-    // when reading items. There are two options for configuring this:
+    // Decide which attributes are left out of the signature. Two separate settings do this. They do
+    // different jobs, and you can use either one, both, or neither:
     //
-    // - (Recommended) Configure `allowedUnsignedAttributesPrefix`:
-    //   When defining your DynamoDb schema and deciding on attribute names,
-    //   choose a distinguishing prefix (such as ":") for all attributes that
-    //   you do not want to include in the signature.
-    //   This has two main benefits:
-    //   - It is easier to reason about the security and authenticity of data within your item
-    //     when all unauthenticated data is easily distinguishable by their attribute name.
-    //   - If you need to add new unauthenticated attributes in the future,
-    //     you can easily make the corresponding update to your `attributeActions`
-    //     and immediately start writing to that new attribute, without
-    //     any other configuration update needed.
-    //   Once you configure this field, it is not safe to update it.
+    // - doNothingPrefix(":") is a naming rule. Every attribute whose name starts with this text is
+    //   treated as doNothing, without being listed anywhere. It lets you add new unsigned
+    //   attributes later just by naming them with the prefix, with no configuration change. Pick
+    //   the prefix before you write any items, and do not change it afterwards.
     //
-    // - Configure `allowedUnsignedAttributes`: You may also explicitly list
-    //   a set of attributes that should be considered unauthenticated when encountered
-    //   on read. Be careful if you use this configuration. Do not remove an attribute
-    //   name from this configuration, even if you are no longer writing with that attribute,
-    //   as old items may still include this attribute, and our configuration needs to know
-    //   to continue to exclude this attribute from the signature scope.
-    //   If you add new attribute names to this field, you must first deploy the update to this
-    //   field to all readers in your host fleet before deploying the update to start writing
-    //   with that new attribute.
+    // - doNothing("name", ...) lists specific attributes by name, for unsigned attributes whose
+    //   names do not start with the prefix. Never remove a name from this list while items that
+    //   have that attribute may still be in the table, or reading those items fails. To add a name,
+    //   first update the configuration on every reader, and only then start writing the new
+    //   attribute.
     //
-    // For this example, we currently authenticate all attributes. To make it easier to
-    // add unauthenticated attributes in the future, we define a prefix ":" for such attributes.
-    final String unsignAttrPrefix = ":";
+    // This example sets the prefix ":" so that unsigned attributes can be added later. The items it
+    // writes do not have any yet.
 
-    // Create the DynamoDb Encryption configuration for the table we will be writing to.
-    // Note: To use the KMS ECDH keyring, your table config must specify an algorithmSuite
-    // that does not use asymmetric signing.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // Build the schema from the choices above.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
-      .logicalTableName(ddbTableName)
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
-      .attributeActionsOnEncrypt(attributeActions)
+      .encryptAndSign("sensitive_data")
+      .doNothingPrefix(":")
+      .build();
+
+    // Create the DynamoDB Encryption configuration for the table we will be writing to.
+    // Note: To use the KMS ECDH keyring, your table config must specify an algorithmSuite
+    // that does not use asymmetric signing.
+    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+      .builder()
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
       .keyring(awsKmsEcdhKeyring)
-      .allowedUnsignedAttributePrefix(unsignAttrPrefix)
       // Specify algorithmSuite without asymmetric signing here
       // As of v3.0.0, the only supported algorithmSuite without asymmetric signing is
       // ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384.
@@ -376,135 +368,125 @@ public class KmsEcdhKeyringExample {
         AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
       )
       .build();
-    tableConfigs.put(ddbTableName, config);
 
-    // Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      // Put an item into our table using the above client.
+      // Before the item gets sent to DynamoDB, it will be encrypted
+      // client-side, according to our configuration.
+      final Map<String, AttributeValue> item = new HashMap<>();
+      item.put(
+        "partition_key",
+        AttributeValue
+          .builder()
+          .s(ExampleUtils.uniquePartitionKey("awsKmsEcdhKeyringItem"))
+          .build()
+      );
+      item.put("sort_key", AttributeValue.builder().n("0").build());
+      item.put(
+        "sensitive_data",
+        AttributeValue.builder().s("encrypt and sign me!").build()
+      );
+      final PutItemRequest putRequest = PutItemRequest
+        .builder()
+        .tableName(tableName)
+        .item(item)
         .build();
 
-    // Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddbClient = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
+      dynamoDbClient.putItem(putRequest);
+
+      // Get the item back from our table using the client.
+      // The client will decrypt the item client-side using the ECDH keyring
+      // and return the original item.
+      final Map<String, AttributeValue> keyToGet = new HashMap<>();
+      keyToGet.put(
+        "partition_key",
+        AttributeValue
           .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
+          .s(ExampleUtils.uniquePartitionKey("awsKmsEcdhKeyringItem"))
           .build()
-      )
-      .build();
+      );
+      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
 
-    // Put an item into our table using the above client.
-    // Before the item gets sent to DynamoDb, it will be encrypted
-    // client-side, according to our configuration.
-    final Map<String, AttributeValue> item = new HashMap<>();
-    item.put(
-      "partition_key",
-      AttributeValue
+      final GetItemRequest getRequest = GetItemRequest
         .builder()
-        .s(ExampleUtils.uniquePk("awsKmsEcdhKeyringItem"))
-        .build()
-    );
-    item.put("sort_key", AttributeValue.builder().n("0").build());
-    item.put(
-      "sensitive_data",
-      AttributeValue.builder().s("encrypt and sign me!").build()
-    );
+        .key(keyToGet)
+        .tableName(tableName)
+        .build();
 
-    final PutItemRequest putRequest = PutItemRequest
-      .builder()
-      .tableName(ddbTableName)
-      .item(item)
-      .build();
+      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
-    final PutItemResponse putResponse = ddbClient.putItem(putRequest);
-
-    // Demonstrate that PutItem succeeded
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-
-    // Get the item back from our table using the client.
-    // The client will decrypt the item client-side using the ECDH keyring
-    // and return the original item.
-    final Map<String, AttributeValue> keyToGet = new HashMap<>();
-    keyToGet.put(
-      "partition_key",
-      AttributeValue
-        .builder()
-        .s(ExampleUtils.uniquePk("awsKmsEcdhKeyringItem"))
-        .build()
-    );
-    keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-
-    final GetItemRequest getRequest = GetItemRequest
-      .builder()
-      .key(keyToGet)
-      .tableName(ddbTableName)
-      .build();
-
-    final GetItemResponse getResponse = ddbClient.getItem(getRequest);
-
-    // Demonstrate that GetItem succeeded and returned the decrypted item
-    if (!(200 == getResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
-    final Map<String, AttributeValue> returnedItem = getResponse.item();
-    if (
-      !(returnedItem.get("sensitive_data").s().equals("encrypt and sign me!"))
-    ) {
-      throw new AssertionError();
+      // Demonstrate that GetItem succeeded and returned the decrypted item
+      final Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
     }
   }
 
-  private static byte[] loadPublicKeyBytes(String eccPublicKeyFileName) {
+  private static byte[] loadPublicKeyBytes(String eccPublicKeyFilename) {
     try {
       byte[] publicKeyFileBytes = Files.readAllBytes(
-        Paths.get(eccPublicKeyFileName)
+        Paths.get(eccPublicKeyFilename)
       );
 
       final PemObject pemObject;
       try (
-        PemReader pemReader = new PemReader(
+        final PemReader pemReader = new PemReader(
           new InputStreamReader(new ByteArrayInputStream(publicKeyFileBytes))
         )
       ) {
         pemObject = pemReader.readPemObject();
       }
+      if (pemObject == null) {
+        throw new IllegalArgumentException(
+          eccPublicKeyFilename + " does not hold a PEM-encoded public key"
+        );
+      }
       byte[] content = pemObject.getContent();
-      SubjectPublicKeyInfo subjectPublicKeyInfo =
+      final SubjectPublicKeyInfo subjectPublicKeyInfo =
         SubjectPublicKeyInfo.getInstance(content);
-      X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
+      final X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
         subjectPublicKeyInfo.getEncoded()
       );
       if (Security.getProvider("BC") == null) {
         Security.addProvider(new BouncyCastleProvider());
       }
-      KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-      PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
+      final KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+      final PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
       return publicKey.getEncoded();
-    } catch (IOException e) {
-      throw new RuntimeException(
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
         "IOException while reading public key from file",
-        e
+        exception
       );
     } catch (
       NoSuchProviderException
       | NoSuchAlgorithmException
-      | InvalidKeySpecException e
+      | InvalidKeySpecException exception
     ) {
-      throw new RuntimeException(e);
+      throw new IllegalStateException(
+        "Could not load the ECC public key",
+        exception
+      );
     }
   }
 
-  public static void kmsEcdhKeyringGetItemPutItem(
-    String ddbTableName,
+  public static void putAndGetItem(
+    String tableName,
     String eccKeyArn
   ) {
-    kmsEcdhKeyringGetItemPutItem(
-      ddbTableName,
+    putAndGetItem(
+      tableName,
       eccKeyArn,
       EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME,
       EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME
@@ -519,32 +501,22 @@ public class KmsEcdhKeyringExample {
   // - The recipient's public key file name
   // - The recipient's KMS ECC Key Arn, you must have kms:GetPublicKey permission on the key.
   public static void main(final String[] args) {
-    if (args.length <= 1) {
+    if (args.length < 2) {
       throw new IllegalArgumentException(
-        "To run this example, include the ddbTable and eccKeyArn in args; optionally include" +
+        "To run this example, include the table name and eccKeyArn in args; optionally include" +
         " eccPublicKeySenderFilename, eccPublicKeyRecipientFilename, and eccRecipientKeyArn" +
         " arguments"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String eccKeyArn = args[1];
-    String eccPublicKeySenderFilename;
-    String eccPublicKeyRecipientFilename;
-    String eccRecipientKeyArn;
-    if (args.length == 4) {
-      eccPublicKeySenderFilename = args[2];
-      eccPublicKeyRecipientFilename = args[3];
-    } else {
-      eccPublicKeySenderFilename = EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME;
-      eccPublicKeyRecipientFilename = EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME;
-    }
-    if (args.length == 5) {
-      eccPublicKeySenderFilename = args[2];
-      eccPublicKeyRecipientFilename = args[3];
-      eccRecipientKeyArn = args[4];
-    } else {
-      eccRecipientKeyArn = null;
-    }
+    final String eccPublicKeySenderFilename = args.length > 2
+      ? args[2]
+      : EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME;
+    final String eccPublicKeyRecipientFilename = args.length > 3
+      ? args[3]
+      : EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME;
+    final String eccRecipientKeyArn = args.length > 4 ? args[4] : null;
 
     // You may provide your own ECC public keys at EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME and
     // EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME.
@@ -564,8 +536,8 @@ public class KmsEcdhKeyringExample {
       );
     }
 
-    kmsEcdhKeyringGetItemPutItem(
-      ddbTableName,
+    putAndGetItem(
+      tableName,
       eccKeyArn,
       eccPublicKeySenderFilename,
       eccPublicKeyRecipientFilename
@@ -577,7 +549,7 @@ public class KmsEcdhKeyringExample {
     String eccPublicKeyFilename
   ) {
     // Safety check: Validate file is not present
-    File publicKeyFile = new File(eccPublicKeyFilename);
+    final File publicKeyFile = new File(eccPublicKeyFilename);
     if (publicKeyFile.exists()) {
       throw new IllegalStateException(
         "writePublicKeyPemForEccKey will not overwrite existing PEM files"
@@ -585,55 +557,51 @@ public class KmsEcdhKeyringExample {
     }
     // This code will call KMS to get the public key for the KMS ECC key.
     // You must have kms:GetPublicKey permissions on the key for this to succeed.
-    // The public key will be written to the file EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME
-    // or EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME.
-    KmsClient getterForPublicKey = KmsClient.create();
-    GetPublicKeyResponse response = getterForPublicKey.getPublicKey(
-      GetPublicKeyRequest.builder().keyId(eccKeyArn).build()
-    );
+    // The public key is written to eccPublicKeyFilename.
+    final GetPublicKeyResponse response;
+    try (KmsClient kmsClient = KmsClient.create()) {
+      response =
+        kmsClient.getPublicKey(
+          GetPublicKeyRequest.builder().keyId(eccKeyArn).build()
+        );
+    }
     byte[] publicKeyByteArray = response.publicKey().asByteArray();
 
-    StringWriter publicKeyStringWriter = new StringWriter();
-    PemWriter publicKeyPemWriter = new PemWriter(publicKeyStringWriter);
+    final StringWriter publicKeyStringWriter = new StringWriter();
+    final PemWriter publicKeyPemWriter = new PemWriter(publicKeyStringWriter);
     try {
       publicKeyPemWriter.writeObject(
         new PemObject("PUBLIC KEY", publicKeyByteArray)
       );
       publicKeyPemWriter.close();
-    } catch (IOException e) {
-      throw new RuntimeException("IOException while writing public key PEM", e);
-    }
-    ByteBuffer publicKeyUtf8EncodedByteBufferToWrite =
-      StandardCharsets.UTF_8.encode(publicKeyStringWriter.toString());
-
-    try (
-      FileChannel fc = new FileOutputStream(eccPublicKeyFilename).getChannel()
-    ) {
-      fc.write(publicKeyUtf8EncodedByteBufferToWrite);
-    } catch (FileNotFoundException e) {
-      throw new RuntimeException(
-        "FileNotFoundException while opening public key FileChannel",
-        e
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
+        "IOException while writing public key PEM",
+        exception
       );
-    } catch (IOException e) {
-      throw new RuntimeException(
-        "IOException while writing public key or closing FileChannel",
-        e
+    }
+    try {
+      Files.write(
+        Paths.get(eccPublicKeyFilename),
+        publicKeyStringWriter.toString().getBytes(StandardCharsets.UTF_8)
+      );
+    } catch (IOException exception) {
+      throw new UncheckedIOException(
+        "IOException while writing public key file",
+        exception
       );
     }
   }
 
   static boolean shouldGetNewPublicKeys() {
     // Check if public keys already exist
-    File senderPublicKeyFile = new File(EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME);
-    File recipientPublicKeyFile = new File(
+    final File senderPublicKeyFile = new File(
+      EXAMPLE_ECC_PUBLIC_KEY_SENDER_FILENAME
+    );
+    final File recipientPublicKeyFile = new File(
       EXAMPLE_ECC_PUBLIC_KEY_RECIPIENT_FILENAME
     );
 
-    if (senderPublicKeyFile.exists() || recipientPublicKeyFile.exists()) {
-      return false;
-    }
-
-    return true;
+    return !senderPublicKeyFile.exists() && !recipientPublicKeyFile.exists();
   }
 }

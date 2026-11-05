@@ -1,40 +1,34 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption;
 
-import java.util.Arrays;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.PutItemResponse;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
-import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconStyle;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconVersion;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.Constructor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ConstructorPart;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.CryptoAction;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SearchConfig;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.SingleKeyStore;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.ResolveAttributesInput;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.ResolveAttributesOutput;
+import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keystore.BranchKeyStore;
-import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /*
  This example demonstrates how to set up a compound beacon on encrypted attributes, put an item with
@@ -44,9 +38,9 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
  the same table schema. However, this example uses a different Global Secondary Index (GSI) that is
  based on a compound beacon configuration composed of the `last4` and `unit` attributes.
 
- Running this example requires access to a DDB table with the following key configuration:
+ Running this example requires access to a DynamoDB table with the following key configuration:
    - Partition key is named "work_id" with type (S)
-   - Sort key is named "inspection_time" with type (S)
+   - Sort key is named "inspection_date" with type (S)
  This table must have a Global Secondary Index (GSI) configured named "last4UnitCompound-index":
    - Partition key is named "aws_dbe_b_last4UnitCompound" with type (S)
 
@@ -57,24 +51,26 @@ import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
   - "unit" stores a 12-digit serial number for the unit being inspected
 
  The example requires the following ordered input command line parameters:
-   1. DDB table name for table to put/query data from
+   1. DynamoDB table name for table to put/query data from
    2. Branch key ID for a branch key that was previously created in your key store. See the
       CreateKeyStoreKeyExample.
    3. Branch key wrapping KMS key ARN for the KMS key used to create the branch key with ID
       provided in arg 2
-   4. Branch key DDB table ARN for the DDB table representing the branch key store
+   4. Branch key DynamoDB table ARN for the DynamoDB table representing the branch key store
 */
 
 public class CompoundBeaconSearchableEncryptionExample {
 
   private static final String GSI_NAME = "last4UnitCompound-index";
   private static final int MAX_CONCURRENT_QUERY_THREADS = 10;
+  private static final int TASK_COUNT = 2 * MAX_CONCURRENT_QUERY_THREADS;
+  private static final int PUT_AND_QUERY_ROUNDS_PER_TASK = 20;
 
-  public static void putItemQueryItemWithCompoundBeacon(
-    String ddbTableName,
+  public static void putAndQueryItem(
+    String tableName,
     String branchKeyId,
     String branchKeyWrappingKmsKeyArn,
-    String branchKeyDdbTableName
+    String keyStoreTableName
   ) {
     // 1. Create Beacons.
     //    These are the same beacons as in the "BasicSearchableEncryptionExample" in this directory.
@@ -84,20 +80,18 @@ public class CompoundBeaconSearchableEncryptionExample {
     //      that we wish to use in compound beacons.
     //    We mark them both as PartOnly to enforce the fact that
     //      we will not directly query against these beacons.
-    List<StandardBeacon> standardBeaconList = Arrays.asList(
-      StandardBeacon
-        .builder()
-        .name("inspector_id_last4")
-        .length(10)
-        .style(BeaconStyle.partOnly())
-        .build(),
-      StandardBeacon
-        .builder()
-        .name("unit")
-        .length(30)
-        .style(BeaconStyle.partOnly())
-        .build()
-    );
+    final StandardBeacon last4Beacon = StandardBeacon
+      .builder()
+      .name("inspector_id_last4")
+      .bitLength(10)
+      .style(BeaconStyle.partOnly())
+      .build();
+    final StandardBeacon unitBeacon = StandardBeacon
+      .builder()
+      .name("unit")
+      .bitLength(30)
+      .style(BeaconStyle.partOnly())
+      .build();
 
     // 2. Define encrypted parts.
     //    Encrypted parts define the beacons that can be used to construct a compound beacon,
@@ -109,34 +103,40 @@ public class CompoundBeaconSearchableEncryptionExample {
     //            i.e. for all configured prefixes, the first N characters of a prefix must not equal another prefix.
     // In practice, it is suggested to have a short value distinguishable from other parts served on the prefix.
 
-    List<EncryptedPart> encryptedPartList = Arrays.asList(
-      // For this example, we will choose "L-" as the prefix for "Last 4 digits of inspector ID".
-      // With this prefix and the standard beacon's bit length definition (10), the beaconized
-      //     version of the inspector ID's last 4 digits will appear as
-      //     `L-000` to `L-3ff` inside a compound beacon.
-      EncryptedPart.builder().name("inspector_id_last4").prefix("L-").build(),
-      // For this example, we will choose "U-" as the prefix for "unit".
-      // With this prefix and the standard beacon's bit length definition (30), a unit beacon will appear
-      //     as `U-00000000` to `U-3fffffff` inside a compound beacon.
-      EncryptedPart.builder().name("unit").prefix("U-").build()
-    );
+    // For this example, we will choose "L-" as the prefix for "Last 4 digits of inspector ID".
+    // With this prefix and the standard beacon's bit length definition (10), the beaconized
+    //     version of the inspector ID's last 4 digits will appear as
+    //     `L-000` to `L-3ff` inside a compound beacon.
+    final EncryptedPart last4EncryptedPart = EncryptedPart
+      .builder()
+      .name("inspector_id_last4")
+      .prefix("L-")
+      .build();
+    // For this example, we will choose "U-" as the prefix for "unit".
+    // With this prefix and the standard beacon's bit length definition (30), a unit beacon will appear
+    //     as `U-00000000` to `U-3fffffff` inside a compound beacon.
+    final EncryptedPart unitEncryptedPart = EncryptedPart
+      .builder()
+      .name("unit")
+      .prefix("U-")
+      .build();
 
-    List<ConstructorPart> constructorParts = Arrays.asList(
-      ConstructorPart
-        .builder()
-        .name("inspector_id_last4")
-        .required(true)
-        .build(),
-      ConstructorPart
-        .builder()
-        // This name comes from the "EmployeeID" standard beacon.
-        .name("unit")
-        .required(true)
-        .build()
-    );
-    List<Constructor> constructors = Arrays.asList(
-      Constructor.builder().parts(constructorParts).build()
-    );
+    final Constructor constructor = Constructor
+      .builder()
+      .parts(
+        ConstructorPart
+          .builder()
+          .name("inspector_id_last4")
+          .required(true)
+          .build(),
+        ConstructorPart
+          .builder()
+          // This name comes from the "EmployeeID" standard beacon.
+          .name("unit")
+          .required(true)
+          .build()
+      )
+      .build();
 
     // 3. Define compound beacon.
     //    A compound beacon allows one to serve multiple beacons or attributes from a single index.
@@ -157,44 +157,40 @@ public class CompoundBeaconSearchableEncryptionExample {
     //     - signed: A list of signed parts, i.e. plaintext attributes. This would be provided if we
     //                     wanted to use plaintext values as part of constructing our compound beacon. We do not
     //                     provide this here; see the Complex example for an example.
-    List<CompoundBeacon> compoundBeaconList = Arrays.asList(
-      CompoundBeacon
-        .builder()
-        .name("last4UnitCompound")
-        .constructors(constructors)
-        .split(".")
-        .build()
-    );
+    final CompoundBeacon last4UnitCompoundBeacon = CompoundBeacon
+      .builder()
+      .name("last4UnitCompound")
+      .constructors(constructor)
+      .split(".")
+      .build();
 
     // 4. Configure the Keystore
     //    These are the same constructions as in the Basic example, which describes these in more detail.
-    BranchKeyStore keyStore = BranchKeyStore
+    final BranchKeyStore keyStore = BranchKeyStore
       .builder()
       .kmsClient(KmsClient.create())
       .ddbClient(DynamoDbClient.create())
-      .ddbTableName(branchKeyDdbTableName)
-      .logicalKeyStoreName(branchKeyDdbTableName)
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(keyStoreTableName)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(branchKeyWrappingKmsKeyArn))
       .build();
 
-    // 5. Create BeaconVersion.
-    //    This is similar to the Basic example, except we have also provided a compoundBeaconList.
-    //    We must also continue to provide all of the standard beacons that compose a compound beacon list.
-    List<BeaconVersion> beaconVersions = Arrays.asList(
-      BeaconVersion
-        .builder()
-        .encryptedParts(encryptedPartList)
-        .standardBeacons(standardBeaconList)
-        .compoundBeacons(compoundBeaconList)
-        .version(1) // MUST be 1
-        .keyStore(keyStore)
-        .keySource(
-          BeaconKeySource.single(
-            SingleKeyStore.builder().keyId(branchKeyId).cacheTtl(6000).build()
-          )
-        )
-        .build()
-    );
+    // 5. Create BeaconConfig.
+    //    This is similar to the Basic example, except we have also provided a compound beacon.
+    //    We must also continue to provide all of the standard beacons that compose a compound beacon.
+    final BeaconConfig beaconConfig = BeaconConfig
+      .builder()
+      .encryptedParts(last4EncryptedPart, unitEncryptedPart)
+      .standardBeacons(last4Beacon, unitBeacon)
+      .compoundBeacons(last4UnitCompoundBeacon)
+      .keyStore(keyStore)
+      .keySource(
+        BeaconKeySource
+          .singleBeaconKey(branchKeyId)
+          .cacheTtl(Duration.ofSeconds(6000))
+          .build()
+      )
+      .build();
 
     // 6. Create a Hierarchical Keyring
     //    This is the same configuration as in the Basic example.
@@ -202,48 +198,65 @@ public class CompoundBeaconSearchableEncryptionExample {
       .builder()
       .branchKeyId(branchKeyId)
       .keyStore(keyStore)
-      .ttlSeconds(6000L)
+      .ttl(Duration.ofSeconds(6000))
       .build();
 
-    // 7. Configure which attributes are encrypted and/or signed when writing new items.
-    final Map<String, CryptoAction> attributeActionsOnEncrypt = new HashMap<>();
-    attributeActionsOnEncrypt.put("work_id", CryptoAction.SIGN_ONLY); // Our partition attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put("inspection_date", CryptoAction.SIGN_ONLY); // Our sort attribute must be SIGN_ONLY
-    attributeActionsOnEncrypt.put(
-      "inspector_id_last4",
-      CryptoAction.ENCRYPT_AND_SIGN
-    ); // Beaconized attributes must be encrypted
-    attributeActionsOnEncrypt.put("unit", CryptoAction.ENCRYPT_AND_SIGN); // Beaconized attributes must be encrypted
+    // 7. Decide how each attribute of your items is protected. Give each attribute one of these
+    //    actions:
+    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
+    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
+    //      when the item is read.
+    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
+    //      signature, so any change to it is detected.
+    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
+    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
+    //      ID supplier can pick a different key for each tenant. Using this action also requires
+    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
+    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
+    //      change to it is NOT detected.
+    //    Every attribute you write must have an action; writing an item with any other attribute
+    //    fails.
+    //
+    //    Do not give the partition key or the sort key (together, the table's primary key) an
+    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
+    //    the library always signs them for you. By default they are signed like signOnly, and their
+    //    values are still handed to your keyring, in an encoded form. If you call
+    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
+    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
+    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
+    //    action.
+
+    // Build the schema from these choices.
+    final ItemEncryptionSchema schema = ItemEncryptionSchema
+      .builder()
+      .partitionKeyName("work_id")
+      .sortKeyName("inspection_date")
+      // Beaconized attributes must be encrypted
+      .encryptAndSign("inspector_id_last4", "unit")
+      .build();
 
     // We do not need to define a crypto action on last4UnitCompound.
     // We only need to define crypto actions on attributes that we pass to PutItem.
 
-    // 8. Create the DynamoDb Encryption configuration for the table we will be writing to.
-    //    The beaconVersions are added to the search configuration.
-    final Map<String, DynamoDbTableEncryptionConfig> tableConfigs =
-      new HashMap<>();
+    // 8. Create the DynamoDB Encryption configuration for the table we will be writing to.
+    //    The beacon configuration is added to the table configuration.
     final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
-      .logicalTableName(ddbTableName)
-      .partitionKeyName("work_id")
-      .sortKeyName("inspection_date")
-      .attributeActionsOnEncrypt(attributeActionsOnEncrypt)
+      .tableName(tableName)
+      .logicalTableName(tableName)
+      .schema(schema)
       .keyring(kmsKeyring)
-      .search(
-        SearchConfig
-          .builder()
-          .writeVersion(1) // MUST be 1
-          .versions(beaconVersions)
-          .build()
-      )
+      .beaconConfig(beaconConfig)
       .build();
-    tableConfigs.put(ddbTableName, config);
 
     // 9. Create an item with both attributes used in the compound beacon.
     final Map<String, AttributeValue> item = new HashMap<>();
     item.put(
       "work_id",
-      AttributeValue.builder().s("9ce39272-8068-4efd-a211-cd162ad65d4c").build()
+      AttributeValue
+        .builder()
+        .s("9ce39272-8068-4efd-a211-cd162ad65d4c")
+        .build()
     );
     item.put(
       "inspection_date",
@@ -251,103 +264,80 @@ public class CompoundBeaconSearchableEncryptionExample {
     );
     item.put("inspector_id_last4", AttributeValue.builder().s("5678").build());
     item.put("unit", AttributeValue.builder().s("011899988199").build());
-
-    // 10. If developing or debugging, verify config by checking compound beacon values directly
-    final DynamoDbEncryptionTransforms trans = DynamoDbEncryptionTransforms
+    final DynamoDbEncryptionTransforms transformClient = DynamoDbEncryptionTransforms
       .builder()
-      .tableEncryptionConfigs(tableConfigs)
+      .tableConfigs(config)
       .build();
-
-    final ResolveAttributesInput resolveInput = ResolveAttributesInput
-      .builder()
-      .tableName(ddbTableName)
-      .item(item)
-      .version(1)
-      .build();
-
-    final ResolveAttributesOutput resolveOutput = trans.resolveAttributes(
-      resolveInput
-    );
 
     // VirtualFields is empty because we have no Virtual Fields configured
-    if (!(resolveOutput.virtualFields().isEmpty())) {
-      throw new AssertionError();
-    }
+    assert transformClient.resolveVirtualFields(tableName, item).isEmpty();
 
     // Verify that CompoundBeacons has the expected value
-    Map<String, String> cbs = new HashMap<>();
-    cbs.put("last4UnitCompound", "L-5678.U-011899988199");
-    if (!(resolveOutput.compoundBeacons().equals(cbs))) {
-      throw new AssertionError();
-    }
+    final Map<String, String> expectedCompoundBeacons = new HashMap<>();
+    expectedCompoundBeacons.put("last4UnitCompound", "L-5678.U-011899988199");
+    assert transformClient
+      .resolveCompoundBeacons(tableName, item)
+      .equals(expectedCompoundBeacons);
     // Note : the compound beacon actually stored in the table is not "L-5678.U-011899988199"
     // but rather something like "L-abc.U-123", as both parts are EncryptedParts
     // and therefore the text is replaced by the associated beacon
 
-    // 11. Create the DynamoDb Encryption Interceptor
-    DynamoDbEncryptionInterceptor encryptionInterceptor =
-      DynamoDbEncryptionInterceptor
+    // 11. Create the DynamoDB Encryption Interceptor
+    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+      DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
+
+    // 12. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    try (
+      DynamoDbClient dynamoDbClient = DynamoDbClient
         .builder()
-        .tableEncryptionConfigs(tableConfigs)
-        .build();
+        .overrideConfiguration(overrides ->
+          overrides.addExecutionInterceptor(encryptionInterceptor)
+        )
+        .build()
+    ) {
+      putAndQueryItemWithClient(dynamoDbClient, tableName, item);
 
-    // 12. Create a new AWS SDK DynamoDb client using the DynamoDb Encryption Interceptor above
-    final DynamoDbClient ddb = DynamoDbClient
-      .builder()
-      .overrideConfiguration(
-        ClientOverrideConfiguration
-          .builder()
-          .addExecutionInterceptor(encryptionInterceptor)
-          .build()
-      )
-      .build();
-
-    putAndQueryItemWithCompoundBeacon(ddb, ddbTableName, item);
-
-    // If instead you were working in a multi-threaded context
-    // it might look like this
-    Runnable myThread = () -> {
-      for (int i = 0; i < 20; ++i) {
-        putAndQueryItemWithCompoundBeacon(ddb, ddbTableName, item);
+      // If instead you were working in a multi-threaded context
+      // it might look like this: each task writes and queries the item
+      // PUT_AND_QUERY_ROUNDS_PER_TASK times, and TASK_COUNT tasks share a pool
+      // of MAX_CONCURRENT_QUERY_THREADS threads.
+      final Runnable putAndQueryTask = () -> {
+        for (int round = 0; round < PUT_AND_QUERY_ROUNDS_PER_TASK; round++) {
+          putAndQueryItemWithClient(dynamoDbClient, tableName, item);
+        }
+      };
+      final ExecutorService executor = Executors.newFixedThreadPool(
+        MAX_CONCURRENT_QUERY_THREADS
+      );
+      Collections.nCopies(TASK_COUNT, putAndQueryTask).forEach(executor::execute);
+      executor.shutdown();
+      try {
+        executor.awaitTermination(30, TimeUnit.SECONDS);
+      } catch (InterruptedException exception) {
+        Thread.currentThread().interrupt();
       }
-    };
-    ExecutorService pool = Executors.newFixedThreadPool(
-      MAX_CONCURRENT_QUERY_THREADS
-    );
-    for (int i = 0; i < (2 * MAX_CONCURRENT_QUERY_THREADS); i++) {
-      pool.execute(myThread);
-    }
-    pool.shutdown();
-    try {
-      pool.awaitTermination(30, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     }
   }
 
-  public static void putAndQueryItemWithCompoundBeacon(
-    DynamoDbClient ddb,
-    String ddbTableName,
-    HashMap<String, AttributeValue> item
+  public static void putAndQueryItemWithClient(
+    DynamoDbClient dynamoDbClient,
+    String tableName,
+    Map<String, AttributeValue> item
   ) {
     // 13. Write the item to the table
     final PutItemRequest putRequest = PutItemRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .item(item)
       .build();
 
-    final PutItemResponse putResponse = ddb.putItem(putRequest);
-    // Validate object put successfully
-    if (!(200 == putResponse.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    dynamoDbClient.putItem(putRequest);
 
     // 14. Query for the item we just put.
-    Map<String, String> expressionAttributesNames = new HashMap<>();
-    expressionAttributesNames.put("#compound", "last4UnitCompound");
-
-    Map<String, AttributeValue> expressionAttributeValues = new HashMap<>();
+    final Map<String, String> expressionAttributeNames = new HashMap<>();
+    expressionAttributeNames.put("#compound", "last4UnitCompound");
+    final Map<String, AttributeValue> expressionAttributeValues =
+      new HashMap<>();
     // This query expression takes a few factors into consideration:
     //  - The configured prefix for the last 4 digits of an inspector ID is "L-";
     //    the prefix for the unit is "U-"
@@ -365,48 +355,42 @@ public class CompoundBeaconSearchableEncryptionExample {
       AttributeValue.builder().s("L-5678.U-011899988199").build()
     );
 
-    QueryRequest queryRequest = QueryRequest
+    final QueryRequest queryRequest = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName(GSI_NAME)
       .keyConditionExpression("#compound = :value")
-      .expressionAttributeNames(expressionAttributesNames)
+      .expressionAttributeNames(expressionAttributeNames)
       .expressionAttributeValues(expressionAttributeValues)
       .build();
 
     // GSIs do not update instantly
     // so if the results come back empty
     // we retry after a short sleep
-    for (int i = 0; i < 10; ++i) {
-      QueryResponse queryResponse = ddb.query(queryRequest);
-      List<Map<String, AttributeValue>> attributeValues = queryResponse.items();
-      // Validate query was returned successfully
-      if (!(200 == queryResponse.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
+    final int maxQueryAttempts = 10;
+    final Duration pollInterval = Duration.ofMillis(20);
+    for (int attempt = 0; attempt < maxQueryAttempts; attempt++) {
+      final List<Map<String, AttributeValue>> attributeValues = dynamoDbClient
+        .query(queryRequest)
+        .items();
 
       // if no results, sleep and try again
-      if (attributeValues.size() == 0) {
+      if (attributeValues.isEmpty()) {
         try {
-          Thread.sleep(20);
-        } catch (InterruptedException e) {
+          Thread.sleep(pollInterval.toMillis());
+        } catch (InterruptedException exception) {
           Thread.currentThread().interrupt();
+          break;
         }
         continue;
       }
 
       // Validate only 1 item was returned: the item we just put
-      if (!(attributeValues.size() == 1)) {
-        throw new AssertionError();
-      }
-      Map<String, AttributeValue> returnedItem = attributeValues.get(0);
+      assert attributeValues.size() == 1;
+      final Map<String, AttributeValue> returnedItem = attributeValues.get(0);
       // Validate the item has the expected attributes
-      if (!(returnedItem.get("inspector_id_last4").s().equals("5678"))) {
-        throw new AssertionError();
-      }
-      if (!(returnedItem.get("unit").s().equals("011899988199"))) {
-        throw new AssertionError();
-      }
+      assert returnedItem.get("inspector_id_last4").s().equals("5678");
+      assert returnedItem.get("unit").s().equals("011899988199");
       break;
     }
   }
@@ -414,19 +398,19 @@ public class CompoundBeaconSearchableEncryptionExample {
   public static void main(final String[] args) {
     if (args.length < 4) {
       throw new IllegalArgumentException(
-        "To run this example, include ddbTableName as args[0], branchKeyId as args[1], " +
-        "branchKeyWrappingKmsKeyId as args[2], and branchKeyDdbTableName as args[3]"
+        "To run this example, include tableName as args[0], branchKeyId as args[1], " +
+        "branchKeyWrappingKmsKeyArn as args[2], and keyStoreTableName as args[3]"
       );
     }
-    final String ddbTableName = args[0];
+    final String tableName = args[0];
     final String branchKeyId = args[1];
-    final String branchKeyWrappingKmsKeyId = args[2];
-    final String branchKeyDdbTableName = args[3];
-    putItemQueryItemWithCompoundBeacon(
-      ddbTableName,
+    final String branchKeyWrappingKmsKeyArn = args[2];
+    final String keyStoreTableName = args[3];
+    putAndQueryItem(
+      tableName,
       branchKeyId,
-      branchKeyWrappingKmsKeyId,
-      branchKeyDdbTableName
+      branchKeyWrappingKmsKeyArn,
+      keyStoreTableName
     );
   }
 }

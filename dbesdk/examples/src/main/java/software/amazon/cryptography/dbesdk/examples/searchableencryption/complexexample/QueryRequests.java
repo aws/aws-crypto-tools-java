@@ -1,6 +1,8 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption.complexexample;
 
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -21,33 +23,33 @@ import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
 
 public class QueryRequests {
 
-  public static void runQueries(String ddbTableName, DynamoDbClient ddb) {
-    runQuery1(ddbTableName, ddb);
-    runQuery2(ddbTableName, ddb);
-    runQuery3(ddbTableName, ddb);
-    runQuery4(ddbTableName, ddb);
-    runQuery5(ddbTableName, ddb);
-    runQuery6(ddbTableName, ddb);
-    runQuery7(ddbTableName, ddb);
-    runQuery8(ddbTableName, ddb);
-    runQuery9(ddbTableName, ddb);
-    runQuery10(ddbTableName, ddb);
-    runQuery11(ddbTableName, ddb);
-    runQuery12(ddbTableName, ddb);
-    runQuery13(ddbTableName, ddb);
-    runQuery14(ddbTableName, ddb);
-    runQuery15(ddbTableName, ddb);
-    runQuery16(ddbTableName, ddb);
-    runQuery17(ddbTableName, ddb);
-    runQuery18(ddbTableName, ddb);
-    runQuery19(ddbTableName, ddb);
-    runQuery20(ddbTableName, ddb);
-    runQuery21(ddbTableName, ddb);
-    runQuery22(ddbTableName, ddb);
-    runQuery23(ddbTableName, ddb);
+  public static void runQueries(String tableName, DynamoDbClient dynamoDbClient) {
+    runQuery1(tableName, dynamoDbClient);
+    runQuery2(tableName, dynamoDbClient);
+    runQuery3(tableName, dynamoDbClient);
+    runQuery4(tableName, dynamoDbClient);
+    runQuery5(tableName, dynamoDbClient);
+    runQuery6(tableName, dynamoDbClient);
+    runQuery7(tableName, dynamoDbClient);
+    runQuery8(tableName, dynamoDbClient);
+    runQuery9(tableName, dynamoDbClient);
+    runQuery10(tableName, dynamoDbClient);
+    runQuery11(tableName, dynamoDbClient);
+    runQuery12(tableName, dynamoDbClient);
+    runQuery13(tableName, dynamoDbClient);
+    runQuery14(tableName, dynamoDbClient);
+    runQuery15(tableName, dynamoDbClient);
+    runQuery16(tableName, dynamoDbClient);
+    runQuery17(tableName, dynamoDbClient);
+    runQuery18(tableName, dynamoDbClient);
+    runQuery19(tableName, dynamoDbClient);
+    runQuery20(tableName, dynamoDbClient);
+    runQuery21(tableName, dynamoDbClient);
+    runQuery22(tableName, dynamoDbClient);
+    runQuery23(tableName, dynamoDbClient);
   }
 
-  public static void runQuery1(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery1(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 1: Get meetings by date and email
     // Key condition: PK1=email SK1 between(date1, date2)
     // Filter condition: duration > 0
@@ -55,7 +57,6 @@ public class QueryRequests {
     query1AttributeNames.put("#pk1", "PK1");
     query1AttributeNames.put("#sk1", "SK1");
     query1AttributeNames.put("#duration", "Duration");
-
     final Map<String, AttributeValue> query1AttributeValues = new HashMap<>();
     query1AttributeValues.put(
       ":e",
@@ -70,15 +71,13 @@ public class QueryRequests {
       AttributeValue.builder().s("MS-2022-07-08").build()
     );
     query1AttributeValues.put(":zero", AttributeValue.builder().s("0").build());
-
     query1AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
     final QueryRequest query1Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :e AND #sk1 BETWEEN :date1 AND :date2")
       .filterExpression(
@@ -88,52 +87,35 @@ public class QueryRequests {
       .expressionAttributeValues(query1AttributeValues)
       .build();
 
-    final QueryResponse query1Response = ddb.query(query1Request);
-    // Validate query was returned successfully
-    if (!(200 == query1Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query1Response = dynamoDbClient.query(query1Request);
 
     // Assert 1 item was returned: `meeting1`
-    if (!(query1Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query1Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery1 = false;
     for (Map<String, AttributeValue> item : query1Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery1 = true;
-        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
-          throw new AssertionError();
-        }
-        if (
-          !(item
-              .get("Attendees")
-              .l()
-              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
-        ) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan Beacons");
+        assert item.get("Location").m().get("Floor").s().equals("12");
+        assert item
+          .get("Attendees")
+          .l()
+          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
       }
     }
-    if (!(foundKnownValueItemQuery1)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery1;
   }
 
-  public static void runQuery2(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery2(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 2: Get meetings by date and employeeID
     // Key condition: PK=employeeID SK between(date1, date2)
     // Filter condition: duration > 0
-    Map<String, String> query2AttributeNames = new HashMap<>();
+    final Map<String, String> query2AttributeNames = new HashMap<>();
     query2AttributeNames.put("#pk", "PK");
     query2AttributeNames.put("#sk", "SK");
     query2AttributeNames.put("#duration", "Duration");
-
-    Map<String, AttributeValue> query2AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query2AttributeValues = new HashMap<>();
     query2AttributeValues.put(
       ":employee",
       AttributeValue.builder().s("E-emp_001").build()
@@ -147,15 +129,13 @@ public class QueryRequests {
       AttributeValue.builder().s("MS-2022-07-08").build()
     );
     query2AttributeValues.put(":zero", AttributeValue.builder().s("0").build());
-
     query2AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query2Request = QueryRequest
+    final QueryRequest query2Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression(
         "#pk = :employee AND #sk BETWEEN :date1 AND :date2"
@@ -167,43 +147,27 @@ public class QueryRequests {
       .expressionAttributeValues(query2AttributeValues)
       .build();
 
-    QueryResponse query2Response = ddb.query(query2Request);
-    // Validate query was returned successfully
-    if (!(200 == query2Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query2Response = dynamoDbClient.query(query2Request);
 
     // Assert 1 item was returned: `meeting1`
-    if (!(query2Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query2Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery2 = false;
     for (Map<String, AttributeValue> item : query2Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery2 = true;
-        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
-          throw new AssertionError();
-        }
-        if (
-          !(item
-              .get("Attendees")
-              .l()
-              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
-        ) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan Beacons");
+        assert item.get("Location").m().get("Floor").s().equals("12");
+        assert item
+          .get("Attendees")
+          .l()
+          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
       }
     }
-    if (!(foundKnownValueItemQuery2)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery2;
   }
 
-  public static void runQuery3(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery3(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 3: Get meetings by date and building/floor/room
     // Key condition: PK=employeeID SK between(date1, date2)
     // Filter condition: SK contains building.floor.room (see NOTE)
@@ -211,14 +175,13 @@ public class QueryRequests {
     //       Demo.md calls for a filter condition "SK contains building.floor.room"
     //       However, one cannot use primary keys (partition nor sort) in a filter expression.
     //       Instead, this query filters on the individual beacon attributes: building, floor, and room.
-    Map<String, String> query3AttributeNames = new HashMap<>();
+    final Map<String, String> query3AttributeNames = new HashMap<>();
     query3AttributeNames.put("#pk", "PK");
     query3AttributeNames.put("#sk", "SK");
     query3AttributeNames.put("#building", "Building");
     query3AttributeNames.put("#floor", "Floor");
     query3AttributeNames.put("#room", "Room");
-
-    Map<String, AttributeValue> query3AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query3AttributeValues = new HashMap<>();
     query3AttributeValues.put(
       ":buildingbeacon",
       AttributeValue.builder().s("B-SEA33").build()
@@ -243,15 +206,13 @@ public class QueryRequests {
       ":date2",
       AttributeValue.builder().s("MS-2022-07-08").build()
     );
-
     query3AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query3Request = QueryRequest
+    final QueryRequest query3Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression(
         "#pk = :buildingbeacon AND #sk BETWEEN :date1 AND :date2"
@@ -263,50 +224,33 @@ public class QueryRequests {
       .expressionAttributeValues(query3AttributeValues)
       .build();
 
-    QueryResponse query3Response = ddb.query(query3Request);
-    // Validate query was returned successfully
-    if (!(200 == query3Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query3Response = dynamoDbClient.query(query3Request);
 
     // Assert 1 item was returned: `reservation1`
-    if (!(query3Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query3Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery3 = false;
     for (Map<String, AttributeValue> item : query3Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery3 = true;
-        if (!(item.get("Subject").s().equals("Scan beacons"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Building").s().equals("SEA33"))) {
-          throw new AssertionError();
-        }
-        if (
-          !(item
-              .get("Attendees")
-              .l()
-              .contains(AttributeValue.builder().s("barney@gmail.com").build()))
-        ) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan beacons");
+        assert item.get("Location").m().get("Building").s().equals("SEA33");
+        assert item
+          .get("Attendees")
+          .l()
+          .contains(AttributeValue.builder().s("barney@gmail.com").build());
       }
     }
-    if (!(foundKnownValueItemQuery3)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery3;
   }
 
-  public static void runQuery4(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery4(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 4: Get employee data by email
     // Key condition: PK1=email SK1=employee ID
-    Map<String, String> query4AttributeNames = new HashMap<>();
+    final Map<String, String> query4AttributeNames = new HashMap<>();
     query4AttributeNames.put("#pk1", "PK1");
     query4AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query4AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query4AttributeValues = new HashMap<>();
     query4AttributeValues.put(
       ":email",
       AttributeValue.builder().s("EE-able@gmail.com").build()
@@ -315,15 +259,13 @@ public class QueryRequests {
       ":employee",
       AttributeValue.builder().s("E-emp_001").build()
     );
-
     query4AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query4Request = QueryRequest
+    final QueryRequest query4Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email AND #sk1 = :employee")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -331,42 +273,29 @@ public class QueryRequests {
       .expressionAttributeValues(query4AttributeValues)
       .build();
 
-    QueryResponse query4Response = ddb.query(query4Request);
-    // Validate query was returned successfully
-    if (!(200 == query4Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query4Response = dynamoDbClient.query(query4Request);
 
     // Assert 1 item was returned: `employee1`
-    if (!(query4Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query4Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery4 = false;
     for (Map<String, AttributeValue> item : query4Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery4 = true;
-        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
-          throw new AssertionError();
-        }
+        assert item.get("EmployeeID").s().equals("emp_001");
+        assert item.get("Location").m().get("Desk").s().equals("3");
       }
     }
-    if (!(foundKnownValueItemQuery4)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery4;
   }
 
-  public static void runQuery5(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery5(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 5: Get meetings by email
     // Key condition: PK1=email SK1 > 30 days ago
-    Map<String, String> query5AttributeNames = new HashMap<>();
+    final Map<String, String> query5AttributeNames = new HashMap<>();
     query5AttributeNames.put("#pk1", "PK1");
     query5AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query5AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query5AttributeValues = new HashMap<>();
     query5AttributeValues.put(
       ":email",
       AttributeValue.builder().s("EE-able@gmail.com").build()
@@ -379,15 +308,13 @@ public class QueryRequests {
       ":prefix",
       AttributeValue.builder().s("MS-").build()
     );
-
     query5AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query5Request = QueryRequest
+    final QueryRequest query5Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :email AND #sk1 BETWEEN :prefix AND :thirtydaysago"
@@ -397,50 +324,33 @@ public class QueryRequests {
       .expressionAttributeValues(query5AttributeValues)
       .build();
 
-    QueryResponse query5Response = ddb.query(query5Request);
-    // Validate query was returned successfully
-    if (!(200 == query5Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query5Response = dynamoDbClient.query(query5Request);
 
     // Assert 1 item was returned: `meeting1`
-    if (!(query5Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query5Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery5 = false;
     for (Map<String, AttributeValue> item : query5Response.items()) {
       if (item.get("partition_key").s().equals("meeting1-java")) {
         foundKnownValueItemQuery5 = true;
-        if (!(item.get("Subject").s().equals("Scan Beacons"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
-          throw new AssertionError();
-        }
-        if (
-          !(item
-              .get("Attendees")
-              .l()
-              .contains(AttributeValue.builder().s("zorro@gmail.com").build()))
-        ) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan Beacons");
+        assert item.get("Location").m().get("Floor").s().equals("12");
+        assert item
+          .get("Attendees")
+          .l()
+          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
       }
     }
-    if (!(foundKnownValueItemQuery5)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery5;
   }
 
-  public static void runQuery6(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery6(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 6: Get tickets by email
     // Key condition: PK1=email SK1 > 30 days ago
-    Map<String, String> query6AttributeNames = new HashMap<>();
+    final Map<String, String> query6AttributeNames = new HashMap<>();
     query6AttributeNames.put("#pk1", "PK1");
     query6AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query6AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query6AttributeValues = new HashMap<>();
     query6AttributeValues.put(
       ":creatoremail",
       AttributeValue.builder().s("CE-zorro@gmail.com").build()
@@ -449,15 +359,13 @@ public class QueryRequests {
       ":thirtydaysago",
       AttributeValue.builder().s("MS-2023-03-20").build()
     );
-
     query6AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query6Request = QueryRequest
+    final QueryRequest query6Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :creatoremail AND #sk1 < :thirtydaysago")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -465,40 +373,29 @@ public class QueryRequests {
       .expressionAttributeValues(query6AttributeValues)
       .build();
 
-    QueryResponse query6Response = ddb.query(query6Request);
-    // Validate query was returned successfully
-    if (!(200 == query6Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query6Response = dynamoDbClient.query(query6Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket3`
-    if (!(query6Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query6Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery6 = false;
     for (Map<String, AttributeValue> item : query6Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery6 = true;
-        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("TicketNumber").s().equals("ticket_001");
       }
     }
-    if (!(foundKnownValueItemQuery6)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery6;
   }
 
-  public static void runQuery7(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery7(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 7: Get reservations by email
     // Key condition: PK1=organizeremail SK1 > 30 days ago
-    Map<String, String> query7AttributeNames = new HashMap<>();
+    final Map<String, String> query7AttributeNames = new HashMap<>();
     query7AttributeNames.put("#pk1", "PK1");
     query7AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query7AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query7AttributeValues = new HashMap<>();
     query7AttributeValues.put(
       ":organizeremail",
       AttributeValue.builder().s("OE-able@gmail.com").build()
@@ -507,15 +404,13 @@ public class QueryRequests {
       ":thirtydaysago",
       AttributeValue.builder().s("MS-2023-03-20").build()
     );
-
     query7AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query7Request = QueryRequest
+    final QueryRequest query7Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :organizeremail AND #sk1 < :thirtydaysago"
@@ -525,50 +420,33 @@ public class QueryRequests {
       .expressionAttributeValues(query7AttributeValues)
       .build();
 
-    QueryResponse query7Response = ddb.query(query7Request);
-    // Validate query was returned successfully
-    if (!(200 == query7Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query7Response = dynamoDbClient.query(query7Request);
 
     // Assert 1 item was returned: `reservation1`
-    if (!(query7Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query7Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery7 = false;
     for (Map<String, AttributeValue> item : query7Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery7 = true;
-        if (!(item.get("Subject").s().equals("Scan beacons"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Floor").s().equals("12"))) {
-          throw new AssertionError();
-        }
-        if (
-          !(item
-              .get("Attendees")
-              .l()
-              .contains(AttributeValue.builder().s("barney@gmail.com").build()))
-        ) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan beacons");
+        assert item.get("Location").m().get("Floor").s().equals("12");
+        assert item
+          .get("Attendees")
+          .l()
+          .contains(AttributeValue.builder().s("barney@gmail.com").build());
       }
     }
-    if (!(foundKnownValueItemQuery7)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery7;
   }
 
-  public static void runQuery8(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery8(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 8: Get time cards by email
     // Key condition: PK1=employeeemail SK1 > 30 days ago
-    Map<String, String> query8AttributeNames = new HashMap<>();
+    final Map<String, String> query8AttributeNames = new HashMap<>();
     query8AttributeNames.put("#pk1", "PK1");
     query8AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query8AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query8AttributeValues = new HashMap<>();
     query8AttributeValues.put(
       ":email",
       AttributeValue.builder().s("EE-able@gmail.com").build()
@@ -581,15 +459,13 @@ public class QueryRequests {
       ":thirtydaysago",
       AttributeValue.builder().s("TC-2023-03-20").build()
     );
-
     query8AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query8Request = QueryRequest
+    final QueryRequest query8Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :email AND #sk1 BETWEEN :prefix AND :thirtydaysago"
@@ -599,39 +475,28 @@ public class QueryRequests {
       .expressionAttributeValues(query8AttributeValues)
       .build();
 
-    QueryResponse query8Response = ddb.query(query8Request);
-    // Validate query was returned successfully
-    if (!(200 == query8Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query8Response = dynamoDbClient.query(query8Request);
 
     // Assert 1 item was returned: `timecard1`
-    if (!(query8Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query8Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery8 = false;
     for (Map<String, AttributeValue> item : query8Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery8 = true;
-        if (!(item.get("ProjectName").s().equals("project_002"))) {
-          throw new AssertionError();
-        }
+        assert item.get("ProjectName").s().equals("project_002");
       }
     }
-    if (!(foundKnownValueItemQuery8)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery8;
   }
 
-  public static void runQuery9(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery9(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 9: Get employee info by employee ID
     // Key condition: PK1=employeeID SK starts with "E-"
-    Map<String, String> query9AttributeNames = new HashMap<>();
+    final Map<String, String> query9AttributeNames = new HashMap<>();
     query9AttributeNames.put("#pk", "PK");
     query9AttributeNames.put("#sk", "SK");
-
-    Map<String, AttributeValue> query9AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query9AttributeValues = new HashMap<>();
     query9AttributeValues.put(
       ":employee",
       AttributeValue.builder().s("E-emp_001").build()
@@ -640,15 +505,13 @@ public class QueryRequests {
       ":prefix",
       AttributeValue.builder().s("E-").build()
     );
-
     query9AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query9Request = QueryRequest
+    final QueryRequest query9Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :employee AND begins_with(#sk, :prefix)")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -656,40 +519,29 @@ public class QueryRequests {
       .expressionAttributeValues(query9AttributeValues)
       .build();
 
-    QueryResponse query9Response = ddb.query(query9Request);
-    // Validate query was returned successfully
-    if (!(200 == query9Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query9Response = dynamoDbClient.query(query9Request);
 
     // Assert 1 item was returned: `employee1`
-    if (!(query9Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query9Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery9 = false;
     for (Map<String, AttributeValue> item : query9Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery9 = true;
-        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("EmployeeID").s().equals("emp_001");
       }
     }
-    if (!(foundKnownValueItemQuery9)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery9;
   }
 
-  public static void runQuery10(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery10(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 10: Get employee info by email
     // Key condition: PK1=email
     // Filter condition: SK starts with "E-"
-    Map<String, String> query10AttributeNames = new HashMap<>();
+    final Map<String, String> query10AttributeNames = new HashMap<>();
     query10AttributeNames.put("#pk1", "PK1");
     query10AttributeNames.put("#sk1", "SK1");
-
-    Map<String, AttributeValue> query10AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query10AttributeValues = new HashMap<>();
     query10AttributeValues.put(
       ":email",
       AttributeValue.builder().s("EE-able@gmail.com").build()
@@ -698,15 +550,13 @@ public class QueryRequests {
       ":prefix",
       AttributeValue.builder().s("E-").build()
     );
-
     query10AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query10Request = QueryRequest
+    final QueryRequest query10Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email AND begins_with(#sk1, :prefix)")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -714,51 +564,38 @@ public class QueryRequests {
       .expressionAttributeValues(query10AttributeValues)
       .build();
 
-    QueryResponse query10Response = ddb.query(query10Request);
-    // Validate query was returned successfully
-    if (!(200 == query10Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query10Response = dynamoDbClient.query(query10Request);
 
     // Assert 1 item was returned: `employee1`
-    if (!(query10Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query10Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery10 = false;
     for (Map<String, AttributeValue> item : query10Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery10 = true;
-        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("EmployeeID").s().equals("emp_001");
       }
     }
-    if (!(foundKnownValueItemQuery10)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery10;
   }
 
-  public static void runQuery11(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery11(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 11: Get ticket history by ticket number
     // Key condition: PK=TicketNumber
-    Map<String, String> query11AttributeNames = new HashMap<>();
+    final Map<String, String> query11AttributeNames = new HashMap<>();
     query11AttributeNames.put("#pk", "PK");
-
-    Map<String, AttributeValue> query11AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query11AttributeValues = new HashMap<>();
     query11AttributeValues.put(
       ":ticket",
       AttributeValue.builder().s("T-ticket_001").build()
     );
-
     query11AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query11Request = QueryRequest
+    final QueryRequest query11Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :ticket")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -766,41 +603,30 @@ public class QueryRequests {
       .expressionAttributeValues(query11AttributeValues)
       .build();
 
-    QueryResponse query11Response = ddb.query(query11Request);
-    // Validate query was returned successfully
-    if (!(200 == query11Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query11Response = dynamoDbClient.query(query11Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket2`
-    if (!(query11Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query11Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery11 = false;
     for (Map<String, AttributeValue> item : query11Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery11 = true;
-        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("TicketNumber").s().equals("ticket_001");
       }
     }
-    if (!(foundKnownValueItemQuery11)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery11;
   }
 
-  public static void runQuery12(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery12(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 12: Get Ticket History by employee email
     // Key condition: PK1=CreatorEmail
     // Filter condition: PK=TicketNumber
-    Map<String, String> query12AttributeNames = new HashMap<>();
+    final Map<String, String> query12AttributeNames = new HashMap<>();
     query12AttributeNames.put("#pk1", "PK1");
     query12AttributeNames.put("#pk", "PK");
-
-    Map<String, AttributeValue> query12AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query12AttributeValues = new HashMap<>();
     query12AttributeValues.put(
       ":email",
       AttributeValue.builder().s("CE-zorro@gmail.com").build()
@@ -809,15 +635,13 @@ public class QueryRequests {
       ":ticket",
       AttributeValue.builder().s("T-ticket_001").build()
     );
-
     query12AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query12Request = QueryRequest
+    final QueryRequest query12Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email")
       .filterExpression(
@@ -827,40 +651,29 @@ public class QueryRequests {
       .expressionAttributeValues(query12AttributeValues)
       .build();
 
-    QueryResponse query12Response = ddb.query(query12Request);
-    // Validate query was returned successfully
-    if (!(200 == query12Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query12Response = dynamoDbClient.query(query12Request);
 
     // Assert 1 item was returned: `ticket1`
-    if (!(query12Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query12Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery12 = false;
     for (Map<String, AttributeValue> item : query12Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery12 = true;
-        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("TicketNumber").s().equals("ticket_001");
       }
     }
-    if (!(foundKnownValueItemQuery12)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery12;
   }
 
-  public static void runQuery13(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery13(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 13: Get ticket history by assignee email
     // Key condition: PK=AssigneeEmail
     // Filter condition: PK=ticketNumber
-    Map<String, String> query13AttributeNames = new HashMap<>();
+    final Map<String, String> query13AttributeNames = new HashMap<>();
     query13AttributeNames.put("#pk2", "PK2");
     query13AttributeNames.put("#pk", "PK");
-
-    Map<String, AttributeValue> query13AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query13AttributeValues = new HashMap<>();
     query13AttributeValues.put(
       ":assigneeemail",
       AttributeValue.builder().s("AE-able@gmail.com").build()
@@ -869,15 +682,13 @@ public class QueryRequests {
       ":ticket",
       AttributeValue.builder().s("T-ticket_001").build()
     );
-
     query13AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query13Request = QueryRequest
+    final QueryRequest query13Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :assigneeemail")
       .filterExpression(
@@ -887,39 +698,28 @@ public class QueryRequests {
       .expressionAttributeValues(query13AttributeValues)
       .build();
 
-    QueryResponse query13Response = ddb.query(query13Request);
-    // Validate query was returned successfully
-    if (!(200 == query13Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query13Response = dynamoDbClient.query(query13Request);
 
     // Assert 1 item was returned: `ticket1`
-    if (!(query13Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query13Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery13 = false;
     for (Map<String, AttributeValue> item : query13Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery13 = true;
-        if (!(item.get("Subject").s().equals("Bad bug"))) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Bad bug");
       }
     }
-    if (!(foundKnownValueItemQuery13)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery13;
   }
 
-  public static void runQuery14(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery14(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 14: Get employees by city.building.floor.desk
     // Key condition: PK3=city SK3 begins_with(building.floor.desk)
-    Map<String, String> query14AttributeNames = new HashMap<>();
+    final Map<String, String> query14AttributeNames = new HashMap<>();
     query14AttributeNames.put("#pk3", "PK3");
     query14AttributeNames.put("#sk3", "SK3");
-
-    Map<String, AttributeValue> query14AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query14AttributeValues = new HashMap<>();
     query14AttributeValues.put(
       ":city",
       AttributeValue.builder().s("C-Seattle").build()
@@ -928,15 +728,13 @@ public class QueryRequests {
       ":location",
       AttributeValue.builder().s("B-44~F-12~D-3").build()
     );
-
     query14AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query14Request = QueryRequest
+    final QueryRequest query14Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-3")
       .keyConditionExpression("#pk3 = :city AND begins_with(#sk3, :location)")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -947,67 +745,57 @@ public class QueryRequests {
     // GSIs do not update instantly
     // so if the results come back empty
     // we retry after a short sleep
-    for (int i = 0; i < 10; ++i) {
-      QueryResponse query14Response = ddb.query(query14Request);
-      // Validate query was returned successfully
-      if (!(200 == query14Response.sdkHttpResponse().statusCode())) {
-        throw new AssertionError();
-      }
+    final int maxQueryAttempts = 10;
+    final Duration pollInterval = Duration.ofMillis(20);
+    for (int attempt = 0; attempt < maxQueryAttempts; attempt++) {
+      final List<Map<String, AttributeValue>> query14Items = dynamoDbClient
+        .query(query14Request)
+        .items();
 
       // if no results, sleep and try again
-      if (query14Response.items().size() == 0) {
+      if (query14Items.isEmpty()) {
         try {
-          Thread.sleep(20);
-        } catch (InterruptedException e) {
+          Thread.sleep(pollInterval.toMillis());
+        } catch (InterruptedException exception) {
           Thread.currentThread().interrupt();
+          break;
         }
         continue;
       }
 
       // Assert 1 item was returned: `employee1`
-      if (!(query14Response.items().size() == 1)) {
-        throw new AssertionError();
-      }
-      // Known value test: Assert some properties on one of the items
+      assert query14Items.size() == 1;
+      // Known value test: assert some properties on one of the items
       boolean foundKnownValueItemQuery14 = false;
-      for (Map<String, AttributeValue> item : query14Response.items()) {
+      for (final Map<String, AttributeValue> item : query14Items) {
         if (item.get("partition_key").s().equals("employee1-java")) {
           foundKnownValueItemQuery14 = true;
-          if (!(item.get("EmployeeID").s().equals("emp_001"))) {
-            throw new AssertionError();
-          }
-          if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
-            throw new AssertionError();
-          }
+          assert item.get("EmployeeID").s().equals("emp_001");
+          assert item.get("Location").m().get("Desk").s().equals("3");
         }
       }
-      if (!(foundKnownValueItemQuery14)) {
-        throw new AssertionError();
-      }
+      assert foundKnownValueItemQuery14;
       break;
     }
   }
 
-  public static void runQuery15(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery15(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 15: Get employees by manager email
     // Key condition: PK2 = ManagerEmail
-    Map<String, String> query15AttributeNames = new HashMap<>();
+    final Map<String, String> query15AttributeNames = new HashMap<>();
     query15AttributeNames.put("#pk2", "PK2");
-
-    Map<String, AttributeValue> query15AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query15AttributeValues = new HashMap<>();
     query15AttributeValues.put(
       ":manageremail",
       AttributeValue.builder().s("ME-zorro@gmail.com").build()
     );
-
     query15AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query15Request = QueryRequest
+    final QueryRequest query15Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :manageremail")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -1015,55 +803,40 @@ public class QueryRequests {
       .expressionAttributeValues(query15AttributeValues)
       .build();
 
-    QueryResponse query15Response = ddb.query(query15Request);
-    // Validate query was returned successfully
-    if (!(200 == query15Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query15Response = dynamoDbClient.query(query15Request);
 
     // Assert 4 items returned:
     // Expected to be `employee1`, `employee2`, `employee3`, and `employee4`
-    if (!(query15Response.items().size() == 4)) {
-      throw new AssertionError();
-    }
+    assert query15Response.items().size() == 4;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery15 = false;
     for (Map<String, AttributeValue> item : query15Response.items()) {
       if (item.get("partition_key").s().equals("employee1-java")) {
         foundKnownValueItemQuery15 = true;
-        if (!(item.get("EmployeeID").s().equals("emp_001"))) {
-          throw new AssertionError();
-        }
-        if (!(item.get("Location").m().get("Desk").s().equals("3"))) {
-          throw new AssertionError();
-        }
+        assert item.get("EmployeeID").s().equals("emp_001");
+        assert item.get("Location").m().get("Desk").s().equals("3");
       }
     }
-    if (!(foundKnownValueItemQuery15)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery15;
   }
 
-  public static void runQuery16(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery16(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 16: Get assigned tickets by assignee email
     // Key condition: PK2 = AssigneeEmail
-    Map<String, String> query16AttributeNames = new HashMap<>();
+    final Map<String, String> query16AttributeNames = new HashMap<>();
     query16AttributeNames.put("#pk2", "PK2");
-
-    Map<String, AttributeValue> query16AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query16AttributeValues = new HashMap<>();
     query16AttributeValues.put(
       ":assigneeemail",
       AttributeValue.builder().s("AE-able@gmail.com").build()
     );
-
     query16AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query16Request = QueryRequest
+    final QueryRequest query16Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :assigneeemail")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -1071,44 +844,33 @@ public class QueryRequests {
       .expressionAttributeValues(query16AttributeValues)
       .build();
 
-    QueryResponse query16Response = ddb.query(query16Request);
-    // Validate query was returned successfully
-    if (!(200 == query16Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query16Response = dynamoDbClient.query(query16Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket4`
-    if (!(query16Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query16Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery16 = false;
     for (Map<String, AttributeValue> item : query16Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery16 = true;
-        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("TicketNumber").s().equals("ticket_001");
       }
     }
-    if (!(foundKnownValueItemQuery16)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery16;
   }
 
-  public static void runQuery17(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery17(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 17: Get tickets updated within the last 24 hours
     // Key condition: PK3 = Severity, SK3 > 24 hours ago
     // (For the sake of this example, we will assume
     //  the date is 2022-10-08T09:30:00, such that "24 hours ago"
     //  is 2022-10-07T09:30:00, and that our sample ticket record
     //  with TicketModTime=2022-10-07T14:32:25 will be returned.)
-    Map<String, String> query17AttributeNames = new HashMap<>();
+    final Map<String, String> query17AttributeNames = new HashMap<>();
     query17AttributeNames.put("#pk3", "PK3");
     query17AttributeNames.put("#sk3", "SK3");
-
-    Map<String, AttributeValue> query17AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query17AttributeValues = new HashMap<>();
     query17AttributeValues.put(
       ":severity",
       AttributeValue.builder().s("S-3").build()
@@ -1117,15 +879,13 @@ public class QueryRequests {
       ":yesterday",
       AttributeValue.builder().s("M-2022-10-07T09:30:00").build()
     );
-
     query17AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query17Request = QueryRequest
+    final QueryRequest query17Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-3")
       .keyConditionExpression("#pk3 = :severity AND #sk3 > :yesterday")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -1133,42 +893,31 @@ public class QueryRequests {
       .expressionAttributeValues(query17AttributeValues)
       .build();
 
-    QueryResponse query17Response = ddb.query(query17Request);
-    // Validate query was returned successfully
-    if (!(200 == query17Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query17Response = dynamoDbClient.query(query17Request);
 
     // Assert 3 items returned:
     // Expected to be `ticket1`, `ticket2`, and `ticket4`
-    if (!(query17Response.items().size() == 3)) {
-      throw new AssertionError();
-    }
+    assert query17Response.items().size() == 3;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery17 = false;
     for (Map<String, AttributeValue> item : query17Response.items()) {
       if (item.get("partition_key").s().equals("ticket1-java")) {
         foundKnownValueItemQuery17 = true;
-        if (!(item.get("TicketNumber").s().equals("ticket_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("TicketNumber").s().equals("ticket_001");
       }
     }
-    if (!(foundKnownValueItemQuery17)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery17;
   }
 
-  public static void runQuery18(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery18(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 18: Get projects by status, start and target date
     // Key condition: PK1 = Status, SK1 > StartDate
     // Filter condition: TargetDelivery < TargetDate
-    Map<String, String> query18AttributeNames = new HashMap<>();
+    final Map<String, String> query18AttributeNames = new HashMap<>();
     query18AttributeNames.put("#pk1", "PK1");
     query18AttributeNames.put("#sk1", "SK1");
     query18AttributeNames.put("#target", "ProjectTarget");
-
-    Map<String, AttributeValue> query18AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query18AttributeValues = new HashMap<>();
     query18AttributeValues.put(
       ":status",
       AttributeValue.builder().s("PSts-Pending").build()
@@ -1181,15 +930,13 @@ public class QueryRequests {
       ":target",
       AttributeValue.builder().s("2025-01-01").build()
     );
-
     query18AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query18Request = QueryRequest
+    final QueryRequest query18Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :status AND #sk1 > :startdate")
       .filterExpression(
@@ -1199,52 +946,39 @@ public class QueryRequests {
       .expressionAttributeValues(query18AttributeValues)
       .build();
 
-    QueryResponse query18Response = ddb.query(query18Request);
-    // Validate query was returned successfully
-    if (!(200 == query18Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query18Response = dynamoDbClient.query(query18Request);
 
     // Assert 1 item was returned: `project1`
-    if (!(query18Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query18Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery18 = false;
     for (Map<String, AttributeValue> item : query18Response.items()) {
       if (item.get("partition_key").s().equals("project1-java")) {
         foundKnownValueItemQuery18 = true;
-        if (!(item.get("ProjectName").s().equals("project_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("ProjectName").s().equals("project_001");
       }
     }
-    if (!(foundKnownValueItemQuery18)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery18;
   }
 
-  public static void runQuery19(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery19(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 19: Get projects by name
     // Key condition: PK = ProjectName, SK = ProjectName
-    Map<String, String> query19AttributeNames = new HashMap<>();
+    final Map<String, String> query19AttributeNames = new HashMap<>();
     query19AttributeNames.put("#pk", "PK");
     query19AttributeNames.put("#sk", "SK");
-
-    Map<String, AttributeValue> query19AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query19AttributeValues = new HashMap<>();
     query19AttributeValues.put(
       ":projectname",
       AttributeValue.builder().s("P-project_001").build()
     );
-
     query19AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query19Request = QueryRequest
+    final QueryRequest query19Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :projectname AND #sk = :projectname")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -1252,39 +986,28 @@ public class QueryRequests {
       .expressionAttributeValues(query19AttributeValues)
       .build();
 
-    QueryResponse query19Response = ddb.query(query19Request);
-    // Validate query was returned successfully
-    if (!(200 == query19Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query19Response = dynamoDbClient.query(query19Request);
 
     // Assert 1 item was returned: `project1`
-    if (!(query19Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query19Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery19 = false;
     for (Map<String, AttributeValue> item : query19Response.items()) {
       if (item.get("partition_key").s().equals("project1-java")) {
         foundKnownValueItemQuery19 = true;
-        if (!(item.get("ProjectName").s().equals("project_001"))) {
-          throw new AssertionError();
-        }
+        assert item.get("ProjectName").s().equals("project_001");
       }
     }
-    if (!(foundKnownValueItemQuery19)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery19;
   }
 
-  public static void runQuery20(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery20(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 20: Get Project History by date range (against timecard record)
     // Key condition: PK = ProjectName, SK between(date1, date2)
-    Map<String, String> query20AttributeNames = new HashMap<>();
+    final Map<String, String> query20AttributeNames = new HashMap<>();
     query20AttributeNames.put("#pk", "PK");
     query20AttributeNames.put("#sk", "SK");
-
-    Map<String, AttributeValue> query20AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query20AttributeValues = new HashMap<>();
     query20AttributeValues.put(
       ":projectname",
       AttributeValue.builder().s("P-project_002").build()
@@ -1297,15 +1020,13 @@ public class QueryRequests {
       ":date2",
       AttributeValue.builder().s("TC-2023-01-01").build()
     );
-
     query20AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query20Request = QueryRequest
+    final QueryRequest query20Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression(
         "#pk = :projectname AND #sk BETWEEN :date1 AND :date2"
@@ -1315,41 +1036,30 @@ public class QueryRequests {
       .expressionAttributeValues(query20AttributeValues)
       .build();
 
-    QueryResponse query20Response = ddb.query(query20Request);
-    // Validate query was returned successfully
-    if (!(200 == query20Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query20Response = dynamoDbClient.query(query20Request);
 
     // Assert 2 items returned:
     // Expected to be `timecard1` and `timecard2`
-    if (!(query20Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query20Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery20 = false;
     for (Map<String, AttributeValue> item : query20Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery20 = true;
-        if (!(item.get("ProjectName").s().equals("project_002"))) {
-          throw new AssertionError();
-        }
+        assert item.get("ProjectName").s().equals("project_002");
       }
     }
-    if (!(foundKnownValueItemQuery20)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery20;
   }
 
-  public static void runQuery21(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery21(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 21: Get Project History by role
     // Key condition: PK = ProjectName
     // Filter condition: role=rolename
-    Map<String, String> query21AttributeNames = new HashMap<>();
+    final Map<String, String> query21AttributeNames = new HashMap<>();
     query21AttributeNames.put("#pk", "PK");
     query21AttributeNames.put("#role", "Role");
-
-    Map<String, AttributeValue> query21AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query21AttributeValues = new HashMap<>();
     query21AttributeValues.put(
       ":projectname",
       AttributeValue.builder().s("P-project_002").build()
@@ -1358,15 +1068,13 @@ public class QueryRequests {
       ":role",
       AttributeValue.builder().s("SDE3").build()
     );
-
     query21AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query21Request = QueryRequest
+    final QueryRequest query21Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :projectname")
       .filterExpression(
@@ -1376,51 +1084,38 @@ public class QueryRequests {
       .expressionAttributeValues(query21AttributeValues)
       .build();
 
-    QueryResponse query21Response = ddb.query(query21Request);
-    // Validate query was returned successfully
-    if (!(200 == query21Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query21Response = dynamoDbClient.query(query21Request);
 
     // Assert 1 item was returned: `timecard1`
-    if (!(query21Response.items().size() == 1)) {
-      throw new AssertionError();
-    }
+    assert query21Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery21 = false;
     for (Map<String, AttributeValue> item : query21Response.items()) {
       if (item.get("partition_key").s().equals("timecard1-java")) {
         foundKnownValueItemQuery21 = true;
-        if (!(item.get("ProjectName").s().equals("project_002"))) {
-          throw new AssertionError();
-        }
+        assert item.get("ProjectName").s().equals("project_002");
       }
     }
-    if (!(foundKnownValueItemQuery21)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery21;
   }
 
-  public static void runQuery22(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery22(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 22: Get reservations by building ID
     // Key condition: PK = Building ID
-    Map<String, String> query22AttributeNames = new HashMap<>();
+    final Map<String, String> query22AttributeNames = new HashMap<>();
     query22AttributeNames.put("#pk", "PK");
-
-    Map<String, AttributeValue> query22AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query22AttributeValues = new HashMap<>();
     query22AttributeValues.put(
       ":building",
       AttributeValue.builder().s("B-SEA33").build()
     );
-
     query22AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query22Request = QueryRequest
+    final QueryRequest query22Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :building")
       .filterExpression("contains(partition_key, :javasuffix)")
@@ -1428,42 +1123,31 @@ public class QueryRequests {
       .expressionAttributeValues(query22AttributeValues)
       .build();
 
-    QueryResponse query22Response = ddb.query(query22Request);
-    // Validate query was returned successfully
-    if (!(200 == query22Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query22Response = dynamoDbClient.query(query22Request);
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
-    if (!(query22Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query22Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery22 = false;
     for (Map<String, AttributeValue> item : query22Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery22 = true;
-        if (!(item.get("Subject").s().equals("Scan beacons"))) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan beacons");
       }
     }
-    if (!(foundKnownValueItemQuery22)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery22;
   }
 
-  public static void runQuery23(String ddbTableName, DynamoDbClient ddb) {
+  public static void runQuery23(String tableName, DynamoDbClient dynamoDbClient) {
     // Query 23: Get reservations by building ID and time range
     // Key condition: PK = Building ID, SK between(date1, date2)
     // Filter condition: Duration > 0
-    Map<String, String> query23AttributeNames = new HashMap<>();
+    final Map<String, String> query23AttributeNames = new HashMap<>();
     query23AttributeNames.put("#pk", "PK");
     query23AttributeNames.put("#sk", "SK");
     query23AttributeNames.put("#duration", "Duration");
-
-    Map<String, AttributeValue> query23AttributeValues = new HashMap<>();
+    final Map<String, AttributeValue> query23AttributeValues = new HashMap<>();
     query23AttributeValues.put(
       ":building",
       AttributeValue.builder().s("B-SEA33").build()
@@ -1480,15 +1164,13 @@ public class QueryRequests {
       ":zero",
       AttributeValue.builder().s("0").build()
     );
-
     query23AttributeValues.put(
       ":javasuffix",
       AttributeValue.builder().s("-java").build()
     );
-
-    QueryRequest query23Request = QueryRequest
+    final QueryRequest query23Request = QueryRequest
       .builder()
-      .tableName(ddbTableName)
+      .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression(
         "#pk = :building AND #sk BETWEEN :date1 AND :date2"
@@ -1500,29 +1182,19 @@ public class QueryRequests {
       .expressionAttributeValues(query23AttributeValues)
       .build();
 
-    QueryResponse query23Response = ddb.query(query23Request);
-    // Validate query was returned successfully
-    if (!(200 == query23Response.sdkHttpResponse().statusCode())) {
-      throw new AssertionError();
-    }
+    final QueryResponse query23Response = dynamoDbClient.query(query23Request);
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
-    if (!(query23Response.items().size() == 2)) {
-      throw new AssertionError();
-    }
+    assert query23Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
     boolean foundKnownValueItemQuery23 = false;
     for (Map<String, AttributeValue> item : query23Response.items()) {
       if (item.get("partition_key").s().equals("reservation1-java")) {
         foundKnownValueItemQuery23 = true;
-        if (!(item.get("Subject").s().equals("Scan beacons"))) {
-          throw new AssertionError();
-        }
+        assert item.get("Subject").s().equals("Scan beacons");
       }
     }
-    if (!(foundKnownValueItemQuery23)) {
-      throw new AssertionError();
-    }
+    assert foundKnownValueItemQuery23;
   }
 }
