@@ -27,6 +27,13 @@ repositories {
 val junitVersion: String by project
 val awsSdkVersion: String by project
 
+// The published Dafny-based MPL and its dependencies, copied here by :reference-mpl and loaded by ReferenceMpl in an
+// isolated class loader. It is on no classpath: it declares the same class names as this module.
+val referenceMpl = layout.buildDirectory.dir("reference-mpl")
+val referenceMplClasspath = CommandLineArgumentProvider {
+    listOf("-Dmpl.reference.classpath=" + referenceMpl.get().asFileTree.files.sorted().joinToString(File.pathSeparator))
+}
+
 dependencies {
     // The old-API model classes take KmsClient and DynamoDbClient.
     testImplementation(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
@@ -45,6 +52,9 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.test {
     useJUnitPlatform()
+    dependsOn(":reference-mpl:classpath")
+    inputs.dir(referenceMpl)
+    jvmArgumentProviders.add(referenceMplClasspath)
 }
 
 // Old (smithy-generated) API of the Dafny-based MPL, used only by the test adapter. Generated from upstream at a
