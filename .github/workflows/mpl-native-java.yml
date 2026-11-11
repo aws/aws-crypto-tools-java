@@ -1,0 +1,41 @@
+name: mpl-native-java
+
+on:
+  pull_request:
+    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
+  push:
+    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: |
+            8
+            17
+      # Gradle runs on 17; the build's toolchain compiles and tests on 8.
+      - name: Build and test
+        run: ./gradlew -p mpl build
+
+  duvet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      # duvet publishes no prebuilt binary; the runner has cargo preinstalled.
+      - name: Install duvet
+        run: cargo +stable install duvet
+      - name: Duvet report
+        run: mpl/scripts/duvet.sh
+      - name: Upload duvet report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpl-duvet-report
+          include-hidden-files: true
+          path: mpl/.duvet/reports/report.html

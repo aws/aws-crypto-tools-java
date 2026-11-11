@@ -1,0 +1,4 @@
+# Duvet outputs
+.duvet/reports/
+.duvet/requirements/
+.duvet/snapshot.txt

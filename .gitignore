@@ -1,0 +1,12 @@
+# Gradle
+.gradle/
+build/
+
+# Maven
+target/
+
+# IDE and OS files
+bin/
+.idea/
+*.iml
+.DS_Store
