@@ -7,15 +7,18 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionDoNothing;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionSignOnly;
 
-/** This class is used by the Enhanced Client examples */
+/**
+ * An item class with one attribute for each protection: attribute1 is encrypted and signed (the
+ * default), attribute2 is signed only, and ":attribute3" is neither signed nor encrypted.
+ */
 @DynamoDbBean
-public class SimpleClass3 {
+public class SimpleItem {
 
   private String partitionKey;
   private int sortKey;
-  private String attribute6;
+  private String attribute1;
   private String attribute2;
-  private String attribute7;
+  private String attribute3;
 
   @DynamoDbPartitionKey
   @DynamoDbAttribute(value = "partition_key")
@@ -37,12 +40,12 @@ public class SimpleClass3 {
     this.sortKey = sortKey;
   }
 
-  public String getAttribute6() {
-    return this.attribute6;
+  public String getAttribute1() {
+    return this.attribute1;
   }
 
-  public void setAttribute6(String attribute6) {
-    this.attribute6 = attribute6;
+  public void setAttribute1(String attribute1) {
+    this.attribute1 = attribute1;
   }
 
   @DynamoDbEncryptionSignOnly
@@ -55,12 +58,12 @@ public class SimpleClass3 {
   }
 
   @DynamoDbEncryptionDoNothing
-  public String getAttribute7() {
-    return this.attribute7;
+  public String getAttribute3() {
+    return this.attribute3;
   }
 
-  @DynamoDbAttribute(value = ":attribute7")
-  public void setAttribute7(String attribute7) {
-    this.attribute7 = attribute7;
+  @DynamoDbAttribute(value = ":attribute3")
+  public void setAttribute3(String attribute3) {
+    this.attribute3 = attribute3;
   }
 }

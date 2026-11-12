@@ -1,8 +1,7 @@
 package software.amazon.cryptography.dbesdk.examples;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
@@ -11,6 +10,11 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.Dynam
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.model.InvalidCiphertextException;
 import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredEncryptionException;
 
+/**
+ * Helpers that the enhanced client examples use to show what each attribute action protects. Each
+ * manipulate method returns a copy of an encrypted item with one attribute changed, and each assert
+ * method decrypts that copy and checks that it fails, or still succeeds, in the expected way.
+ */
 public final class ManipulationUtils {
 
   private ManipulationUtils() {}
@@ -21,10 +25,6 @@ public final class ManipulationUtils {
       super(message);
     }
 
-    public ManipulationException(Throwable throwable) {
-      super(throwable);
-    }
-
     public ManipulationException(String message, Throwable throwable) {
       super(message, throwable);
     }
@@ -32,56 +32,51 @@ public final class ManipulationUtils {
 
   // Assert a manipulated encrypted attribute fails the authentication (signature) check.
   public static void assertManipulationProof(
-    final DynamoDbItemEncryptor itemEncryptor,
-    final Map<String, AttributeValue> manipulated,
-    final String attributeName
+    DynamoDbItemEncryptor itemEncryptor,
+    Map<String, AttributeValue> manipulated,
+    String attributeName
   ) {
-    boolean manipulationProof = false;
     try {
       itemEncryptor.decryptItem(manipulated);
     } catch (StructuredEncryptionException exception) {
-      manipulationProof = true;
+      return;
     }
-    if (!manipulationProof) {
-      throw new ManipulationException(
-        String.format(
-          "Attribute Named %s was supposedly manipulated but did not fail Authorization Check!",
-          attributeName
-        )
-      );
-    }
+    throw new ManipulationException(
+      String.format(
+        "Attribute Named %s was supposedly manipulated but did not fail Authorization Check!",
+        attributeName
+      )
+    );
   }
 
   // Assert a manipulated key attribute fails specifically because it is bound into the encryption
   // context. Every keyring attempt fails, surfacing as the DB-ESDK InvalidCiphertextException.
   // Anything else is the wrong failure.
   public static void assertProtectedByEncryptionContext(
-    final DynamoDbItemEncryptor itemEncryptor,
-    final Map<String, AttributeValue> manipulated,
-    final String attributeName
+    DynamoDbItemEncryptor itemEncryptor,
+    Map<String, AttributeValue> manipulated,
+    String attributeName
   ) {
-    boolean manipulationProof = false;
-    final String exceptionMessage = String.format(
-      "Attribute Named %s was supposedly manipulated but did not fail Encryption Context" +
-      " Check! (Or at least it did not fail it as expected!)",
-      attributeName
-    );
     try {
       itemEncryptor.decryptItem(manipulated);
     } catch (InvalidCiphertextException exception) {
-      manipulationProof = true;
+      return;
     }
-    if (!manipulationProof) {
-      throw new ManipulationException(exceptionMessage);
-    }
+    throw new ManipulationException(
+      String.format(
+        "Attribute Named %s was supposedly manipulated but did not fail Encryption Context" +
+        " Check! (Or at least it did not fail it as expected!)",
+        attributeName
+      )
+    );
   }
 
   // Assert a manipulated DO_NOTHING attribute still decrypts: it is neither signed nor encrypted,
   // so changing it must not fail the authentication check.
   public static void assertNotManipulationProof(
-    final DynamoDbItemEncryptor itemEncryptor,
-    final Map<String, AttributeValue> manipulated,
-    final String attributeName
+    DynamoDbItemEncryptor itemEncryptor,
+    Map<String, AttributeValue> manipulated,
+    String attributeName
   ) {
     try {
       itemEncryptor.decryptItem(manipulated);
@@ -100,17 +95,13 @@ public final class ManipulationUtils {
   }
 
   public static Map<String, AttributeValue> manipulateByteAttribute(
-    final Map<String, AttributeValue> item,
-    final String attributeName
-  ) throws IOException {
-    final Map<String, AttributeValue> manipulated = new HashMap<>(item);
-    final ByteArrayOutputStream concatStream = new ByteArrayOutputStream();
-    concatStream.write(item.get(attributeName).b().asByteArray());
-    concatStream.write(
-      SdkBytes
-        .fromString("Manipulation!", Charset.defaultCharset())
-        .asByteArray()
-    );
+    Map<String, AttributeValue> item,
+    String attributeName
+  ) {
+    Map<String, AttributeValue> manipulated = new HashMap<>(item);
+    ByteArrayOutputStream concatStream = new ByteArrayOutputStream();
+    concatStream.writeBytes(item.get(attributeName).b().asByteArray());
+    concatStream.writeBytes("Manipulation!".getBytes(StandardCharsets.UTF_8));
     manipulated.put(
       attributeName,
       AttributeValue.fromB(SdkBytes.fromByteArray(concatStream.toByteArray()))
@@ -119,22 +110,21 @@ public final class ManipulationUtils {
   }
 
   public static Map<String, AttributeValue> manipulateStringAttribute(
-    final Map<String, AttributeValue> item,
-    final String attributeName
+    Map<String, AttributeValue> item,
+    String attributeName
   ) {
-    final Map<String, AttributeValue> manipulated = new HashMap<>(item);
-    final String concatString = item.get(attributeName).s() + "Manipulation!";
+    Map<String, AttributeValue> manipulated = new HashMap<>(item);
+    String concatString = item.get(attributeName).s() + "Manipulation!";
     manipulated.put(attributeName, AttributeValue.fromS(concatString));
     return manipulated;
   }
 
   public static Map<String, AttributeValue> manipulateNumberAttribute(
-    final Map<String, AttributeValue> item,
-    final String attributeName
+    Map<String, AttributeValue> item,
+    String attributeName
   ) {
-    final Map<String, AttributeValue> manipulated = new HashMap<>(item);
-    final int manipulatedInt =
-      Integer.parseInt(item.get(attributeName).n()) + 1;
+    Map<String, AttributeValue> manipulated = new HashMap<>(item);
+    int manipulatedInt = Integer.parseInt(item.get(attributeName).n()) + 1;
     manipulated.put(
       attributeName,
       AttributeValue.fromN(Integer.toString(manipulatedInt))

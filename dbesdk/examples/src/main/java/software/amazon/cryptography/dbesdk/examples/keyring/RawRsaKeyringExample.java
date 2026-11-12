@@ -1,17 +1,14 @@
 package software.amazon.cryptography.dbesdk.examples.keyring;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.Map;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
@@ -29,33 +26,33 @@ import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 
-/*
- This example sets up DynamoDB Encryption for the AWS SDK client using the raw RSA Keyring. This
- keyring uses an RSA key pair to encrypt and decrypt records. This keyring accepts PEM encodings of
- the key pair as UTF-8 interpreted bytes. The client uses the public key to encrypt items it adds to
- the table and uses the private key to decrypt existing table items it retrieves.
-
- This example loads a key pair from PEM files with paths defined in
-  - EXAMPLE_RSA_PRIVATE_KEY_FILENAME
-  - EXAMPLE_RSA_PUBLIC_KEY_FILENAME
- If you do not provide these files, running this example through this class' main method
- will generate these files for you. These files will be generated in the directory where
- the example is run.
- In practice, users of this library should not generate new key pairs like this, and should
- instead retrieve an existing key from a secure key management system (e.g. an HSM).
- You may also provide your own key pair by placing PEM files in the directory where the
- example is run or modifying the paths in the code below. These files must be valid PEM
- encodings of the key pair as UTF-8 encoded bytes. If you do provide your own key pair,
- or if a key pair already exists, this class' main method will not generate a new key pair.
-
- This example loads a key pair from disk, encrypts a test item, and puts the encrypted item to the
- provided DynamoDB table. Then, it gets the item from the table and decrypts it.
-
- Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
- table must be configured with the following primary key configuration:
-   - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (N)
-*/
+/**
+ * This example sets up DynamoDB Encryption for the AWS SDK client using the raw RSA Keyring. This
+ * keyring uses an RSA key pair to encrypt and decrypt records. This keyring accepts PEM encodings of
+ * the key pair as UTF-8 interpreted bytes. The client uses the public key to encrypt items it adds to
+ * the table and uses the private key to decrypt existing table items it retrieves.
+ *
+ * <p>This example loads a key pair from PEM files with paths defined in
+ *  - EXAMPLE_RSA_PRIVATE_KEY_FILENAME
+ *  - EXAMPLE_RSA_PUBLIC_KEY_FILENAME
+ * If you do not provide these files, running this example through this class' main method
+ * will generate these files for you. These files will be generated in the directory where
+ * the example is run.
+ * In practice, users of this library should not generate new key pairs like this, and should
+ * instead retrieve an existing key from a secure key management system (e.g. an HSM).
+ * You may also provide your own key pair by placing PEM files in the directory where the
+ * example is run or modifying the paths in the code below. These files must be valid PEM
+ * encodings of the key pair as UTF-8 encoded bytes. If you do provide your own key pair,
+ * or if a key pair already exists, this class' main method will not generate a new key pair.
+ *
+ * <p>This example loads a key pair from disk, encrypts a test item, and puts the encrypted item to the
+ * provided DynamoDB table. Then, it gets the item from the table and decrypts it.
+ *
+ * <p>Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
+ * table must be configured with the following primary key configuration:
+ *   - Partition key is named "partition_key" with type (S)
+ *   - Sort key is named "sort_key" with type (N)
+ */
 public class RawRsaKeyringExample {
 
   private static final String EXAMPLE_RSA_PRIVATE_KEY_FILENAME =
@@ -71,7 +68,7 @@ public class RawRsaKeyringExample {
     byte[] publicKeyUtf8EncodedBytes;
     try {
       publicKeyUtf8EncodedBytes =
-        Files.readAllBytes(Paths.get(EXAMPLE_RSA_PUBLIC_KEY_FILENAME));
+        Files.readAllBytes(Path.of(EXAMPLE_RSA_PUBLIC_KEY_FILENAME));
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while reading public key from file",
@@ -82,7 +79,7 @@ public class RawRsaKeyringExample {
     byte[] privateKeyUtf8EncodedBytes;
     try {
       privateKeyUtf8EncodedBytes =
-        Files.readAllBytes(Paths.get(EXAMPLE_RSA_PRIVATE_KEY_FILENAME));
+        Files.readAllBytes(Path.of(EXAMPLE_RSA_PRIVATE_KEY_FILENAME));
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while reading private key from file",
@@ -92,7 +89,7 @@ public class RawRsaKeyringExample {
 
     // 2. Create the keyring.
     //    The DynamoDB encryption client uses this to encrypt and decrypt items.
-    final Keyring rawRsaKeyring = RawRsaKeyring
+    Keyring rawRsaKeyring = RawRsaKeyring
       .builder()
       .keyName("my-rsa-key-name")
       .keyNamespace("my-key-namespace")
@@ -101,30 +98,11 @@ public class RawRsaKeyringExample {
       .privateKey(SecretBytes.copyOf(privateKeyUtf8EncodedBytes))
       .build();
 
-    // 3. Decide how each attribute of your items is protected. Give each attribute one of these
-    //    actions:
-    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
-    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
-    //      when the item is read.
-    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
-    //      signature, so any change to it is detected.
-    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
-    //      ID supplier can pick a different key for each tenant. Using this action also requires
-    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //      change to it is NOT detected.
+    // 3. Decide how each attribute of your items is protected. BasicPutGetExample
+    //    explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    //    doNothing), and why the partition and sort keys get none.
     //    Every attribute you write must either have an action or start with the prefix set in the
     //    next step; writing an item with any other attribute fails.
-    //
-    //    Do not give the partition key or the sort key (together, the table's primary key) an
-    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
-    //    the library always signs them for you. By default they are signed like signOnly, and their
-    //    values are still handed to your keyring, in an encoded form. If you call
-    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
-    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
-    //    action.
 
     // 4. Decide which attributes are left out of the signature. Two separate settings do this. They
     //    do different jobs, and you can use either one, both, or neither:
@@ -144,7 +122,7 @@ public class RawRsaKeyringExample {
     //    it writes do not have any yet.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
@@ -153,7 +131,7 @@ public class RawRsaKeyringExample {
       .build();
 
     // 5. Create the DynamoDB Encryption configuration for the table we will be writing to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -162,7 +140,7 @@ public class RawRsaKeyringExample {
       .build();
 
     // 6. Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // 7. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -177,20 +155,17 @@ public class RawRsaKeyringExample {
       // 8. Put an item into our table using the above client.
       //    Before the item gets sent to DynamoDB, it will be encrypted
       //    client-side, according to our configuration.
-      final Map<String, AttributeValue> item = new HashMap<>();
-      item.put(
+      Map<String, AttributeValue> item = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawRsaKeyringItem"))
-          .build()
-      );
-      item.put("sort_key", AttributeValue.builder().n("0").build());
-      item.put(
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawRsaKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0"),
         "sensitive_data",
-        AttributeValue.builder().s("encrypt and sign me!").build()
+        AttributeValue.fromS("encrypt and sign me!")
       );
-      final PutItemRequest putRequest = PutItemRequest
+      PutItemRequest putRequest = PutItemRequest
         .builder()
         .tableName(tableName)
         .item(item)
@@ -201,36 +176,38 @@ public class RawRsaKeyringExample {
       // 9. Get the item back from our table using the same client.
       //    The client will decrypt the item client-side, and return
       //    back the original item.
-      final Map<String, AttributeValue> keyToGet = new HashMap<>();
-      keyToGet.put(
+      Map<String, AttributeValue> keyToGet = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawRsaKeyringItem"))
-          .build()
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawRsaKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0")
       );
-      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-      final GetItemRequest getRequest = GetItemRequest
+      GetItemRequest getRequest = GetItemRequest
         .builder()
         .key(keyToGet)
         .tableName(tableName)
         .build();
 
-      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
+      GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
       // Demonstrate that GetItem succeeded and returned the decrypted item
-      final Map<String, AttributeValue> returnedItem = getResponse.item();
-      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
+      Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem
+        .get("sensitive_data")
+        .s()
+        .equals("encrypt and sign me!");
     }
   }
 
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 1) {
       throw new IllegalArgumentException(
         "To run this example, include the table name in args"
       );
     }
-    final String tableName = args[0];
+    String tableName = args[0];
 
     // You may provide your own RSA key pair in the files located at
     //  - EXAMPLE_RSA_PRIVATE_KEY_FILENAME
@@ -243,23 +220,23 @@ public class RawRsaKeyringExample {
     putAndGetItem(tableName);
   }
 
-  static boolean shouldGenerateNewRsaKeyPair() {
+  private static boolean shouldGenerateNewRsaKeyPair() {
     // Check if a key pair already exists
-    final File privateKeyFile = new File(EXAMPLE_RSA_PRIVATE_KEY_FILENAME);
-    final File publicKeyFile = new File(EXAMPLE_RSA_PUBLIC_KEY_FILENAME);
+    Path privateKeyFile = Path.of(EXAMPLE_RSA_PRIVATE_KEY_FILENAME);
+    Path publicKeyFile = Path.of(EXAMPLE_RSA_PUBLIC_KEY_FILENAME);
 
     // If a key pair already exists: do not overwrite existing key pair
-    if (privateKeyFile.exists() && publicKeyFile.exists()) {
+    if (Files.exists(privateKeyFile) && Files.exists(publicKeyFile)) {
       return false;
     }
 
     // If only one file is present: throw exception
-    if (privateKeyFile.exists() && !publicKeyFile.exists()) {
+    if (Files.exists(privateKeyFile) && !Files.exists(publicKeyFile)) {
       throw new IllegalStateException(
         "Missing public key file at " + EXAMPLE_RSA_PUBLIC_KEY_FILENAME
       );
     }
-    if (!privateKeyFile.exists() && publicKeyFile.exists()) {
+    if (!Files.exists(privateKeyFile) && Files.exists(publicKeyFile)) {
       throw new IllegalStateException(
         "Missing private key file at " + EXAMPLE_RSA_PRIVATE_KEY_FILENAME
       );
@@ -269,11 +246,11 @@ public class RawRsaKeyringExample {
     return true;
   }
 
-  static void generateRsaKeyPair() {
+  private static void generateRsaKeyPair() {
     // Safety check: Validate neither file is present
-    final File privateKeyFile = new File(EXAMPLE_RSA_PRIVATE_KEY_FILENAME);
-    final File publicKeyFile = new File(EXAMPLE_RSA_PUBLIC_KEY_FILENAME);
-    if (privateKeyFile.exists() || publicKeyFile.exists()) {
+    Path privateKeyFile = Path.of(EXAMPLE_RSA_PRIVATE_KEY_FILENAME);
+    Path publicKeyFile = Path.of(EXAMPLE_RSA_PUBLIC_KEY_FILENAME);
+    if (Files.exists(privateKeyFile) || Files.exists(publicKeyFile)) {
       throw new IllegalStateException(
         "generateRsaKeyPair will not overwrite existing PEM files"
       );
@@ -297,15 +274,15 @@ public class RawRsaKeyringExample {
       );
     }
     rsaKeyGenerator.initialize(2048, new SecureRandom());
-    final KeyPair keyPair = rsaKeyGenerator.generateKeyPair();
+    KeyPair keyPair = rsaKeyGenerator.generateKeyPair();
 
-    final StringWriter privateKeyStringWriter = new StringWriter();
-    final PemWriter privateKeyPemWriter = new PemWriter(privateKeyStringWriter);
-    try {
+    StringWriter privateKeyStringWriter = new StringWriter();
+    try (
+      PemWriter privateKeyPemWriter = new PemWriter(privateKeyStringWriter)
+    ) {
       privateKeyPemWriter.writeObject(
         new PemObject("PRIVATE KEY", keyPair.getPrivate().getEncoded())
       );
-      privateKeyPemWriter.close();
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while writing private key PEM",
@@ -315,9 +292,9 @@ public class RawRsaKeyringExample {
 
     // Write UTF-8 encoded PEM file
     try {
-      Files.write(
-        Paths.get(EXAMPLE_RSA_PRIVATE_KEY_FILENAME),
-        privateKeyStringWriter.toString().getBytes(StandardCharsets.UTF_8)
+      Files.writeString(
+        Path.of(EXAMPLE_RSA_PRIVATE_KEY_FILENAME),
+        privateKeyStringWriter.toString()
       );
     } catch (IOException exception) {
       throw new UncheckedIOException(
@@ -326,13 +303,11 @@ public class RawRsaKeyringExample {
       );
     }
 
-    final StringWriter publicKeyStringWriter = new StringWriter();
-    final PemWriter publicKeyPemWriter = new PemWriter(publicKeyStringWriter);
-    try {
+    StringWriter publicKeyStringWriter = new StringWriter();
+    try (PemWriter publicKeyPemWriter = new PemWriter(publicKeyStringWriter)) {
       publicKeyPemWriter.writeObject(
         new PemObject("PUBLIC KEY", keyPair.getPublic().getEncoded())
       );
-      publicKeyPemWriter.close();
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while writing public key PEM",
@@ -340,9 +315,9 @@ public class RawRsaKeyringExample {
       );
     }
     try {
-      Files.write(
-        Paths.get(EXAMPLE_RSA_PUBLIC_KEY_FILENAME),
-        publicKeyStringWriter.toString().getBytes(StandardCharsets.UTF_8)
+      Files.writeString(
+        Path.of(EXAMPLE_RSA_PUBLIC_KEY_FILENAME),
+        publicKeyStringWriter.toString()
       );
     } catch (IOException exception) {
       throw new UncheckedIOException(

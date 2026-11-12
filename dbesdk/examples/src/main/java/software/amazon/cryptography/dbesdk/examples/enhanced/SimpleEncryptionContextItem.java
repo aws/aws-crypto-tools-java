@@ -5,17 +5,23 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionDoNothing;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionSignAndIncludeInEncryptionContext;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionSignOnly;
 
-/** This class is used by the Enhanced Client examples */
+/**
+ * An item class like {@link SimpleItem} with one more attribute, attribute4, that is signed and
+ * also included in the encryption context. A table schema built from it must include the primary
+ * key in the encryption context too.
+ */
 @DynamoDbBean
-public class SimpleClass {
+public class SimpleEncryptionContextItem {
 
   private String partitionKey;
   private int sortKey;
   private String attribute1;
   private String attribute2;
   private String attribute3;
+  private String attribute4;
 
   @DynamoDbPartitionKey
   @DynamoDbAttribute(value = "partition_key")
@@ -62,5 +68,14 @@ public class SimpleClass {
   @DynamoDbAttribute(value = ":attribute3")
   public void setAttribute3(String attribute3) {
     this.attribute3 = attribute3;
+  }
+
+  @DynamoDbEncryptionSignAndIncludeInEncryptionContext
+  public String getAttribute4() {
+    return this.attribute4;
+  }
+
+  public void setAttribute4(String attribute4) {
+    this.attribute4 = attribute4;
   }
 }

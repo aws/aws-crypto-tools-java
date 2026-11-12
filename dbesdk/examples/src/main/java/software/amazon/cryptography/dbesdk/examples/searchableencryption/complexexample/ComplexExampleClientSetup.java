@@ -3,11 +3,10 @@ package software.amazon.cryptography.dbesdk.examples.searchableencryption.comple
 import java.time.Duration;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeacon;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.Constructor;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.ConstructorPart;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeaconConstructor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
@@ -19,259 +18,169 @@ import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
-public class ComplexExampleClientSetup {
+/**
+ * This class is used in an example to demonstrate complex queries you can perform using beacons.
+ * The example data used is for demonstrative purposes only, and might not meet the distribution
+ * and correlation uniqueness recommendations for beacons. See our documentation for whether
+ * beacons are right for your particular data set:
+ * https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption.html#are-beacons-right-for-me
+ *
+ * <p>This file sets up all the searchable encryption configuration that the complex searchable
+ * encryption example needs, using the encryption client.
+ */
+public final class ComplexExampleClientSetup {
 
-  /*
-   * This file is used in an example to demonstrate complex queries you can perform using beacons.
-   * The example data used is for demonstrative purposes only, and might not meet the distribution
-   * and correlation uniqueness recommendations for beacons. See our documentation for whether
-   * beacons are right for your particular data set:
-   * https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption.html#are-beacons-right-for-me
-   *
-   * This file sets up all the searchable encryption configuration required to execute the examples
-   * from our workshop using the encryption client.
-   */
+  private ComplexExampleClientSetup() {}
 
   public static DynamoDbClient createDynamoDbClient(
     String tableName,
     String branchKeyId,
     String branchKeyWrappingKmsKeyArn,
-    String keyStoreTableName
+    String keyStoreTableName,
+    DynamoDbClient keyStoreDynamoDbClient,
+    KmsClient keyStoreKmsClient
   ) {
     // 1. Create Keystore and branch key.
     //    These are the same constructions as in the Basic examples, which describe this in more detail.
-    final BranchKeyStore keyStore = BranchKeyStore
+    //    The keystore uses the caller's DynamoDB and AWS KMS clients. The returned client uses the
+    //    keystore, so the caller must keep those clients open until it has closed the returned client.
+    BranchKeyStore keyStore = BranchKeyStore
       .builder()
-      .kmsClient(KmsClient.create())
-      .ddbClient(DynamoDbClient.create())
       .ddbTableName(keyStoreTableName)
       .logicalKeyStoreName(keyStoreTableName)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(branchKeyWrappingKmsKeyArn))
+      .ddbClient(keyStoreDynamoDbClient)
+      .kmsClient(keyStoreKmsClient)
       .build();
 
-    // 2. Create constructor parts.
-    //    Constructor parts are used to assemble constructors (constructors described more in next step).
-    //    For each attribute that will be used in a constructor, there must be a corresponding constructor part.
-    //    A constructor part must receive:
-    //     - name: Name of a standard beacon
-    //     - required: Whether this attribute must be present in the item to match a constructor
-    //    In this example, we will define each constructor part once and re-use it across multiple constructors.
-    //    The parts below are defined by working backwards from the constructors in "PK Constructors",
-    //        "SK constructors", etc. sections in Demo.md.
-    final ConstructorPart employeeIdConstructorPart = ConstructorPart
-      .builder()
-      // This name comes from the "EmployeeID" standard beacon.
-      .name("EmployeeID")
-      .required(true)
-      .build();
-    final ConstructorPart ticketNumberConstructorPart = ConstructorPart
-      .builder()
-      .name("TicketNumber")
-      .required(true)
-      .build();
-    final ConstructorPart projectNameConstructorPart = ConstructorPart
-      .builder()
-      .name("ProjectName")
-      .required(true)
-      .build();
-    final ConstructorPart ticketModTimeConstructorPart = ConstructorPart
-      .builder()
-      .name("TicketModTime")
-      .required(true)
-      .build();
-    final ConstructorPart meetingStartConstructorPart = ConstructorPart
-      .builder()
-      .name("MeetingStart")
-      .required(true)
-      .build();
-    final ConstructorPart timeCardStartConstructorPart = ConstructorPart
-      .builder()
-      .name("TimeCardStart")
-      .required(true)
-      .build();
-    final ConstructorPart employeeEmailConstructorPart = ConstructorPart
-      .builder()
-      .name("EmployeeEmail")
-      .required(true)
-      .build();
-    final ConstructorPart creatorEmailConstructorPart = ConstructorPart
-      .builder()
-      .name("CreatorEmail")
-      .required(true)
-      .build();
-    final ConstructorPart projectStatusConstructorPart = ConstructorPart
-      .builder()
-      .name("ProjectStatus")
-      .required(true)
-      .build();
-    final ConstructorPart organizerEmailConstructorPart = ConstructorPart
-      .builder()
-      .name("OrganizerEmail")
-      .required(true)
-      .build();
-    final ConstructorPart projectStartConstructorPart = ConstructorPart
-      .builder()
-      .name("ProjectStart")
-      .required(true)
-      .build();
-    final ConstructorPart managerEmailConstructorPart = ConstructorPart
-      .builder()
-      .name("ManagerEmail")
-      .required(true)
-      .build();
-    final ConstructorPart assigneeEmailConstructorPart = ConstructorPart
-      .builder()
-      .name("AssigneeEmail")
-      .required(true)
-      .build();
-    final ConstructorPart cityConstructorPart = ConstructorPart
-      .builder()
-      .name("City")
-      .required(true)
-      .build();
-    final ConstructorPart severityConstructorPart = ConstructorPart
-      .builder()
-      .name("Severity")
-      .required(true)
-      .build();
-    final ConstructorPart buildingConstructorPart = ConstructorPart
-      .builder()
-      .name("Building")
-      .required(true)
-      .build();
-    final ConstructorPart floorConstructorPart = ConstructorPart
-      .builder()
-      .name("Floor")
-      .required(true)
-      .build();
-    final ConstructorPart roomConstructorPart = ConstructorPart
-      .builder()
-      .name("Room")
-      .required(true)
-      .build();
-    final ConstructorPart deskConstructorPart = ConstructorPart
-      .builder()
-      .name("Desk")
-      .required(true)
-      .build();
-
-    // 3. Define constructors
-    //    Constructors define how encrypted and signed parts are assembled into compound beacons.
-    //    The constructors below are based off of the "PK Constructors", "SK constructors", etc. sections in Demo.md.
+    // 2. Define constructors
+    //    A constructor is one allowed way to assemble a compound beacon value: an ordered list of
+    //    the compound beacon's encrypted and signed parts, joined by its separator. addRequiredPart
+    //    and addOptionalPart each take one or more part names, and the parts are written in the
+    //    order they are given, across calls. When an item is written, the compound beacon's
+    //    constructors are tried in order, and the first one whose required parts are all on the
+    //    item is used; an optional part that is missing is left out. The constructors below build
+    //    the PK and SK values for each record type in this example. All their parts are required.
 
     // The employee ID constructor only requires an employee ID.
     // If an item has an attribute with name "EmployeeID", it will match this constructor.
-    // If this is the first matching constructor in the constructor list (constructor list described more below),
-    //     the compound beacon will use this constructor, and the compound beacon will be written as `E-X`.
-    final Constructor employeeIdConstructor = Constructor
+    // If this is the first matching constructor in the constructor list (constructor list
+    // described more below), the compound beacon will use this constructor, and the compound
+    // beacon will be written as `E-X`.
+    CompoundBeaconConstructor employeeIdConstructor = CompoundBeaconConstructor
       .builder()
-      .parts(employeeIdConstructorPart)
+      .addRequiredPart("EmployeeID")
       .build();
 
-    final Constructor ticketNumberConstructor = Constructor
+    CompoundBeaconConstructor ticketNumberConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("TicketNumber")
+        .build();
+
+    CompoundBeaconConstructor projectNameConstructor = CompoundBeaconConstructor
       .builder()
-      .parts(ticketNumberConstructorPart)
+      .addRequiredPart("ProjectName")
       .build();
 
-    final Constructor projectNameConstructor = Constructor
+    CompoundBeaconConstructor ticketModTimeConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("TicketModTime")
+        .build();
+
+    CompoundBeaconConstructor buildingConstructor = CompoundBeaconConstructor
       .builder()
-      .parts(projectNameConstructorPart)
+      .addRequiredPart("Building")
       .build();
 
-    final Constructor ticketModTimeConstructor = Constructor
+    // This constructor requires all of "MeetingStart", "Location.Floor", and "Location.Room"
+    // attributes. If an item has all of these attributes, it will match this constructor.
+    // If this is the first matching constructor in the constructor list (constructor list
+    // described more below), the compound beacon will use this constructor, and the compound
+    // beacon will be written as `MS-X~F-Y~R-Z`.
+    // In a constructor with more than one part, the order of the part names defines the order the
+    // parts are written in. Reordering them reorders the beacon value.
+    CompoundBeaconConstructor meetingStartFloorRoomConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("MeetingStart", "Floor", "Room")
+        .build();
+
+    CompoundBeaconConstructor timeCardStartEmployeeEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("TimeCardStart", "EmployeeEmail")
+        .build();
+
+    CompoundBeaconConstructor timeCardStartConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("TimeCardStart")
+        .build();
+
+    CompoundBeaconConstructor creatorEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("CreatorEmail")
+        .build();
+
+    CompoundBeaconConstructor projectStatusConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("ProjectStatus")
+        .build();
+
+    CompoundBeaconConstructor employeeEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("EmployeeEmail")
+        .build();
+
+    CompoundBeaconConstructor organizerEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("OrganizerEmail")
+        .build();
+
+    CompoundBeaconConstructor projectStartConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("ProjectStart")
+        .build();
+
+    CompoundBeaconConstructor managerEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("ManagerEmail")
+        .build();
+
+    CompoundBeaconConstructor assigneeEmailConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("AssigneeEmail")
+        .build();
+
+    CompoundBeaconConstructor cityConstructor = CompoundBeaconConstructor
       .builder()
-      .parts(ticketModTimeConstructorPart)
+      .addRequiredPart("City")
       .build();
 
-    final Constructor buildingConstructor = Constructor
+    CompoundBeaconConstructor severityConstructor = CompoundBeaconConstructor
       .builder()
-      .parts(buildingConstructorPart)
+      .addRequiredPart("Severity")
       .build();
 
-    // This constructor requires all of "MeetingStart", "Location.Floor", and "Location.Room" attributes.
-    // If an item has all of these attributes, it will match this constructor.
-    // If this is the first matching constructor in the constructor list (constructor list described more below),
-    //     the compound beacon will use this constructor, and the compound beacon will be written as `MS-X~F-Y~R-Z`.
-    // In a constructor with multiple constructor parts, the order the constructor parts are added to
-    //     the constructor part list defines how the compound beacon is written.
-    // We can rearrange the beacon parts by changing the order the constructors were added to the list.
-    final Constructor meetingStartFloorRoomConstructor = Constructor
-      .builder()
-      .parts(
-          meetingStartConstructorPart,
-          floorConstructorPart,
-          roomConstructorPart
-        )
-      .build();
+    CompoundBeaconConstructor buildingFloorDeskConstructor =
+      CompoundBeaconConstructor
+        .builder()
+        .addRequiredPart("Building", "Floor", "Desk")
+        .build();
 
-    final Constructor timeCardStartEmployeeEmailConstructor = Constructor
-      .builder()
-      .parts(timeCardStartConstructorPart, employeeEmailConstructorPart)
-      .build();
-
-    final Constructor timeCardStartConstructor = Constructor
-      .builder()
-      .parts(timeCardStartConstructorPart)
-      .build();
-
-    final Constructor creatorEmailConstructor = Constructor
-      .builder()
-      .parts(creatorEmailConstructorPart)
-      .build();
-
-    final Constructor projectStatusConstructor = Constructor
-      .builder()
-      .parts(projectStatusConstructorPart)
-      .build();
-
-    final Constructor employeeEmailConstructor = Constructor
-      .builder()
-      .parts(employeeEmailConstructorPart)
-      .build();
-
-    final Constructor organizerEmailConstructor = Constructor
-      .builder()
-      .parts(organizerEmailConstructorPart)
-      .build();
-
-    final Constructor projectStartConstructor = Constructor
-      .builder()
-      .parts(projectStartConstructorPart)
-      .build();
-
-    final Constructor managerEmailConstructor = Constructor
-      .builder()
-      .parts(managerEmailConstructorPart)
-      .build();
-
-    final Constructor assigneeEmailConstructor = Constructor
-      .builder()
-      .parts(assigneeEmailConstructorPart)
-      .build();
-
-    final Constructor cityConstructor = Constructor
-      .builder()
-      .parts(cityConstructorPart)
-      .build();
-
-    final Constructor severityConstructor = Constructor
-      .builder()
-      .parts(severityConstructorPart)
-      .build();
-
-    final Constructor buildingFloorDeskConstructor = Constructor
-      .builder()
-      .parts(
-          buildingConstructorPart,
-          floorConstructorPart,
-          deskConstructorPart
-        )
-      .build();
-
-    // 4. Create BeaconConfig.
+    // 3. Create BeaconConfig.
     //    The standard beacons, encrypted parts, signed parts and compound beacons are passed
     //    directly to the builder below.
-    final BeaconConfig beaconConfig = BeaconConfig
+    BeaconConfig beaconConfig = BeaconConfig
       .builder()
       // Create standard beacons
       // For this example, we use a standard beacon length of 4.
@@ -322,7 +231,8 @@ public class ComplexExampleClientSetup {
       )
       // Define compound beacons
       // Compound beacon construction is defined in more detail in CompoundBeaconSearchableEncryptionExample.
-      // Note that the split character must be a character that is not used in any attribute value.
+      // Note that the separator must not appear in any prefix, or in any value written into the
+      // compound beacon. Writing an item fails if one of those values contains it.
       //
       // Add constructors to each compound beacon's constructor list in desired construction order.
       // In a compound beacon with multiple constructors, the order the constructors are added to
@@ -337,7 +247,7 @@ public class ComplexExampleClientSetup {
         CompoundBeacon
           .builder()
           .name("PK")
-          .split("~")
+          .separator('~')
           .constructors(
             employeeIdConstructor,
             buildingConstructor,
@@ -348,7 +258,7 @@ public class ComplexExampleClientSetup {
         CompoundBeacon
           .builder()
           .name("SK")
-          .split("~")
+          .separator('~')
           .constructors(
             ticketModTimeConstructor,
             meetingStartFloorRoomConstructor,
@@ -360,7 +270,7 @@ public class ComplexExampleClientSetup {
         CompoundBeacon
           .builder()
           .name("PK1")
-          .split("~")
+          .separator('~')
           .constructors(
             creatorEmailConstructor,
             employeeEmailConstructor,
@@ -371,7 +281,7 @@ public class ComplexExampleClientSetup {
         CompoundBeacon
           .builder()
           .name("SK1")
-          .split("~")
+          .separator('~')
           .constructors(
             meetingStartFloorRoomConstructor,
             timeCardStartConstructor,
@@ -383,26 +293,25 @@ public class ComplexExampleClientSetup {
         CompoundBeacon
           .builder()
           .name("PK2")
-          .split("~")
+          .separator('~')
           .constructors(managerEmailConstructor, assigneeEmailConstructor)
           .build(),
         CompoundBeacon
           .builder()
           .name("PK3")
-          .split("~")
+          .separator('~')
           .constructors(cityConstructor, severityConstructor)
           .build(),
         CompoundBeacon
           .builder()
           .name("SK3")
-          .split("~")
+          .separator('~')
           .constructors(buildingFloorDeskConstructor, ticketModTimeConstructor)
           .build()
       )
       // Define encrypted parts
-      // Note that some of the prefixes are modified from the suggested prefixes in Demo.md.
-      // This is because all prefixes must be unique in a configuration.
-      // Encrypted parts are described in more detail in the CompoundBeaconSearcbaleEncryptionExample.
+      // Every prefix must be unique within one configuration.
+      // Encrypted parts are described in more detail in the CompoundBeaconSearchableEncryptionExample.
       .encryptedParts(
         EncryptedPart.builder().name("EmployeeID").prefix("E-").build(),
         EncryptedPart.builder().name("TicketNumber").prefix("T-").build(),
@@ -423,8 +332,9 @@ public class ComplexExampleClientSetup {
       // Define signed parts.
       // These are unencrypted attributes we would like to use in beacon queries.
       // In this example, all of these represent dates or times.
-      // Keeping these attributes unencrypted allows us to use them in comparison-based queries. If a signed
-      //     part is the first part in a compound beacon, then that part can be used in comparison for sorting.
+      // Keeping these attributes unencrypted allows us to use them in comparison-based queries.
+      // If a signed part is the first part in a compound beacon, then that part can be used in
+      // comparison for sorting.
       .signedParts(
         SignedPart.builder().name("TicketModTime").prefix("M-").build(),
         SignedPart.builder().name("MeetingStart").prefix("MS-").build(),
@@ -440,41 +350,22 @@ public class ComplexExampleClientSetup {
       )
       .build();
 
-    // 5. Create a Hierarchical Keyring
-    final Keyring kmsKeyring = AwsKmsHierarchicalKeyring
+    // 4. Create a Hierarchical Keyring
+    Keyring kmsKeyring = AwsKmsHierarchicalKeyring
       .builder()
       .branchKeyId(branchKeyId)
       .keyStore(keyStore)
       .ttl(Duration.ofSeconds(6000))
       .build();
 
-    // 6. Decide how each attribute of your items is protected. Give each attribute one of these
-    //     actions:
-    //     - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
-    //       keyring uses, and it is covered by the item's signature, so any change to it is
-    //       detected when the item is read.
-    //     - signOnly: the value is stored as plain, readable text, but it is covered by the
-    //       signature, so any change to it is detected.
-    //     - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //       keyring each time the item is encrypted or decrypted, for example so that a branch key
-    //       ID supplier can pick a different key for each tenant. Using this action also requires
-    //       signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    //     - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //       change to it is NOT detected.
+    // 5. Decide how each attribute of your items is protected. BasicPutGetExample
+    //    explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    //    doNothing), and why the partition and sort keys get none.
     //     Every attribute you write must have an action; writing an item with any other attribute
     //     fails.
-    //
-    //     Do not give the partition key or the sort key (together, the table's primary key) an
-    //     action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
-    //     the library always signs them for you. By default they are signed like signOnly, and
-    //     their values are still handed to your keyring, in an encoded form. If you call
-    //     signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    //     signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
-    //     plain text, and you can give other attributes the signAndIncludeInEncryptionContext
-    //     action.
 
     // Build the schema from these choices.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .encryptAndSign(
@@ -513,8 +404,8 @@ public class ComplexExampleClientSetup {
       )
       .build();
 
-    // 7. Set up table config
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    // 6. Set up table config
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -523,12 +414,12 @@ public class ComplexExampleClientSetup {
       .beaconConfig(beaconConfig)
       .build();
 
-    // 8. Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    // 7. Create the DynamoDB Encryption Interceptor
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
-    // 9. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
-    final DynamoDbClient dynamoDbClient = DynamoDbClient
+    // 8. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
+    DynamoDbClient dynamoDbClient = DynamoDbClient
       .builder()
       .overrideConfiguration(overrides ->
         overrides.addExecutionInterceptor(encryptionInterceptor)

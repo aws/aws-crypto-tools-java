@@ -1,7 +1,6 @@
 package software.amazon.cryptography.dbesdk.examples.enhanced;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
@@ -18,16 +17,16 @@ import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
-/*
- This example sets up DynamoDB Encryption for the DynamoDB Enhanced Client and uses the high level
- putItem() and getItem() APIs to demonstrate putting a client-side encrypted item into DynamoDB and
- then retrieving and decrypting that item from DynamoDB.
-
- Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
- table must be configured with the following primary key configuration:
-   - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (N)
-*/
+/**
+ * This example sets up DynamoDB Encryption for the DynamoDB Enhanced Client and uses the high level
+ * putItem() and getItem() APIs to demonstrate putting a client-side encrypted item into DynamoDB and
+ * then retrieving and decrypting that item from DynamoDB.
+ *
+ * <p>Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
+ * table must be configured with the following primary key configuration:
+ *   - Partition key is named "partition_key" with type (S)
+ *   - Sort key is named "sort_key" with type (N)
+ */
 public class EnhancedPutGetExample {
 
   public static void putAndGetItem(String kmsKeyId, String tableName) {
@@ -35,20 +34,21 @@ public class EnhancedPutGetExample {
     //    protect your data. For this example, we will create a AWS KMS Keyring with the AWS KMS Key
     //    we want to use. We will use the AWS KMS MRK Multi Keyring, as it will correctly handle both
     //    single region and Multi-Region KMS Keys.
-    final Keyring kmsKeyring = AwsKmsMrkMultiKeyring
+    Keyring kmsKeyring = AwsKmsMrkMultiKeyring
       .builder()
       .generator(kmsKeyId)
       .build();
 
-    // 2. Create a Table Schema over your annotated class (See SimpleClass4.java in this directory).
+    // 2. Create a Table Schema over your annotated class (See SimpleEncryptionContextItem.java in
+    //    this directory).
     //    By default, all primary key attributes will be signed but not encrypted (SIGN_ONLY)
     //    and all non-primary key attributes will be encrypted and signed (ENCRYPT_AND_SIGN).
     //    If you want a particular non-primary key attribute to be signed but not encrypted,
     //    use the `DynamoDbEncryptionSignOnly` annotation.
     //    If you want a particular attribute to be neither signed nor encrypted (DO_NOTHING),
     //    use the `DynamoDbEncryptionDoNothing` annotation.
-    final TableSchema<SimpleClass4> tableSchema = TableSchema.fromBean(
-      SimpleClass4.class
+    TableSchema<SimpleEncryptionContextItem> tableSchema = TableSchema.fromBean(
+      SimpleEncryptionContextItem.class
     );
 
     // 3. Decide which attributes are left out of the signature. In your item classes, an attribute
@@ -68,17 +68,17 @@ public class EnhancedPutGetExample {
     //    the prefix also lets you add more ":" attributes later without changing the class
     //    annotations.
 
-    // Build the schema from the annotations and the prefix. SimpleClass4 marks attribute4 with
+    // Build the schema from the annotations and the prefix. SimpleEncryptionContextItem marks attribute4 with
     // @DynamoDbEncryptionSignAndIncludeInEncryptionContext, so this schema must also include the
     // primary key in the encryption context.
-    final ItemEncryptionSchema schema = EnhancedClientSchemas
+    ItemEncryptionSchema schema = EnhancedClientSchemas
       .fromTableSchemas(tableSchema)
       .signAndIncludePrimaryKeysInEncryptionContext(true)
       .doNothingPrefix(":")
       .build();
 
     // 4. Create the DynamoDB Encryption configuration for the table we will be writing to
-    final DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -92,13 +92,13 @@ public class EnhancedPutGetExample {
       // This is also the default algorithm suite if one is not specified in this config.
       // For more information on supported algorithm suites, see:
       //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
-      .algorithmSuiteId(
+      .algorithmSuite(
         AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
       )
       .build();
 
     // 5. Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(tableConfig).build();
 
     // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -111,12 +111,12 @@ public class EnhancedPutGetExample {
         .build()
     ) {
       // 7. Create the DynamoDbEnhancedClient using the AWS SDK Client created above,
-      //    and create a Table with your modelled class
-      final DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
+      //    and create a Table with your modeled class
+      DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
         .builder()
         .dynamoDbClient(dynamoDbClient)
         .build();
-      final DynamoDbTable<SimpleClass4> table = enhancedClient.table(
+      DynamoDbTable<SimpleEncryptionContextItem> table = enhancedClient.table(
         tableName,
         tableSchema
       );
@@ -124,8 +124,10 @@ public class EnhancedPutGetExample {
       // 8. Put an item into your table using the DynamoDB Enhanced Client.
       //    The item will be encrypted client-side according to your
       //    configuration above before it is sent to DynamoDB.
-      final SimpleClass4 item = new SimpleClass4();
-      item.setPartitionKey(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"));
+      SimpleEncryptionContextItem item = new SimpleEncryptionContextItem();
+      item.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("EnhancedPutGetExample")
+      );
       item.setSortKey(0);
       item.setAttribute1("encrypt and sign me!");
       item.setAttribute2("sign me!");
@@ -137,41 +139,46 @@ public class EnhancedPutGetExample {
       // 9. Get the item back from the table using the DynamoDB Enhanced Client.
       //    The item will be decrypted client-side, and you will get back the
       //    original item.
-      final Key key = Key
+      Key key = Key
         .builder()
-        .partitionValue(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"))
+        .partitionValue(
+          ExampleUtils.uniquePartitionKey("EnhancedPutGetExample")
+        )
         .sortValue(0)
         .build();
 
-      final SimpleClass4 result =
-        table.getItem(requestBuilder -> requestBuilder.key(key));
+      SimpleEncryptionContextItem result = table.getItem(requestBuilder ->
+        requestBuilder.key(key)
+      );
 
       // Demonstrate we get the original item back
       assert "encrypt and sign me!".equals(result.getAttribute1());
 
       // retrieve the same record via a Query
-      final PageIterable<SimpleClass4> items = table.query(
+      PageIterable<SimpleEncryptionContextItem> items = table.query(
         QueryConditional.keyEqualTo(keyBuilder ->
-          keyBuilder.partitionValue(ExampleUtils.uniquePartitionKey("EnhancedPutGetExample"))
+          keyBuilder.partitionValue(
+            ExampleUtils.uniquePartitionKey("EnhancedPutGetExample")
+          )
         )
       );
-      final List<SimpleClass4> itemList = items
+      List<SimpleEncryptionContextItem> itemList = items
         .items()
         .stream()
-        .collect(Collectors.toList());
+        .toList();
       assert itemList.size() == 1;
       assert "encrypt and sign me!".equals(itemList.get(0).getAttribute1());
     }
   }
 
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 2) {
       throw new IllegalArgumentException(
         "To run this example, include the kmsKeyId as args[0] and tableName as args[1]"
       );
     }
-    final String kmsKeyId = args[0];
-    final String tableName = args[1];
+    String kmsKeyId = args[0];
+    String tableName = args[1];
     putAndGetItem(kmsKeyId, tableName);
   }
 }

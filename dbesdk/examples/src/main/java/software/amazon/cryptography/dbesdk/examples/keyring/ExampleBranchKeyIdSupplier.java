@@ -1,17 +1,17 @@
 package software.amazon.cryptography.dbesdk.examples.keyring;
 
-import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BranchKeyIdRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemBranchKeyIdSupplier;
 
-// Used in the 'HierarchicalKeyringExample'.
-// In that example, we have a table where we distinguish multiple tenants
-// by a tenant ID that is stored in our partition attribute.
-// The expectation is that this does not produce a confused deputy
-// because the tenants are separated by partition.
-// In order to create a Hierarchical Keyring that is capable of encrypting or
-// decrypting data for either tenant, we implement this interface
-// to map the correct branch key ID to the correct tenant ID.
+/**
+ * Used in the {@code HierarchicalKeyringExample}. In that example, we have a table where we
+ * distinguish multiple tenants by a tenant ID that is stored in our partition attribute. The
+ * expectation is that this does not produce a confused deputy because the tenants are separated by
+ * partition. In order to create a Hierarchical Keyring that is capable of encrypting or decrypting
+ * data for either tenant, we implement this interface to map the correct branch key ID to the
+ * correct tenant ID.
+ */
 class ExampleBranchKeyIdSupplier implements ItemBranchKeyIdSupplier {
 
   private final String branchKeyIdForTenant1;
@@ -28,36 +28,33 @@ class ExampleBranchKeyIdSupplier implements ItemBranchKeyIdSupplier {
   /**
    * Returns the branch key ID to use for the item being written or read.
    *
-   * <p>{@code itemContext} always holds the item's partition key and, if the table has one, its
-   * sort key. If the item's schema lists any attributes in its
-   * {@code signAndIncludeInEncryptionContext} group, {@code itemContext} also holds each of those
-   * attributes, plus three entries the DB-ESDK adds: {@code aws_dbe_table_name} (the table name),
-   * {@code aws_dbe_partition_name} (the partition key's attribute name) and
-   * {@code aws_dbe_sort_name} (the sort key's attribute name, present only if the table has a sort
-   * key).
-   *
-   * <p>This example reads only the partition key, which holds the tenant ID.
+   * <p>{@code request.attributes()} holds the item's partition key, its sort key if the table has
+   * one, and every attribute the schema lists as {@code signAndIncludeInEncryptionContext}. The
+   * request also carries the table name and the key attribute names; this example reads only the
+   * partition key, which holds the tenant ID.
    */
   @Override
-  public String getBranchKeyId(Map<String, AttributeValue> itemContext) {
-    final AttributeValue partitionKey = itemContext.get("partition_key");
+  public String getBranchKeyId(BranchKeyIdRequest request) {
+    AttributeValue partitionKey = request.attributes().get("partition_key");
     if (partitionKey == null) {
       throw new IllegalArgumentException(
         "Item invalid, does not contain expected partition key attribute."
       );
     }
-    final String tenantId = partitionKey.s();
-
-    final String branchKeyId;
-    if ("tenant1Id".equals(tenantId)) {
-      branchKeyId = branchKeyIdForTenant1;
-    } else if ("tenant2Id".equals(tenantId)) {
-      branchKeyId = branchKeyIdForTenant2;
-    } else {
+    String tenantId = partitionKey.s();
+    // A partition key that is not a string has no s() value. Switching on null would throw
+    // NullPointerException, so report it as an invalid tenant ID instead.
+    if (tenantId == null) {
       throw new IllegalArgumentException(
         "Item does not contain valid tenant ID"
       );
     }
-    return branchKeyId;
+    return switch (tenantId) {
+      case "tenant1Id" -> branchKeyIdForTenant1;
+      case "tenant2Id" -> branchKeyIdForTenant2;
+      default -> throw new IllegalArgumentException(
+        "Item does not contain valid tenant ID"
+      );
+    };
   }
 }

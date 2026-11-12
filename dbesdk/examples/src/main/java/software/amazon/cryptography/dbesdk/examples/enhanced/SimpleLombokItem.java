@@ -17,8 +17,8 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.Dyna
  */
 @Value
 @Builder
-@DynamoDbImmutable(builder = SimpleViaLombok.SimpleViaLombokBuilder.class)
-public class SimpleViaLombok {
+@DynamoDbImmutable(builder = SimpleLombokItem.SimpleLombokItemBuilder.class)
+public class SimpleLombokItem {
 
   @Getter(
     onMethod_ = {

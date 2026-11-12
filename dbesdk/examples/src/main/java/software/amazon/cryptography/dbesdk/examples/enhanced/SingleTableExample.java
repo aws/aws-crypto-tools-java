@@ -17,17 +17,17 @@ import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
-/*
- This example sets up DynamoDB Encryption for the DynamoDB Enhanced Client and uses the high level
- transactWriteItems() and transactGetItems() APIs to demonstrate writing three client-side encrypted
- items, each modelled by a different annotated class, into a single DynamoDB table in one
- transaction, and then retrieving and decrypting those items from DynamoDB in one transaction.
-
- Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
- table must be configured with the following primary key configuration:
-   - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (N)
-*/
+/**
+ * This example sets up DynamoDB Encryption for the DynamoDB Enhanced Client and uses the high level
+ * transactWriteItems() and transactGetItems() APIs to demonstrate writing three client-side encrypted
+ * items, each modeled by a different annotated class, into a single DynamoDB table in one
+ * transaction, and then retrieving and decrypting those items from DynamoDB in one transaction.
+ *
+ * <p>Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
+ * table must be configured with the following primary key configuration:
+ *   - Partition key is named "partition_key" with type (S)
+ *   - Sort key is named "sort_key" with type (N)
+ */
 public class SingleTableExample {
 
   public static void transactPutAndGetItems(String kmsKeyId, String tableName) {
@@ -35,26 +35,26 @@ public class SingleTableExample {
     //    protect your data. For this example, we will create a AWS KMS Keyring with the AWS KMS Key
     //    we want to use. We will use the AWS KMS MRK Multi Keyring, as it will correctly handle both
     //    single region and Multi-Region KMS Keys.
-    final Keyring kmsKeyring = AwsKmsMrkMultiKeyring
+    Keyring kmsKeyring = AwsKmsMrkMultiKeyring
       .builder()
       .generator(kmsKeyId)
       .build();
 
-    // 2. Create a Table Schema over your annotated class (See SimpleClass.java in this directory).
+    // 2. Create a Table Schema over your annotated class (See SimpleItem.java in this directory).
     //    By default, all primary key attributes will be signed but not encrypted (SIGN_ONLY)
     //    and all non-primary key attributes will be encrypted and signed (ENCRYPT_AND_SIGN).
     //    If you want a particular non-primary key attribute to be signed but not encrypted,
     //    use the `DynamoDbEncryptionSignOnly` annotation.
     //    If you want a particular attribute to be neither signed nor encrypted (DO_NOTHING),
     //    use the `DynamoDbEncryptionDoNothing` annotation.
-    final TableSchema<SimpleClass> tableSchema1 = TableSchema.fromBean(
-      SimpleClass.class
+    TableSchema<SimpleItem> tableSchema1 = TableSchema.fromBean(
+      SimpleItem.class
     );
-    final TableSchema<SimpleClass2> tableSchema2 = TableSchema.fromBean(
-      SimpleClass2.class
+    TableSchema<SimpleItem2> tableSchema2 = TableSchema.fromBean(
+      SimpleItem2.class
     );
-    final TableSchema<SimpleClass3> tableSchema3 = TableSchema.fromBean(
-      SimpleClass3.class
+    TableSchema<SimpleItem3> tableSchema3 = TableSchema.fromBean(
+      SimpleItem3.class
     );
 
     // 3. Decide which attributes are left out of the signature. In your item classes, an attribute
@@ -75,13 +75,13 @@ public class SingleTableExample {
     //    changing the class annotations.
 
     // Build the schema from the annotations and the prefix.
-    final ItemEncryptionSchema schema = EnhancedClientSchemas
+    ItemEncryptionSchema schema = EnhancedClientSchemas
       .fromTableSchemas(tableSchema1, tableSchema2, tableSchema3)
       .doNothingPrefix(":")
       .build();
 
     // 4. Create the DynamoDB Encryption configuration for the table we will be writing to
-    final DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -95,13 +95,13 @@ public class SingleTableExample {
       // This is also the default algorithm suite if one is not specified in this config.
       // For more information on supported algorithm suites, see:
       //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
-      .algorithmSuiteId(
+      .algorithmSuite(
         AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
       )
       .build();
 
     // 5. Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(tableConfig).build();
 
     // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -114,20 +114,20 @@ public class SingleTableExample {
         .build()
     ) {
       // 7. Create the DynamoDbEnhancedClient using the AWS SDK Client created above,
-      //    and create a Table with your modelled class
-      final DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
+      //    and create a Table with your modeled class
+      DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient
         .builder()
         .dynamoDbClient(dynamoDbClient)
         .build();
-      final DynamoDbTable<SimpleClass> table1 = enhancedClient.table(
+      DynamoDbTable<SimpleItem> table1 = enhancedClient.table(
         tableName,
         tableSchema1
       );
-      final DynamoDbTable<SimpleClass2> table2 = enhancedClient.table(
+      DynamoDbTable<SimpleItem2> table2 = enhancedClient.table(
         tableName,
         tableSchema2
       );
-      final DynamoDbTable<SimpleClass3> table3 = enhancedClient.table(
+      DynamoDbTable<SimpleItem3> table3 = enhancedClient.table(
         tableName,
         tableSchema3
       );
@@ -135,29 +135,35 @@ public class SingleTableExample {
       // 8. Put three items into your table in a single transaction using the
       //    DynamoDB Enhanced Client. The items will be encrypted client-side
       //    according to your configuration above before they are sent to DynamoDB.
-      final SimpleClass item1 = new SimpleClass();
-      item1.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample1"));
+      SimpleItem item1 = new SimpleItem();
+      item1.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample1")
+      );
       item1.setSortKey(0);
       item1.setAttribute1("item1 encrypt and sign me!");
       item1.setAttribute2("item1 sign me!");
       item1.setAttribute3("item1 ignore me!");
 
-      final SimpleClass2 item2 = new SimpleClass2();
-      item2.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample2"));
+      SimpleItem2 item2 = new SimpleItem2();
+      item2.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample2")
+      );
       item2.setSortKey(0);
       item2.setAttribute4("item2 encrypt and sign me!");
       item2.setAttribute5("item2 sign me!");
       item2.setAttribute3("item2 ignore me!");
 
-      final SimpleClass3 item3 = new SimpleClass3();
-      item3.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample3"));
+      SimpleItem3 item3 = new SimpleItem3();
+      item3.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample3")
+      );
       item3.setSortKey(0);
       item3.setAttribute6("item3 encrypt and sign me!");
       item3.setAttribute2("item3 sign me!");
       item3.setAttribute7("item3 sign and include me!");
 
       // Create enhanced request providing the table schema and the item types we want to write
-      final TransactWriteItemsEnhancedRequest request =
+      TransactWriteItemsEnhancedRequest request =
         TransactWriteItemsEnhancedRequest
           .builder()
           .addPutItem(table1, item1)
@@ -169,32 +175,36 @@ public class SingleTableExample {
       // 9. Get the three items back from the table in a single transaction using
       //    the DynamoDB Enhanced Client. The items will be decrypted client-side,
       //    and you will get back the original items.
-      final SimpleClass key1 = new SimpleClass();
-      key1.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample1"));
+      SimpleItem key1 = new SimpleItem();
+      key1.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample1")
+      );
       key1.setSortKey(0);
 
-      final SimpleClass2 key2 = new SimpleClass2();
-      key2.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample2"));
+      SimpleItem2 key2 = new SimpleItem2();
+      key2.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample2")
+      );
       key2.setSortKey(0);
 
-      final SimpleClass3 key3 = new SimpleClass3();
-      key3.setPartitionKey(ExampleUtils.uniquePartitionKey("SingleTableExample3"));
+      SimpleItem3 key3 = new SimpleItem3();
+      key3.setPartitionKey(
+        ExampleUtils.uniquePartitionKey("SingleTableExample3")
+      );
       key3.setSortKey(0);
 
-      final TransactGetItemsEnhancedRequest getRequest =
+      TransactGetItemsEnhancedRequest getRequest =
         TransactGetItemsEnhancedRequest
           .builder()
           .addGetItem(table1, key1)
           .addGetItem(table2, key2)
           .addGetItem(table3, key3)
           .build();
-      final List<Document> getResult = enhancedClient.transactGetItems(
-        getRequest
-      );
+      List<Document> getResult = enhancedClient.transactGetItems(getRequest);
 
-      final SimpleClass result1 = getResult.get(0).getItem(table1);
-      final SimpleClass2 result2 = getResult.get(1).getItem(table2);
-      final SimpleClass3 result3 = getResult.get(2).getItem(table3);
+      SimpleItem result1 = getResult.get(0).getItem(table1);
+      SimpleItem2 result2 = getResult.get(1).getItem(table2);
+      SimpleItem3 result3 = getResult.get(2).getItem(table3);
 
       // Demonstrate we get the original items back
       assert "item1 encrypt and sign me!".equals(result1.getAttribute1());
@@ -203,14 +213,14 @@ public class SingleTableExample {
     }
   }
 
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 2) {
       throw new IllegalArgumentException(
         "To run this example, include the kmsKeyId as args[0] and tableName as args[1]"
       );
     }
-    final String kmsKeyId = args[0];
-    final String tableName = args[1];
+    String kmsKeyId = args[0];
+    String tableName = args[1];
     transactPutAndGetItems(kmsKeyId, tableName);
   }
 }

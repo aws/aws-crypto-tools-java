@@ -1,14 +1,10 @@
 package software.amazon.cryptography.dbesdk.examples.keyring;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -22,7 +18,6 @@ import java.security.Security;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.HashMap;
 import java.util.Map;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.jce.interfaces.ECPublicKey;
@@ -45,17 +40,17 @@ import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
 
-/*
-  These examples set up DynamoDB Encryption for the AWS SDK client using the raw ECDH Keyring. This
-  keyring, depending on its KeyAgreement scheme, takes in the sender's ECC private key, and the
-  recipient's ECC Public Key to derive a shared secret. The keyring uses the shared secret to derive
-  a data key to protect the data keys that encrypt and decrypt DynamoDB table items.
-
-  Running these examples require access to the DynamoDB Table whose name is provided in CLI arguments.
-  This table must be configured with the following primary key configuration:
-    - Partition key is named "partition_key" with type (S)
-    - Sort key is named "sort_key" with type (N)
-*/
+/**
+ * These examples set up DynamoDB Encryption for the AWS SDK client using the raw ECDH Keyring. This
+ * keyring, depending on its KeyAgreement scheme, takes in the sender's ECC private key, and the
+ * recipient's ECC Public Key to derive a shared secret. The keyring uses the shared secret to derive
+ * a data key to protect the data keys that encrypt and decrypt DynamoDB table items.
+ *
+ * <p>Running these examples require access to the DynamoDB Table whose name is provided in CLI arguments.
+ * This table must be configured with the following primary key configuration:
+ *   - Partition key is named "partition_key" with type (S)
+ *   - Sort key is named "sort_key" with type (N)
+ */
 public class RawEcdhKeyringExample {
 
   public static final String EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER =
@@ -65,30 +60,27 @@ public class RawEcdhKeyringExample {
   public static final String EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT =
     "RawEcdhKeyringExamplePublicKeyRecipient.pem";
 
-  /*
-    This example takes in the sender's private key as a UTF8 PEM-encoded (PKCS #8 PrivateKeyInfo
-    structures) located at the file location defined in EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER, the
-    recipient's public key as a UTF8 PEM-encoded X.509 public key, also known as
-    SubjectPublicKeyInfo (SPKI), located at the file location defined in
-    EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT, and the Curve Specification where the keys lie.
-
-    This example encrypts a test item using the provided ECC keys and puts the encrypted item to the
-    provided DynamoDB table. Then, it gets the item from the table and decrypts it.
-
-    This examples creates a RawECDH keyring with the RawPrivateKeyToStaticPublicKey key agreement
-    scheme. For more information on this configuration see:
-    https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-RawPrivateKeyToStaticPublicKey
-
-    On encrypt, the shared secret is derived from the sender's private key and the recipient's
-    public key. On decrypt, the shared secret is derived from the sender's private key and the
-    recipient's public key; however, on decrypt the recipient can construct a keyring such that the
-    shared secret is calculated with the recipient's private key and the sender's public key. In
-    both scenarios the shared secret will be the same.
-  */
-  public static void putAndGetItem(
-    String tableName,
-    EcdhCurveSpec curveSpec
-  ) {
+  /**
+   * This example takes in the sender's private key as a UTF8 PEM-encoded (PKCS #8 PrivateKeyInfo
+   * structures) located at the file location defined in EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER, the
+   * recipient's public key as a UTF8 PEM-encoded X.509 public key, also known as
+   * SubjectPublicKeyInfo (SPKI), located at the file location defined in
+   * EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT, and the Curve Specification where the keys lie.
+   *
+   * <p>This example encrypts a test item using the provided ECC keys and puts the encrypted item to the
+   * provided DynamoDB table. Then, it gets the item from the table and decrypts it.
+   *
+   * <p>This example creates a RawECDH keyring with the RawPrivateKeyToStaticPublicKey key agreement
+   * scheme. For more information on this configuration see:
+   * https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-RawPrivateKeyToStaticPublicKey
+   *
+   * <p>On encrypt, the shared secret is derived from the sender's private key and the recipient's
+   * public key. On decrypt, the shared secret is derived from the sender's private key and the
+   * recipient's public key; however, on decrypt the recipient can construct a keyring such that the
+   * shared secret is calculated with the recipient's private key and the sender's public key. In
+   * both scenarios the shared secret will be the same.
+   */
+  public static void putAndGetItem(String tableName, EcdhCurveSpec curveSpec) {
     // Load key pair from UTF-8 encoded PEM files.
     // You may provide your own PEM files to use here. If you provide this, it MUST
     // be a key on curve P256.
@@ -97,7 +89,7 @@ public class RawEcdhKeyringExample {
     byte[] senderPrivateKeyPem;
     try {
       senderPrivateKeyPem =
-        Files.readAllBytes(Paths.get(EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER));
+        Files.readAllBytes(Path.of(EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER));
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while reading the private key from file",
@@ -107,14 +99,11 @@ public class RawEcdhKeyringExample {
 
     byte[] recipientPublicKeyDer;
     try {
-      byte[] publicKeyUtf8EncodedBytes = Files.readAllBytes(
-        Paths.get(EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT)
-      );
       PemObject pemObject;
       try (
         PemReader pemReader = new PemReader(
-          new InputStreamReader(
-            new ByteArrayInputStream(publicKeyUtf8EncodedBytes)
+          Files.newBufferedReader(
+            Path.of(EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT)
           )
         )
       ) {
@@ -127,16 +116,16 @@ public class RawEcdhKeyringExample {
         );
       }
       byte[] content = pemObject.getContent();
-      final SubjectPublicKeyInfo subjectPublicKeyInfo =
+      SubjectPublicKeyInfo subjectPublicKeyInfo =
         SubjectPublicKeyInfo.getInstance(content);
-      final X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
+      X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
         subjectPublicKeyInfo.getEncoded()
       );
       if (Security.getProvider("BC") == null) {
         Security.addProvider(new BouncyCastleProvider());
       }
-      final KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-      final PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
+      KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+      PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
       recipientPublicKeyDer = publicKey.getEncoded();
     } catch (IOException exception) {
       throw new UncheckedIOException(
@@ -162,7 +151,7 @@ public class RawEcdhKeyringExample {
     // the shared secret is calculated with the recipient's private key and the sender's public key.
     // In both scenarios the shared secret will be the same. The DynamoDB encryption client uses
     // this to encrypt and decrypt items.
-    final Keyring rawEcdhKeyring = RawEcdhKeyring
+    Keyring rawEcdhKeyring = RawEcdhKeyring
       .builder()
       .curveSpec(curveSpec)
       .keyAgreementScheme(
@@ -176,17 +165,17 @@ public class RawEcdhKeyringExample {
     putAndGetItemWithKeyring(rawEcdhKeyring, tableName);
   }
 
-  /*
-    This example takes in the recipient's public key located at
-    EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT as a UTF8 PEM-encoded X.509 public key, and the Curve
-    Specification where the key lies.
-
-    This examples creates a RawECDH keyring with the EphemeralPrivateKeyToStaticPublicKey key
-    agreement scheme. This configuration will always create a new key pair as the sender key pair
-    for the key agreement operation. The ephemeral configuration can only encrypt data and CANNOT
-    decrypt messages. For more information on this configuration see:
-    https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-EphemeralPrivateKeyToStaticPublicKey
-  */
+  /**
+   * This example takes in the recipient's public key located at
+   * EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT as a UTF8 PEM-encoded X.509 public key, and the Curve
+   * Specification where the key lies.
+   *
+   * <p>This example creates a RawECDH keyring with the EphemeralPrivateKeyToStaticPublicKey key
+   * agreement scheme. This configuration will always create a new key pair as the sender key pair
+   * for the key agreement operation. The ephemeral configuration can only encrypt data and CANNOT
+   * decrypt messages. For more information on this configuration see:
+   * https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-EphemeralPrivateKeyToStaticPublicKey
+   */
   public static void putItemWithEphemeralKeyring(
     String tableName,
     EcdhCurveSpec ecdhCurveSpec
@@ -198,14 +187,11 @@ public class RawEcdhKeyringExample {
     // files for example use. Do not use these files for any other purpose.
     byte[] recipientPublicKeyDer;
     try {
-      byte[] publicKeyUtf8EncodedBytes = Files.readAllBytes(
-        Paths.get(EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT)
-      );
       PemObject pemObject;
       try (
         PemReader pemReader = new PemReader(
-          new InputStreamReader(
-            new ByteArrayInputStream(publicKeyUtf8EncodedBytes)
+          Files.newBufferedReader(
+            Path.of(EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT)
           )
         )
       ) {
@@ -218,16 +204,16 @@ public class RawEcdhKeyringExample {
         );
       }
       byte[] content = pemObject.getContent();
-      final SubjectPublicKeyInfo subjectPublicKeyInfo =
+      SubjectPublicKeyInfo subjectPublicKeyInfo =
         SubjectPublicKeyInfo.getInstance(content);
-      final X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
+      X509EncodedKeySpec x509KeySpec = new X509EncodedKeySpec(
         subjectPublicKeyInfo.getEncoded()
       );
       if (Security.getProvider("BC") == null) {
         Security.addProvider(new BouncyCastleProvider());
       }
-      final KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-      final PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
+      KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+      PublicKey publicKey = keyFactory.generatePublic(x509KeySpec);
       recipientPublicKeyDer = publicKey.getEncoded();
     } catch (IOException exception) {
       throw new UncheckedIOException(
@@ -250,7 +236,7 @@ public class RawEcdhKeyringExample {
     // key pair as the sender key pair for the key agreement operation. The ephemeral configuration can only
     // encrypt data and CANNOT decrypt messages.
     // The DynamoDB encryption client uses this to encrypt items.
-    final Keyring rawEcdhKeyring = RawEcdhKeyring
+    Keyring rawEcdhKeyring = RawEcdhKeyring
       .builder()
       .curveSpec(ecdhCurveSpec)
       .keyAgreementScheme(
@@ -266,15 +252,15 @@ public class RawEcdhKeyringExample {
     putItemWithKeyring(rawEcdhKeyring, tableName);
   }
 
-  /*
-    This example takes in the recipient's private key located at
-    EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT as a UTF8 PEM-encoded (PKCS #8 PrivateKeyInfo
-    structures) private key, and the Curve Specification where the key lies.
-
-    This examples creates a RawECDH keyring with the PublicKeyDiscovery key agreement scheme. This
-    scheme is only available on decrypt. For more information on this configuration see:
-    https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-PublicKeyDiscovery
-  */
+  /**
+   * This example takes in the recipient's private key located at
+   * EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT as a UTF8 PEM-encoded (PKCS #8 PrivateKeyInfo
+   * structures) private key, and the Curve Specification where the key lies.
+   *
+   * <p>This example creates a RawECDH keyring with the PublicKeyDiscovery key agreement scheme. This
+   * scheme is only available on decrypt. For more information on this configuration see:
+   * https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-raw-ecdh-keyring.html#raw-ecdh-PublicKeyDiscovery
+   */
   public static void getItemWithDiscoveryKeyring(
     String tableName,
     EcdhCurveSpec ecdhCurveSpec
@@ -287,9 +273,7 @@ public class RawEcdhKeyringExample {
     byte[] recipientPrivateKeyPem;
     try {
       recipientPrivateKeyPem =
-        Files.readAllBytes(
-          Paths.get(EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT)
-        );
+        Files.readAllBytes(Path.of(EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT));
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while reading the private key from file",
@@ -297,12 +281,11 @@ public class RawEcdhKeyringExample {
       );
     }
 
-    // Create the keyring.
-    // This keyring uses a discovery configuration. This configuration will check on decrypt
-    // if it is meant to decrypt the message by checking if the configured public key is stored on the message.
-    // The discovery configuration can only decrypt messages and CANNOT encrypt messages.
-    // The DynamoDB encryption client uses this to decrypt items.
-    final Keyring rawEcdhKeyring = RawEcdhKeyring
+    // Create the keyring. This keyring uses a discovery configuration. This configuration will
+    // check on decrypt if it is meant to decrypt the message by checking if the configured public
+    // key is stored on the message. The discovery configuration can only decrypt messages and
+    // CANNOT encrypt messages. The DynamoDB encryption client uses this to decrypt items.
+    Keyring rawEcdhKeyring = RawEcdhKeyring
       .builder()
       .curveSpec(ecdhCurveSpec)
       .keyAgreementScheme(
@@ -317,33 +300,15 @@ public class RawEcdhKeyringExample {
     getItemWithKeyring(rawEcdhKeyring, tableName);
   }
 
-  public static void putAndGetItemWithKeyring(
+  private static void putAndGetItemWithKeyring(
     Keyring rawEcdhKeyring,
     String tableName
   ) {
-    // Decide how each attribute of your items is protected. Give each attribute one of these
-    // actions:
-    // - encryptAndSign: the value is encrypted, so it cannot be read without the keys your keyring
-    //   uses, and it is covered by the item's signature, so any change to it is detected when the
-    //   item is read.
-    // - signOnly: the value is stored as plain, readable text, but it is covered by the signature,
-    //   so any change to it is detected.
-    // - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //   keyring each time the item is encrypted or decrypted, for example so that a branch key ID
-    //   supplier can pick a different key for each tenant. Using this action also requires
-    //   signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    // - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //   change to it is NOT detected.
+    // Decide how each attribute of your items is protected. BasicPutGetExample
+    // explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    // doNothing), and why the partition and sort keys get none.
     // Every attribute you write must either have an action or start with the prefix set below;
     // writing an item with any other attribute fails.
-    //
-    // Do not give the partition key or the sort key (together, the table's primary key) an action.
-    // DynamoDB needs to read them to find the item, so they can never be encrypted, and the library
-    // always signs them for you. By default they are signed like signOnly, and their values are
-    // still handed to your keyring, in an encoded form. If you call
-    // signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    // signAndIncludeInEncryptionContext instead: their values are handed to your keyring as plain
-    // text, and you can give other attributes the signAndIncludeInEncryptionContext action.
 
     // Decide which attributes are left out of the signature. Two separate settings do this. They do
     // different jobs, and you can use either one, both, or neither:
@@ -363,7 +328,7 @@ public class RawEcdhKeyringExample {
     // writes do not have any yet.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
@@ -372,7 +337,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption configuration for the table we will be writing to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -381,7 +346,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -396,21 +361,18 @@ public class RawEcdhKeyringExample {
       // Put an item into our table using the above client.
       // Before the item gets sent to DynamoDB, it will be encrypted
       // client-side, according to our configuration.
-      final Map<String, AttributeValue> item = new HashMap<>();
-      item.put(
+      Map<String, AttributeValue> item = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem"))
-          .build()
-      );
-      item.put("sort_key", AttributeValue.builder().n("0").build());
-      item.put(
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0"),
         "sensitive_data",
-        AttributeValue.builder().s("encrypt and sign me!").build()
+        AttributeValue.fromS("encrypt and sign me!")
       );
 
-      final PutItemRequest putRequest = PutItemRequest
+      PutItemRequest putRequest = PutItemRequest
         .builder()
         .tableName(tableName)
         .item(item)
@@ -421,57 +383,41 @@ public class RawEcdhKeyringExample {
       // Get the item back from our table using the same client.
       // The client will decrypt the item client-side, and return
       // back the original item.
-      final Map<String, AttributeValue> keyToGet = new HashMap<>();
-      keyToGet.put(
+      Map<String, AttributeValue> keyToGet = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem"))
-          .build()
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0")
       );
-      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
 
-      final GetItemRequest getRequest = GetItemRequest
+      GetItemRequest getRequest = GetItemRequest
         .builder()
         .key(keyToGet)
         .tableName(tableName)
         .build();
 
-      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
+      GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
       // Demonstrate that GetItem succeeded and returned the decrypted item
-      final Map<String, AttributeValue> returnedItem = getResponse.item();
-      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
+      Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem
+        .get("sensitive_data")
+        .s()
+        .equals("encrypt and sign me!");
     }
   }
 
-  public static void putItemWithKeyring(
+  private static void putItemWithKeyring(
     Keyring rawEcdhKeyring,
     String tableName
   ) {
-    // Decide how each attribute of your items is protected. Give each attribute one of these
-    // actions:
-    // - encryptAndSign: the value is encrypted, so it cannot be read without the keys your keyring
-    //   uses, and it is covered by the item's signature, so any change to it is detected when the
-    //   item is read.
-    // - signOnly: the value is stored as plain, readable text, but it is covered by the signature,
-    //   so any change to it is detected.
-    // - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //   keyring each time the item is encrypted or decrypted, for example so that a branch key ID
-    //   supplier can pick a different key for each tenant. Using this action also requires
-    //   signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    // - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //   change to it is NOT detected.
+    // Decide how each attribute of your items is protected. BasicPutGetExample
+    // explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    // doNothing), and why the partition and sort keys get none.
     // Every attribute you write must either have an action or start with the prefix set below;
     // writing an item with any other attribute fails.
-    //
-    // Do not give the partition key or the sort key (together, the table's primary key) an action.
-    // DynamoDB needs to read them to find the item, so they can never be encrypted, and the library
-    // always signs them for you. By default they are signed like signOnly, and their values are
-    // still handed to your keyring, in an encoded form. If you call
-    // signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    // signAndIncludeInEncryptionContext instead: their values are handed to your keyring as plain
-    // text, and you can give other attributes the signAndIncludeInEncryptionContext action.
 
     // Decide which attributes are left out of the signature. Two separate settings do this. They do
     // different jobs, and you can use either one, both, or neither:
@@ -491,7 +437,7 @@ public class RawEcdhKeyringExample {
     // writes do not have any yet.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
@@ -500,7 +446,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption configuration for the table we will be writing to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -509,7 +455,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -524,21 +470,18 @@ public class RawEcdhKeyringExample {
       // Put an item into our table using the above client.
       // Before the item gets sent to DynamoDB, it will be encrypted
       // client-side, according to our configuration.
-      final Map<String, AttributeValue> item = new HashMap<>();
-      item.put(
+      Map<String, AttributeValue> item = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem"))
-          .build()
-      );
-      item.put("sort_key", AttributeValue.builder().n("0").build());
-      item.put(
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0"),
         "sensitive_data",
-        AttributeValue.builder().s("encrypt and sign me!").build()
+        AttributeValue.fromS("encrypt and sign me!")
       );
 
-      final PutItemRequest putRequest = PutItemRequest
+      PutItemRequest putRequest = PutItemRequest
         .builder()
         .tableName(tableName)
         .item(item)
@@ -548,33 +491,15 @@ public class RawEcdhKeyringExample {
     }
   }
 
-  public static void getItemWithKeyring(
+  private static void getItemWithKeyring(
     Keyring rawEcdhKeyring,
     String tableName
   ) {
-    // Decide how each attribute of your items is protected. Give each attribute one of these
-    // actions:
-    // - encryptAndSign: the value is encrypted, so it cannot be read without the keys your keyring
-    //   uses, and it is covered by the item's signature, so any change to it is detected when the
-    //   item is read.
-    // - signOnly: the value is stored as plain, readable text, but it is covered by the signature,
-    //   so any change to it is detected.
-    // - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //   keyring each time the item is encrypted or decrypted, for example so that a branch key ID
-    //   supplier can pick a different key for each tenant. Using this action also requires
-    //   signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    // - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //   change to it is NOT detected.
+    // Decide how each attribute of your items is protected. BasicPutGetExample
+    // explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    // doNothing), and why the partition and sort keys get none.
     // Every attribute you write must either have an action or start with the prefix set below;
     // writing an item with any other attribute fails.
-    //
-    // Do not give the partition key or the sort key (together, the table's primary key) an action.
-    // DynamoDB needs to read them to find the item, so they can never be encrypted, and the library
-    // always signs them for you. By default they are signed like signOnly, and their values are
-    // still handed to your keyring, in an encoded form. If you call
-    // signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    // signAndIncludeInEncryptionContext instead: their values are handed to your keyring as plain
-    // text, and you can give other attributes the signAndIncludeInEncryptionContext action.
 
     // Decide which attributes are left out of the signature. Two separate settings do this. They do
     // different jobs, and you can use either one, both, or neither:
@@ -594,7 +519,7 @@ public class RawEcdhKeyringExample {
     // writes do not have any yet.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
@@ -603,7 +528,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption configuration for the table we will be writing to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -612,7 +537,7 @@ public class RawEcdhKeyringExample {
       .build();
 
     // Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -627,27 +552,29 @@ public class RawEcdhKeyringExample {
       // Get the item back from our table using the same client.
       // The client will decrypt the item client-side, and return
       // back the original item.
-      final Map<String, AttributeValue> keyToGet = new HashMap<>();
-      keyToGet.put(
+      Map<String, AttributeValue> keyToGet = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem"))
-          .build()
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("rawEcdhKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0")
       );
-      keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
 
-      final GetItemRequest getRequest = GetItemRequest
+      GetItemRequest getRequest = GetItemRequest
         .builder()
         .key(keyToGet)
         .tableName(tableName)
         .build();
 
-      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
+      GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
       // Demonstrate that GetItem succeeded and returned the decrypted item
-      final Map<String, AttributeValue> returnedItem = getResponse.item();
-      assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
+      Map<String, AttributeValue> returnedItem = getResponse.item();
+      assert returnedItem
+        .get("sensitive_data")
+        .s()
+        .equals("encrypt and sign me!");
     }
   }
 
@@ -657,13 +584,13 @@ public class RawEcdhKeyringExample {
   // - EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT
   // - EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT
   // Supply your own P256 key pairs in those files, or let this method generate them for you.
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 1) {
       throw new IllegalArgumentException(
         "To run this example, include the table name in args"
       );
     }
-    final String tableName = args[0];
+    String tableName = args[0];
 
     if (shouldGenerateNewEccKeyPairs()) {
       generateEccKeyPairs();
@@ -671,7 +598,7 @@ public class RawEcdhKeyringExample {
 
     // Every keyring below must be told which curve its keys lie on, and will fail if the keys lie
     // on a different one. The generated key pairs are on P256.
-    final EcdhCurveSpec curveSpec = EcdhCurveSpec.ECC_NIST_P256;
+    EcdhCurveSpec curveSpec = EcdhCurveSpec.ECC_NIST_P256;
 
     // Static sender private key plus static recipient public key: this configuration can both
     // encrypt and decrypt, so it writes an item and reads it back.
@@ -688,40 +615,40 @@ public class RawEcdhKeyringExample {
     getItemWithDiscoveryKeyring(tableName, curveSpec);
   }
 
-  public static boolean shouldGenerateNewEccKeyPairs() {
-    final File privateKeyFileSender = new File(
+  private static boolean shouldGenerateNewEccKeyPairs() {
+    Path privateKeyFileSender = Path.of(
       EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER
     );
-    final File privateKeyFileRecipient = new File(
+    Path privateKeyFileRecipient = Path.of(
       EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT
     );
-    final File publicKeyFileRecipient = new File(
+    Path publicKeyFileRecipient = Path.of(
       EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT
     );
 
     // If keys already exist: do not overwrite existing keys
     return (
-      !privateKeyFileSender.exists() &&
-      !publicKeyFileRecipient.exists() &&
-      !privateKeyFileRecipient.exists()
+      !Files.exists(privateKeyFileSender) &&
+      !Files.exists(publicKeyFileRecipient) &&
+      !Files.exists(privateKeyFileRecipient)
     );
   }
 
-  public static void generateEccKeyPairs() {
-    final File privateKeyFileSender = new File(
+  private static void generateEccKeyPairs() {
+    Path privateKeyFileSender = Path.of(
       EXAMPLE_ECC_PRIVATE_KEY_FILENAME_SENDER
     );
-    final File privateKeyFileRecipient = new File(
+    Path privateKeyFileRecipient = Path.of(
       EXAMPLE_ECC_PRIVATE_KEY_FILENAME_RECIPIENT
     );
-    final File publicKeyFileRecipient = new File(
+    Path publicKeyFileRecipient = Path.of(
       EXAMPLE_ECC_PUBLIC_KEY_FILENAME_RECIPIENT
     );
 
     if (
-      privateKeyFileSender.exists() ||
-      publicKeyFileRecipient.exists() ||
-      privateKeyFileRecipient.exists()
+      Files.exists(privateKeyFileSender) ||
+      Files.exists(publicKeyFileRecipient) ||
+      Files.exists(privateKeyFileRecipient)
     ) {
       throw new IllegalStateException(
         "generateEccKeyPairs will not overwrite existing PEM files"
@@ -760,8 +687,8 @@ public class RawEcdhKeyringExample {
       );
     }
 
-    final KeyPair senderKeyPair = keyPairGenerator.generateKeyPair();
-    final KeyPair recipientKeyPair = keyPairGenerator.generateKeyPair();
+    KeyPair senderKeyPair = keyPairGenerator.generateKeyPair();
+    KeyPair recipientKeyPair = keyPairGenerator.generateKeyPair();
 
     writePrivateKey(
       senderKeyPair.getPrivate(),
@@ -778,19 +705,16 @@ public class RawEcdhKeyringExample {
   }
 
   private static void writePrivateKey(
-    PrivateKey aPrivate,
-    String exampleEccPrivateKeyFilenameSender
+    PrivateKey privateKey,
+    String privateKeyFilename
   ) {
-    final StringWriter privateKeySenderStringWriter = new StringWriter();
-    final PemWriter privateKeyPemWriter = new PemWriter(
-      privateKeySenderStringWriter
-    );
-
-    try {
+    StringWriter privateKeyStringWriter = new StringWriter();
+    try (
+      PemWriter privateKeyPemWriter = new PemWriter(privateKeyStringWriter)
+    ) {
       privateKeyPemWriter.writeObject(
-        new PemObject("PRIVATE KEY", aPrivate.getEncoded())
+        new PemObject("PRIVATE KEY", privateKey.getEncoded())
       );
-      privateKeyPemWriter.close();
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while writing private key PEM",
@@ -800,9 +724,9 @@ public class RawEcdhKeyringExample {
 
     // Write UTF8 encoded PEM file
     try {
-      Files.write(
-        Paths.get(exampleEccPrivateKeyFilenameSender),
-        privateKeySenderStringWriter.toString().getBytes(StandardCharsets.UTF_8)
+      Files.writeString(
+        Path.of(privateKeyFilename),
+        privateKeyStringWriter.toString()
       );
     } catch (IOException exception) {
       throw new UncheckedIOException(
@@ -812,20 +736,19 @@ public class RawEcdhKeyringExample {
     }
   }
 
-  private static void writePublicKey(ECPublicKey aPublic, String fileName) {
-    final StringWriter publicKeyStringWriter = new StringWriter();
-    final PemWriter publicKeySenderPemWriter = new PemWriter(
-      publicKeyStringWriter
-    );
-    final X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(
-      aPublic.getEncoded()
+  private static void writePublicKey(
+    ECPublicKey publicKey,
+    String publicKeyFilename
+  ) {
+    StringWriter publicKeyStringWriter = new StringWriter();
+    X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(
+      publicKey.getEncoded()
     );
 
-    try {
-      publicKeySenderPemWriter.writeObject(
+    try (PemWriter publicKeyPemWriter = new PemWriter(publicKeyStringWriter)) {
+      publicKeyPemWriter.writeObject(
         new PemObject("PUBLIC KEY", publicKeySpec.getEncoded())
       );
-      publicKeySenderPemWriter.close();
     } catch (IOException exception) {
       throw new UncheckedIOException(
         "IOException while writing public key PEM",
@@ -834,9 +757,9 @@ public class RawEcdhKeyringExample {
     }
 
     try {
-      Files.write(
-        Paths.get(fileName),
-        publicKeyStringWriter.toString().getBytes(StandardCharsets.UTF_8)
+      Files.writeString(
+        Path.of(publicKeyFilename),
+        publicKeyStringWriter.toString()
       );
     } catch (IOException exception) {
       throw new UncheckedIOException(

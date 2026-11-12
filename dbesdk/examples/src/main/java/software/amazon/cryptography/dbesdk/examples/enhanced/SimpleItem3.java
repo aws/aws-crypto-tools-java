@@ -7,15 +7,19 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionDoNothing;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.DynamoDbEncryptionSignOnly;
 
-/** This class is used by the Enhanced Client examples */
+/**
+ * A third item type stored in the same table as {@link SimpleItem} by SingleTableExample. It has
+ * different attributes: attribute6 is encrypted and signed, attribute2 is signed only, and
+ * ":attribute7" is neither signed nor encrypted.
+ */
 @DynamoDbBean
-public class SimpleClass2 {
+public class SimpleItem3 {
 
   private String partitionKey;
   private int sortKey;
-  private String attribute4;
-  private String attribute5;
-  private String attribute3;
+  private String attribute6;
+  private String attribute2;
+  private String attribute7;
 
   @DynamoDbPartitionKey
   @DynamoDbAttribute(value = "partition_key")
@@ -37,30 +41,30 @@ public class SimpleClass2 {
     this.sortKey = sortKey;
   }
 
-  public String getAttribute4() {
-    return this.attribute4;
+  public String getAttribute6() {
+    return this.attribute6;
   }
 
-  public void setAttribute4(String attribute4) {
-    this.attribute4 = attribute4;
+  public void setAttribute6(String attribute6) {
+    this.attribute6 = attribute6;
   }
 
   @DynamoDbEncryptionSignOnly
-  public String getAttribute5() {
-    return this.attribute5;
+  public String getAttribute2() {
+    return this.attribute2;
   }
 
-  public void setAttribute5(String attribute5) {
-    this.attribute5 = attribute5;
+  public void setAttribute2(String attribute2) {
+    this.attribute2 = attribute2;
   }
 
   @DynamoDbEncryptionDoNothing
-  public String getAttribute3() {
-    return this.attribute3;
+  public String getAttribute7() {
+    return this.attribute7;
   }
 
-  @DynamoDbAttribute(value = ":attribute3")
-  public void setAttribute3(String attribute3) {
-    this.attribute3 = attribute3;
+  @DynamoDbAttribute(value = ":attribute7")
+  public void setAttribute7(String attribute7) {
+    this.attribute7 = attribute7;
   }
 }

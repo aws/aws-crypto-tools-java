@@ -1,8 +1,5 @@
 package software.amazon.cryptography.dbesdk.examples.keyring;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -19,24 +16,24 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscover
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.DiscoveryFilter;
 
-/*
- This example sets up a MRK discovery multi-keyring to decrypt data using the DynamoDB encryption
- client. A discovery keyring is not provided with any wrapping keys; instead, it recognizes the KMS
- key that was used to encrypt a data key, and asks KMS to decrypt with that KMS key. Discovery
- keyrings cannot be used to encrypt data.
-
- For more information on discovery keyrings, see
- https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-kms-keyring.html#kms-keyring-discovery
-
- This example encrypts an item using an MRK multi-keyring and puts the encrypted item to the
- configured DynamoDB table. Then, it gets the item from the table and decrypts it using the
- discovery keyring.
-
- Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
- table must be configured with the following primary key configuration:
-   - Partition key is named "partition_key" with type (S)
-   - Sort key is named "sort_key" with type (N)
-*/
+/**
+ * This example sets up a MRK discovery multi-keyring to decrypt data using the DynamoDB encryption
+ * client. A discovery keyring is not provided with any wrapping keys; instead, it recognizes the KMS
+ * key that was used to encrypt a data key, and asks KMS to decrypt with that KMS key. Discovery
+ * keyrings cannot be used to encrypt data.
+ *
+ * <p>For more information on discovery keyrings, see
+ * https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-kms-keyring.html#kms-keyring-discovery
+ *
+ * <p>This example encrypts an item using an MRK multi-keyring and puts the encrypted item to the
+ * configured DynamoDB table. Then, it gets the item from the table and decrypts it using the
+ * discovery keyring.
+ *
+ * <p>Running this example requires access to the DynamoDB Table whose name is provided in CLI arguments. This
+ * table must be configured with the following primary key configuration:
+ *   - Partition key is named "partition_key" with type (S)
+ *   - Sort key is named "sort_key" with type (N)
+ */
 public class MultiRegionKeyDiscoveryMultiKeyringExample {
 
   public static void putAndGetItem(
@@ -53,35 +50,16 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
     //    Though this is an "MRK multi-keyring", we do not need to provide multiple keys,
     //    and can use single-region KMS keys. We will provide a single key here; this
     //    can be either an MRK or a single-region key.
-    final Keyring encryptKeyring = AwsKmsMrkMultiKeyring
+    Keyring encryptKeyring = AwsKmsMrkMultiKeyring
       .builder()
       .generator(keyArn)
       .build();
 
-    // 2. Decide how each attribute of your items is protected. Give each attribute one of these
-    //    actions:
-    //    - encryptAndSign: the value is encrypted, so it cannot be read without the keys your
-    //      keyring uses, and it is covered by the item's signature, so any change to it is detected
-    //      when the item is read.
-    //    - signOnly: the value is stored as plain, readable text, but it is covered by the
-    //      signature, so any change to it is detected.
-    //    - signAndIncludeInEncryptionContext: like signOnly, and the value is also handed to your
-    //      keyring each time the item is encrypted or decrypted, for example so that a branch key
-    //      ID supplier can pick a different key for each tenant. Using this action also requires
-    //      signAndIncludePrimaryKeysInEncryptionContext(true) (see below).
-    //    - doNothing: the value is stored as plain text and is not covered by the signature, so a
-    //      change to it is NOT detected.
+    // 2. Decide how each attribute of your items is protected. BasicPutGetExample
+    //    explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
+    //    doNothing), and why the partition and sort keys get none.
     //    Every attribute you write must either have an action or start with the prefix set in the
     //    next step; writing an item with any other attribute fails.
-    //
-    //    Do not give the partition key or the sort key (together, the table's primary key) an
-    //    action. DynamoDB needs to read them to find the item, so they can never be encrypted, and
-    //    the library always signs them for you. By default they are signed like signOnly, and their
-    //    values are still handed to your keyring, in an encoded form. If you call
-    //    signAndIncludePrimaryKeysInEncryptionContext(true), they are signed like
-    //    signAndIncludeInEncryptionContext instead: their values are handed to your keyring as
-    //    plain text, and you can give other attributes the signAndIncludeInEncryptionContext
-    //    action.
 
     // 3. Decide which attributes are left out of the signature. Two separate settings do this. They
     //    do different jobs, and you can use either one, both, or neither:
@@ -101,7 +79,7 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
     //    it writes do not have any yet.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName("partition_key")
       .sortKeyName("sort_key")
@@ -110,7 +88,7 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
       .build();
 
     // 4. Create the DynamoDB Encryption configuration for the table we will be writing to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -119,7 +97,7 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
       .build();
 
     // 5. Create the DynamoDB Encryption Interceptor
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor above
@@ -134,20 +112,17 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
       // 7. Put an item into our table using the above client.
       //    Before the item gets sent to DynamoDB, it will be encrypted
       //    client-side using the MRK multi-keyring.
-      final Map<String, AttributeValue> item = new HashMap<>();
-      item.put(
+      Map<String, AttributeValue> item = Map.of(
         "partition_key",
-        AttributeValue
-          .builder()
-          .s(ExampleUtils.uniquePartitionKey("awsKmsMrkDiscoveryMultiKeyringItem"))
-          .build()
-      );
-      item.put("sort_key", AttributeValue.builder().n("0").build());
-      item.put(
+        AttributeValue.fromS(
+          ExampleUtils.uniquePartitionKey("awsKmsMrkDiscoveryMultiKeyringItem")
+        ),
+        "sort_key",
+        AttributeValue.fromN("0"),
         "sensitive_data",
-        AttributeValue.builder().s("encrypt and sign me!").build()
+        AttributeValue.fromS("encrypt and sign me!")
       );
-      final PutItemRequest putRequest = PutItemRequest
+      PutItemRequest putRequest = PutItemRequest
         .builder()
         .tableName(tableName)
         .item(item)
@@ -162,15 +137,12 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
       //    and in the `aws` partition.
       //    This is the suggested config for most users; for more detailed config, see
       //      https://docs.aws.amazon.com/encryption-sdk/latest/developer-guide/use-kms-keyring.html#kms-keyring-discovery
-      final DiscoveryFilter discoveryFilter = DiscoveryFilter.of(
-        accountIds,
-        "aws"
-      );
+      DiscoveryFilter discoveryFilter = DiscoveryFilter.of(accountIds, "aws");
 
       // 9. Construct a discovery keyring.
       //    Note that we choose to use the MRK discovery multi-keyring, even though
       //    our original keyring used a single KMS key.
-      final Keyring decryptKeyring = AwsKmsMrkDiscoveryMultiKeyring
+      Keyring decryptKeyring = AwsKmsMrkDiscoveryMultiKeyring
         .builder()
         .discoveryFilter(discoveryFilter)
         .regions(regions)
@@ -178,7 +150,7 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
 
       // 10. Create new DynamoDB config and client using the decrypt discovery keyring.
       //     This is the same as the above config, except we pass in the decrypt keyring.
-      final DynamoDbTableEncryptionConfig configForDecrypt =
+      DynamoDbTableEncryptionConfig configForDecrypt =
         DynamoDbTableEncryptionConfig
           .builder()
           .tableName(tableName)
@@ -188,7 +160,7 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
           .keyring(decryptKeyring)
           .build();
 
-      final DynamoDbEncryptionInterceptor encryptionInterceptorForDecrypt =
+      DynamoDbEncryptionInterceptor encryptionInterceptorForDecrypt =
         DynamoDbEncryptionInterceptor
           .builder()
           .tableConfigs(configForDecrypt)
@@ -209,38 +181,44 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
         //     If the client has permission to decrypt with the KMS key,
         //     the client will decrypt the item client-side using the keyring
         //     and return the original item.
-        final Map<String, AttributeValue> keyToGet = new HashMap<>();
-        keyToGet.put(
+        Map<String, AttributeValue> keyToGet = Map.of(
           "partition_key",
-          AttributeValue
-            .builder()
-            .s(ExampleUtils.uniquePartitionKey("awsKmsMrkDiscoveryMultiKeyringItem"))
-            .build()
+          AttributeValue.fromS(
+            ExampleUtils.uniquePartitionKey(
+              "awsKmsMrkDiscoveryMultiKeyringItem"
+            )
+          ),
+          "sort_key",
+          AttributeValue.fromN("0")
         );
-        keyToGet.put("sort_key", AttributeValue.builder().n("0").build());
-        final GetItemRequest getRequest = GetItemRequest
+        GetItemRequest getRequest = GetItemRequest
           .builder()
           .key(keyToGet)
           .tableName(tableName)
           .build();
 
-        final GetItemResponse getResponse = decryptingDynamoDbClient.getItem(getRequest);
+        GetItemResponse getResponse = decryptingDynamoDbClient.getItem(
+          getRequest
+        );
 
         // Demonstrate that GetItem succeeded and returned the decrypted item
-        final Map<String, AttributeValue> returnedItem = getResponse.item();
-        assert returnedItem.get("sensitive_data").s().equals("encrypt and sign me!");
+        Map<String, AttributeValue> returnedItem = getResponse.item();
+        assert returnedItem
+          .get("sensitive_data")
+          .s()
+          .equals("encrypt and sign me!");
       }
     }
   }
 
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 4) {
       throw new IllegalArgumentException(
         "To run this example, include the table name, multiRegionKeyArn, accounts, and region in args"
       );
     }
-    final String tableName = args[0];
-    final String multiRegionKeyArn = args[1];
+    String tableName = args[0];
+    String multiRegionKeyArn = args[1];
 
     // We will assume only 1 AWS account and 1 region will be passed into args.
     // To add more of either, change this number, then pass them into args.
@@ -248,17 +226,13 @@ public class MultiRegionKeyDiscoveryMultiKeyringExample {
     int numberOfRegions = 1;
 
     int firstAccountIndex = 2; // 2 because args[0] is tableName and args[1] is multiRegionKeyArn
-    final List<String> accounts = new ArrayList<>(
-      Arrays
-        .asList(args)
-        .subList(firstAccountIndex, firstAccountIndex + numberOfAwsAccounts)
-    );
+    List<String> accounts = List
+      .of(args)
+      .subList(firstAccountIndex, firstAccountIndex + numberOfAwsAccounts);
     int firstRegionIndex = firstAccountIndex + numberOfAwsAccounts;
-    final List<String> regions = new ArrayList<>(
-      Arrays
-        .asList(args)
-        .subList(firstRegionIndex, firstRegionIndex + numberOfRegions)
-    );
+    List<String> regions = List
+      .of(args)
+      .subList(firstRegionIndex, firstRegionIndex + numberOfRegions);
     putAndGetItem(tableName, multiRegionKeyArn, accounts, regions);
   }
 }

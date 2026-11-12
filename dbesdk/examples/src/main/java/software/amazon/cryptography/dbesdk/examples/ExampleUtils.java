@@ -5,19 +5,17 @@ package software.amazon.cryptography.dbesdk.examples;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Shared utilities for examples. The TEST_SUFFIX provides a unique suffix per JVM process so that
- * parallel CI matrix jobs (different Java versions / OS) do not overwrite each other's items in the
- * shared DynamoDB test table.
+ * Shared utilities for the examples.
  *
- * <p>Each example uses a hardcoded partition key like "rawEcdhKeyringItem". In CI, multiple JVMs
- * run in parallel against the same table. Without isolation, one JVM can overwrite another's item,
- * causing decrypt failures. By appending a random suffix, each JVM writes to its own partition key
- * (e.g., "rawEcdhKeyringItem-482913") while keeping cross-example reads working within the same
- * JVM.
+ * <p>Each example writes items under a fixed partition key name such as "rawEcdhKeyringItem". If
+ * several runs of the examples use the same table at the same time, one run can overwrite another
+ * run's item, and the other run then fails to decrypt what it reads back. {@link
+ * #uniquePartitionKey(String)} appends a random suffix chosen once per JVM, so each run writes its
+ * own items (for example "rawEcdhKeyringItem-482913").
  */
 public final class ExampleUtils {
 
-  private static final String TEST_SUFFIX = String.valueOf(
+  private static final String RUN_SUFFIX = String.valueOf(
     ThreadLocalRandom.current().nextInt(100000, 999999)
   );
 
@@ -28,6 +26,15 @@ public final class ExampleUtils {
    * "rawEcdhKeyringItem-482913"
    */
   public static String uniquePartitionKey(String baseName) {
-    return baseName + "-" + TEST_SUFFIX;
+    return baseName + runSuffix();
+  }
+
+  /**
+   * Returns the suffix uniquePartitionKey appends in this JVM process, such as "-482913". Queries
+   * that read several items can filter on it, for example {@code contains(partition_key, :suffix)},
+   * so they see only the items this run wrote.
+   */
+  public static String runSuffix() {
+    return "-" + RUN_SUFFIX;
   }
 }

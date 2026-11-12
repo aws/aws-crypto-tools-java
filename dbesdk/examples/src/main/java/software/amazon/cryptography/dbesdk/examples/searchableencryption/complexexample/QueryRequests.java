@@ -1,29 +1,33 @@
 package software.amazon.cryptography.dbesdk.examples.searchableencryption.complexexample;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.QueryRequest;
 import software.amazon.awssdk.services.dynamodb.model.QueryResponse;
+import software.amazon.cryptography.dbesdk.examples.ExampleUtils;
 
-/*
+/**
  * This file is used in an example to demonstrate complex queries you can perform using beacons. The
  * example data used is for demonstrative purposes only, and might not meet the distribution and
  * correlation uniqueness recommendations for beacons. See our documentation for whether beacons are
  * right for your particular data set:
  * https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/searchable-encryption.html#are-beacons-right-for-me
  *
- * This class implements query access patterns from our workshop. The queries in this file are more
+ * <p>This class implements the complex example's query access patterns. The queries in this file are more
  * complicated than in other searchable encryption examples, and should demonstrate how one can
  * structure queries on beacons in a broader variety of applications.
  */
+public final class QueryRequests {
 
-public class QueryRequests {
+  private QueryRequests() {}
 
-  public static void runQueries(String tableName, DynamoDbClient dynamoDbClient) {
+  public static void runQueries(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     runQuery1(tableName, dynamoDbClient);
     runQuery2(tableName, dynamoDbClient);
     runQuery3(tableName, dynamoDbClient);
@@ -49,91 +53,90 @@ public class QueryRequests {
     runQuery23(tableName, dynamoDbClient);
   }
 
-  public static void runQuery1(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery1(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 1: Get meetings by date and email
     // Key condition: PK1=email SK1 between(date1, date2)
     // Filter condition: duration > 0
-    final Map<String, String> query1AttributeNames = new HashMap<>();
-    query1AttributeNames.put("#pk1", "PK1");
-    query1AttributeNames.put("#sk1", "SK1");
-    query1AttributeNames.put("#duration", "Duration");
-    final Map<String, AttributeValue> query1AttributeValues = new HashMap<>();
-    query1AttributeValues.put(
+    Map<String, String> query1AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1",
+      "#duration",
+      "Duration"
+    );
+    Map<String, AttributeValue> query1AttributeValues = Map.of(
       ":e",
-      AttributeValue.builder().s("EE-able@gmail.com").build()
-    );
-    query1AttributeValues.put(
+      AttributeValue.fromS("EE-able@gmail.com"),
       ":date1",
-      AttributeValue.builder().s("MS-2022-07-02").build()
-    );
-    query1AttributeValues.put(
+      AttributeValue.fromS("MS-2022-07-02"),
       ":date2",
-      AttributeValue.builder().s("MS-2022-07-08").build()
+      AttributeValue.fromS("MS-2022-07-08"),
+      ":zero",
+      AttributeValue.fromS("0"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query1AttributeValues.put(":zero", AttributeValue.builder().s("0").build());
-    query1AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query1Request = QueryRequest
+    QueryRequest query1Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :e AND #sk1 BETWEEN :date1 AND :date2")
       .filterExpression(
-        "#duration > :zero AND contains(partition_key, :javasuffix)"
+        "#duration > :zero AND contains(partition_key, :runSuffix)"
       )
       .expressionAttributeNames(query1AttributeNames)
       .expressionAttributeValues(query1AttributeValues)
       .build();
 
-    final QueryResponse query1Response = dynamoDbClient.query(query1Request);
+    QueryResponse query1Response = dynamoDbClient.query(query1Request);
 
     // Assert 1 item was returned: `meeting1`
     assert query1Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery1 = false;
-    for (Map<String, AttributeValue> item : query1Response.items()) {
-      if (item.get("partition_key").s().equals("meeting1-java")) {
-        foundKnownValueItemQuery1 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
-      }
-    }
-    assert foundKnownValueItemQuery1;
+    Map<String, AttributeValue> meeting1 = itemWithPartitionKey(
+      query1Response.items(),
+      ExampleUtils.uniquePartitionKey("meeting1")
+    );
+    assert meeting1.get("Subject").s().equals("Scan Beacons");
+    assert meeting1.get("Location").m().get("Floor").s().equals("12");
+    assert meeting1
+      .get("Attendees")
+      .l()
+      .contains(AttributeValue.fromS("zorro@gmail.com"));
   }
 
-  public static void runQuery2(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery2(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 2: Get meetings by date and employeeID
     // Key condition: PK=employeeID SK between(date1, date2)
     // Filter condition: duration > 0
-    final Map<String, String> query2AttributeNames = new HashMap<>();
-    query2AttributeNames.put("#pk", "PK");
-    query2AttributeNames.put("#sk", "SK");
-    query2AttributeNames.put("#duration", "Duration");
-    final Map<String, AttributeValue> query2AttributeValues = new HashMap<>();
-    query2AttributeValues.put(
+    Map<String, String> query2AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#sk",
+      "SK",
+      "#duration",
+      "Duration"
+    );
+    Map<String, AttributeValue> query2AttributeValues = Map.of(
       ":employee",
-      AttributeValue.builder().s("E-emp_001").build()
-    );
-    query2AttributeValues.put(
+      AttributeValue.fromS("E-emp_001"),
       ":date1",
-      AttributeValue.builder().s("MS-2022-07-02").build()
-    );
-    query2AttributeValues.put(
+      AttributeValue.fromS("MS-2022-07-02"),
       ":date2",
-      AttributeValue.builder().s("MS-2022-07-08").build()
+      AttributeValue.fromS("MS-2022-07-08"),
+      ":zero",
+      AttributeValue.fromS("0"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query2AttributeValues.put(":zero", AttributeValue.builder().s("0").build());
-    query2AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query2Request = QueryRequest
+    QueryRequest query2Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
@@ -141,76 +144,68 @@ public class QueryRequests {
         "#pk = :employee AND #sk BETWEEN :date1 AND :date2"
       )
       .filterExpression(
-        "#duration > :zero AND contains(partition_key, :javasuffix)"
+        "#duration > :zero AND contains(partition_key, :runSuffix)"
       )
       .expressionAttributeNames(query2AttributeNames)
       .expressionAttributeValues(query2AttributeValues)
       .build();
 
-    final QueryResponse query2Response = dynamoDbClient.query(query2Request);
+    QueryResponse query2Response = dynamoDbClient.query(query2Request);
 
     // Assert 1 item was returned: `meeting1`
     assert query2Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery2 = false;
-    for (Map<String, AttributeValue> item : query2Response.items()) {
-      if (item.get("partition_key").s().equals("meeting1-java")) {
-        foundKnownValueItemQuery2 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
-      }
-    }
-    assert foundKnownValueItemQuery2;
+    Map<String, AttributeValue> meeting1 = itemWithPartitionKey(
+      query2Response.items(),
+      ExampleUtils.uniquePartitionKey("meeting1")
+    );
+    assert meeting1.get("Subject").s().equals("Scan Beacons");
+    assert meeting1.get("Location").m().get("Floor").s().equals("12");
+    assert meeting1
+      .get("Attendees")
+      .l()
+      .contains(AttributeValue.fromS("zorro@gmail.com"));
   }
 
-  public static void runQuery3(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery3(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 3: Get meetings by date and building/floor/room
     // Key condition: PK=employeeID SK between(date1, date2)
-    // Filter condition: SK contains building.floor.room (see NOTE)
-    // NOTE: This query is modified from Demo.md.
-    //       Demo.md calls for a filter condition "SK contains building.floor.room"
-    //       However, one cannot use primary keys (partition nor sort) in a filter expression.
-    //       Instead, this query filters on the individual beacon attributes: building, floor, and room.
-    final Map<String, String> query3AttributeNames = new HashMap<>();
-    query3AttributeNames.put("#pk", "PK");
-    query3AttributeNames.put("#sk", "SK");
-    query3AttributeNames.put("#building", "Building");
-    query3AttributeNames.put("#floor", "Floor");
-    query3AttributeNames.put("#room", "Room");
-    final Map<String, AttributeValue> query3AttributeValues = new HashMap<>();
-    query3AttributeValues.put(
+    // Filter condition: building, floor and room each equal the given value
+    // A filter expression cannot use the primary key attributes, so instead of filtering on
+    // "SK contains building.floor.room", this query filters on the individual beacon attributes
+    // building, floor and room.
+    Map<String, String> query3AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#sk",
+      "SK",
+      "#building",
+      "Building",
+      "#floor",
+      "Floor",
+      "#room",
+      "Room"
+    );
+    Map<String, AttributeValue> query3AttributeValues = Map.of(
       ":buildingbeacon",
-      AttributeValue.builder().s("B-SEA33").build()
-    );
-    query3AttributeValues.put(
+      AttributeValue.fromS("B-SEA33"),
       ":building",
-      AttributeValue.builder().s("SEA33").build()
-    );
-    query3AttributeValues.put(
+      AttributeValue.fromS("SEA33"),
       ":floor",
-      AttributeValue.builder().s("12").build()
-    );
-    query3AttributeValues.put(
+      AttributeValue.fromS("12"),
       ":room",
-      AttributeValue.builder().s("403").build()
-    );
-    query3AttributeValues.put(
+      AttributeValue.fromS("403"),
       ":date1",
-      AttributeValue.builder().s("MS-2022-07-02").build()
-    );
-    query3AttributeValues.put(
+      AttributeValue.fromS("MS-2022-07-02"),
       ":date2",
-      AttributeValue.builder().s("MS-2022-07-08").build()
+      AttributeValue.fromS("MS-2022-07-08"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query3AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query3Request = QueryRequest
+    QueryRequest query3Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
@@ -218,526 +213,489 @@ public class QueryRequests {
         "#pk = :buildingbeacon AND #sk BETWEEN :date1 AND :date2"
       )
       .filterExpression(
-        "#building = :building AND #floor = :floor AND #room = :room AND contains(partition_key, :javasuffix)"
+        "#building = :building AND #floor = :floor AND #room = :room AND contains(partition_key, :runSuffix)"
       )
       .expressionAttributeNames(query3AttributeNames)
       .expressionAttributeValues(query3AttributeValues)
       .build();
 
-    final QueryResponse query3Response = dynamoDbClient.query(query3Request);
+    QueryResponse query3Response = dynamoDbClient.query(query3Request);
 
     // Assert 1 item was returned: `reservation1`
     assert query3Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery3 = false;
-    for (Map<String, AttributeValue> item : query3Response.items()) {
-      if (item.get("partition_key").s().equals("reservation1-java")) {
-        foundKnownValueItemQuery3 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-        assert item.get("Location").m().get("Building").s().equals("SEA33");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("barney@gmail.com").build());
-      }
-    }
-    assert foundKnownValueItemQuery3;
+    Map<String, AttributeValue> reservation1 = itemWithPartitionKey(
+      query3Response.items(),
+      ExampleUtils.uniquePartitionKey("reservation1")
+    );
+    assert reservation1.get("Subject").s().equals("Scan beacons");
+    assert reservation1.get("Location").m().get("Building").s().equals("SEA33");
+    assert reservation1
+      .get("Attendees")
+      .l()
+      .contains(AttributeValue.fromS("barney@gmail.com"));
   }
 
-  public static void runQuery4(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery4(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 4: Get employee data by email
     // Key condition: PK1=email SK1=employee ID
-    final Map<String, String> query4AttributeNames = new HashMap<>();
-    query4AttributeNames.put("#pk1", "PK1");
-    query4AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query4AttributeValues = new HashMap<>();
-    query4AttributeValues.put(
+    Map<String, String> query4AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query4AttributeValues = Map.of(
       ":email",
-      AttributeValue.builder().s("EE-able@gmail.com").build()
-    );
-    query4AttributeValues.put(
+      AttributeValue.fromS("EE-able@gmail.com"),
       ":employee",
-      AttributeValue.builder().s("E-emp_001").build()
+      AttributeValue.fromS("E-emp_001"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query4AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query4Request = QueryRequest
+    QueryRequest query4Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email AND #sk1 = :employee")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query4AttributeNames)
       .expressionAttributeValues(query4AttributeValues)
       .build();
 
-    final QueryResponse query4Response = dynamoDbClient.query(query4Request);
+    QueryResponse query4Response = dynamoDbClient.query(query4Request);
 
     // Assert 1 item was returned: `employee1`
     assert query4Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery4 = false;
-    for (Map<String, AttributeValue> item : query4Response.items()) {
-      if (item.get("partition_key").s().equals("employee1-java")) {
-        foundKnownValueItemQuery4 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-        assert item.get("Location").m().get("Desk").s().equals("3");
-      }
-    }
-    assert foundKnownValueItemQuery4;
+    Map<String, AttributeValue> employee1 = itemWithPartitionKey(
+      query4Response.items(),
+      ExampleUtils.uniquePartitionKey("employee1")
+    );
+    assert employee1.get("EmployeeID").s().equals("emp_001");
+    assert employee1.get("Location").m().get("Desk").s().equals("3");
   }
 
-  public static void runQuery5(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery5(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 5: Get meetings by email
     // Key condition: PK1=email SK1 > 30 days ago
-    final Map<String, String> query5AttributeNames = new HashMap<>();
-    query5AttributeNames.put("#pk1", "PK1");
-    query5AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query5AttributeValues = new HashMap<>();
-    query5AttributeValues.put(
+    Map<String, String> query5AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query5AttributeValues = Map.of(
       ":email",
-      AttributeValue.builder().s("EE-able@gmail.com").build()
-    );
-    query5AttributeValues.put(
+      AttributeValue.fromS("EE-able@gmail.com"),
       ":thirtydaysago",
-      AttributeValue.builder().s("MS-2023-03-20").build()
-    );
-    query5AttributeValues.put(
+      AttributeValue.fromS("MS-2023-03-20"),
       ":prefix",
-      AttributeValue.builder().s("MS-").build()
+      AttributeValue.fromS("MS-"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query5AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query5Request = QueryRequest
+    QueryRequest query5Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :email AND #sk1 BETWEEN :prefix AND :thirtydaysago"
       )
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query5AttributeNames)
       .expressionAttributeValues(query5AttributeValues)
       .build();
 
-    final QueryResponse query5Response = dynamoDbClient.query(query5Request);
+    QueryResponse query5Response = dynamoDbClient.query(query5Request);
 
     // Assert 1 item was returned: `meeting1`
     assert query5Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery5 = false;
-    for (Map<String, AttributeValue> item : query5Response.items()) {
-      if (item.get("partition_key").s().equals("meeting1-java")) {
-        foundKnownValueItemQuery5 = true;
-        assert item.get("Subject").s().equals("Scan Beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("zorro@gmail.com").build());
-      }
-    }
-    assert foundKnownValueItemQuery5;
+    Map<String, AttributeValue> meeting1 = itemWithPartitionKey(
+      query5Response.items(),
+      ExampleUtils.uniquePartitionKey("meeting1")
+    );
+    assert meeting1.get("Subject").s().equals("Scan Beacons");
+    assert meeting1.get("Location").m().get("Floor").s().equals("12");
+    assert meeting1
+      .get("Attendees")
+      .l()
+      .contains(AttributeValue.fromS("zorro@gmail.com"));
   }
 
-  public static void runQuery6(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery6(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 6: Get tickets by email
     // Key condition: PK1=email SK1 > 30 days ago
-    final Map<String, String> query6AttributeNames = new HashMap<>();
-    query6AttributeNames.put("#pk1", "PK1");
-    query6AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query6AttributeValues = new HashMap<>();
-    query6AttributeValues.put(
+    Map<String, String> query6AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query6AttributeValues = Map.of(
       ":creatoremail",
-      AttributeValue.builder().s("CE-zorro@gmail.com").build()
-    );
-    query6AttributeValues.put(
+      AttributeValue.fromS("CE-zorro@gmail.com"),
       ":thirtydaysago",
-      AttributeValue.builder().s("MS-2023-03-20").build()
+      AttributeValue.fromS("MS-2023-03-20"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query6AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query6Request = QueryRequest
+    QueryRequest query6Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :creatoremail AND #sk1 < :thirtydaysago")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query6AttributeNames)
       .expressionAttributeValues(query6AttributeValues)
       .build();
 
-    final QueryResponse query6Response = dynamoDbClient.query(query6Request);
+    QueryResponse query6Response = dynamoDbClient.query(query6Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket3`
     assert query6Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery6 = false;
-    for (Map<String, AttributeValue> item : query6Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery6 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
-      }
-    }
-    assert foundKnownValueItemQuery6;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query6Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("TicketNumber").s().equals("ticket_001");
   }
 
-  public static void runQuery7(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery7(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 7: Get reservations by email
     // Key condition: PK1=organizeremail SK1 > 30 days ago
-    final Map<String, String> query7AttributeNames = new HashMap<>();
-    query7AttributeNames.put("#pk1", "PK1");
-    query7AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query7AttributeValues = new HashMap<>();
-    query7AttributeValues.put(
+    Map<String, String> query7AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query7AttributeValues = Map.of(
       ":organizeremail",
-      AttributeValue.builder().s("OE-able@gmail.com").build()
-    );
-    query7AttributeValues.put(
+      AttributeValue.fromS("OE-able@gmail.com"),
       ":thirtydaysago",
-      AttributeValue.builder().s("MS-2023-03-20").build()
+      AttributeValue.fromS("MS-2023-03-20"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query7AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query7Request = QueryRequest
+    QueryRequest query7Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :organizeremail AND #sk1 < :thirtydaysago"
       )
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query7AttributeNames)
       .expressionAttributeValues(query7AttributeValues)
       .build();
 
-    final QueryResponse query7Response = dynamoDbClient.query(query7Request);
+    QueryResponse query7Response = dynamoDbClient.query(query7Request);
 
     // Assert 1 item was returned: `reservation1`
     assert query7Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery7 = false;
-    for (Map<String, AttributeValue> item : query7Response.items()) {
-      if (item.get("partition_key").s().equals("reservation1-java")) {
-        foundKnownValueItemQuery7 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-        assert item.get("Location").m().get("Floor").s().equals("12");
-        assert item
-          .get("Attendees")
-          .l()
-          .contains(AttributeValue.builder().s("barney@gmail.com").build());
-      }
-    }
-    assert foundKnownValueItemQuery7;
+    Map<String, AttributeValue> reservation1 = itemWithPartitionKey(
+      query7Response.items(),
+      ExampleUtils.uniquePartitionKey("reservation1")
+    );
+    assert reservation1.get("Subject").s().equals("Scan beacons");
+    assert reservation1.get("Location").m().get("Floor").s().equals("12");
+    assert reservation1
+      .get("Attendees")
+      .l()
+      .contains(AttributeValue.fromS("barney@gmail.com"));
   }
 
-  public static void runQuery8(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery8(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 8: Get time cards by email
     // Key condition: PK1=employeeemail SK1 > 30 days ago
-    final Map<String, String> query8AttributeNames = new HashMap<>();
-    query8AttributeNames.put("#pk1", "PK1");
-    query8AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query8AttributeValues = new HashMap<>();
-    query8AttributeValues.put(
+    Map<String, String> query8AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query8AttributeValues = Map.of(
       ":email",
-      AttributeValue.builder().s("EE-able@gmail.com").build()
-    );
-    query8AttributeValues.put(
+      AttributeValue.fromS("EE-able@gmail.com"),
       ":prefix",
-      AttributeValue.builder().s("TC-").build()
-    );
-    query8AttributeValues.put(
+      AttributeValue.fromS("TC-"),
       ":thirtydaysago",
-      AttributeValue.builder().s("TC-2023-03-20").build()
+      AttributeValue.fromS("TC-2023-03-20"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query8AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query8Request = QueryRequest
+    QueryRequest query8Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression(
         "#pk1 = :email AND #sk1 BETWEEN :prefix AND :thirtydaysago"
       )
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query8AttributeNames)
       .expressionAttributeValues(query8AttributeValues)
       .build();
 
-    final QueryResponse query8Response = dynamoDbClient.query(query8Request);
+    QueryResponse query8Response = dynamoDbClient.query(query8Request);
 
     // Assert 1 item was returned: `timecard1`
     assert query8Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery8 = false;
-    for (Map<String, AttributeValue> item : query8Response.items()) {
-      if (item.get("partition_key").s().equals("timecard1-java")) {
-        foundKnownValueItemQuery8 = true;
-        assert item.get("ProjectName").s().equals("project_002");
-      }
-    }
-    assert foundKnownValueItemQuery8;
+    Map<String, AttributeValue> timecard1 = itemWithPartitionKey(
+      query8Response.items(),
+      ExampleUtils.uniquePartitionKey("timecard1")
+    );
+    assert timecard1.get("ProjectName").s().equals("project_002");
   }
 
-  public static void runQuery9(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery9(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 9: Get employee info by employee ID
     // Key condition: PK1=employeeID SK starts with "E-"
-    final Map<String, String> query9AttributeNames = new HashMap<>();
-    query9AttributeNames.put("#pk", "PK");
-    query9AttributeNames.put("#sk", "SK");
-    final Map<String, AttributeValue> query9AttributeValues = new HashMap<>();
-    query9AttributeValues.put(
+    Map<String, String> query9AttributeNames = Map.of("#pk", "PK", "#sk", "SK");
+    Map<String, AttributeValue> query9AttributeValues = Map.of(
       ":employee",
-      AttributeValue.builder().s("E-emp_001").build()
-    );
-    query9AttributeValues.put(
+      AttributeValue.fromS("E-emp_001"),
       ":prefix",
-      AttributeValue.builder().s("E-").build()
+      AttributeValue.fromS("E-"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query9AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query9Request = QueryRequest
+    QueryRequest query9Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :employee AND begins_with(#sk, :prefix)")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query9AttributeNames)
       .expressionAttributeValues(query9AttributeValues)
       .build();
 
-    final QueryResponse query9Response = dynamoDbClient.query(query9Request);
+    QueryResponse query9Response = dynamoDbClient.query(query9Request);
 
     // Assert 1 item was returned: `employee1`
     assert query9Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery9 = false;
-    for (Map<String, AttributeValue> item : query9Response.items()) {
-      if (item.get("partition_key").s().equals("employee1-java")) {
-        foundKnownValueItemQuery9 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-      }
-    }
-    assert foundKnownValueItemQuery9;
+    Map<String, AttributeValue> employee1 = itemWithPartitionKey(
+      query9Response.items(),
+      ExampleUtils.uniquePartitionKey("employee1")
+    );
+    assert employee1.get("EmployeeID").s().equals("emp_001");
   }
 
-  public static void runQuery10(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery10(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 10: Get employee info by email
     // Key condition: PK1=email
     // Filter condition: SK starts with "E-"
-    final Map<String, String> query10AttributeNames = new HashMap<>();
-    query10AttributeNames.put("#pk1", "PK1");
-    query10AttributeNames.put("#sk1", "SK1");
-    final Map<String, AttributeValue> query10AttributeValues = new HashMap<>();
-    query10AttributeValues.put(
+    Map<String, String> query10AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1"
+    );
+    Map<String, AttributeValue> query10AttributeValues = Map.of(
       ":email",
-      AttributeValue.builder().s("EE-able@gmail.com").build()
-    );
-    query10AttributeValues.put(
+      AttributeValue.fromS("EE-able@gmail.com"),
       ":prefix",
-      AttributeValue.builder().s("E-").build()
+      AttributeValue.fromS("E-"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query10AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query10Request = QueryRequest
+    QueryRequest query10Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email AND begins_with(#sk1, :prefix)")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query10AttributeNames)
       .expressionAttributeValues(query10AttributeValues)
       .build();
 
-    final QueryResponse query10Response = dynamoDbClient.query(query10Request);
+    QueryResponse query10Response = dynamoDbClient.query(query10Request);
 
     // Assert 1 item was returned: `employee1`
     assert query10Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery10 = false;
-    for (Map<String, AttributeValue> item : query10Response.items()) {
-      if (item.get("partition_key").s().equals("employee1-java")) {
-        foundKnownValueItemQuery10 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-      }
-    }
-    assert foundKnownValueItemQuery10;
+    Map<String, AttributeValue> employee1 = itemWithPartitionKey(
+      query10Response.items(),
+      ExampleUtils.uniquePartitionKey("employee1")
+    );
+    assert employee1.get("EmployeeID").s().equals("emp_001");
   }
 
-  public static void runQuery11(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery11(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 11: Get ticket history by ticket number
     // Key condition: PK=TicketNumber
-    final Map<String, String> query11AttributeNames = new HashMap<>();
-    query11AttributeNames.put("#pk", "PK");
-    final Map<String, AttributeValue> query11AttributeValues = new HashMap<>();
-    query11AttributeValues.put(
+    Map<String, String> query11AttributeNames = Map.of("#pk", "PK");
+    Map<String, AttributeValue> query11AttributeValues = Map.of(
       ":ticket",
-      AttributeValue.builder().s("T-ticket_001").build()
+      AttributeValue.fromS("T-ticket_001"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query11AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query11Request = QueryRequest
+    QueryRequest query11Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :ticket")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query11AttributeNames)
       .expressionAttributeValues(query11AttributeValues)
       .build();
 
-    final QueryResponse query11Response = dynamoDbClient.query(query11Request);
+    QueryResponse query11Response = dynamoDbClient.query(query11Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket2`
     assert query11Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery11 = false;
-    for (Map<String, AttributeValue> item : query11Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery11 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
-      }
-    }
-    assert foundKnownValueItemQuery11;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query11Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("TicketNumber").s().equals("ticket_001");
   }
 
-  public static void runQuery12(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery12(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 12: Get Ticket History by employee email
     // Key condition: PK1=CreatorEmail
     // Filter condition: PK=TicketNumber
-    final Map<String, String> query12AttributeNames = new HashMap<>();
-    query12AttributeNames.put("#pk1", "PK1");
-    query12AttributeNames.put("#pk", "PK");
-    final Map<String, AttributeValue> query12AttributeValues = new HashMap<>();
-    query12AttributeValues.put(
+    Map<String, String> query12AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#pk",
+      "PK"
+    );
+    Map<String, AttributeValue> query12AttributeValues = Map.of(
       ":email",
-      AttributeValue.builder().s("CE-zorro@gmail.com").build()
-    );
-    query12AttributeValues.put(
+      AttributeValue.fromS("CE-zorro@gmail.com"),
       ":ticket",
-      AttributeValue.builder().s("T-ticket_001").build()
+      AttributeValue.fromS("T-ticket_001"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query12AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query12Request = QueryRequest
+    QueryRequest query12Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :email")
-      .filterExpression(
-        "#pk = :ticket AND contains(partition_key, :javasuffix)"
-      )
+      .filterExpression("#pk = :ticket AND contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query12AttributeNames)
       .expressionAttributeValues(query12AttributeValues)
       .build();
 
-    final QueryResponse query12Response = dynamoDbClient.query(query12Request);
+    QueryResponse query12Response = dynamoDbClient.query(query12Request);
 
     // Assert 1 item was returned: `ticket1`
     assert query12Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery12 = false;
-    for (Map<String, AttributeValue> item : query12Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery12 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
-      }
-    }
-    assert foundKnownValueItemQuery12;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query12Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("TicketNumber").s().equals("ticket_001");
   }
 
-  public static void runQuery13(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery13(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 13: Get ticket history by assignee email
     // Key condition: PK=AssigneeEmail
     // Filter condition: PK=ticketNumber
-    final Map<String, String> query13AttributeNames = new HashMap<>();
-    query13AttributeNames.put("#pk2", "PK2");
-    query13AttributeNames.put("#pk", "PK");
-    final Map<String, AttributeValue> query13AttributeValues = new HashMap<>();
-    query13AttributeValues.put(
+    Map<String, String> query13AttributeNames = Map.of(
+      "#pk2",
+      "PK2",
+      "#pk",
+      "PK"
+    );
+    Map<String, AttributeValue> query13AttributeValues = Map.of(
       ":assigneeemail",
-      AttributeValue.builder().s("AE-able@gmail.com").build()
-    );
-    query13AttributeValues.put(
+      AttributeValue.fromS("AE-able@gmail.com"),
       ":ticket",
-      AttributeValue.builder().s("T-ticket_001").build()
+      AttributeValue.fromS("T-ticket_001"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query13AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query13Request = QueryRequest
+    QueryRequest query13Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :assigneeemail")
-      .filterExpression(
-        "#pk = :ticket AND contains(partition_key, :javasuffix)"
-      )
+      .filterExpression("#pk = :ticket AND contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query13AttributeNames)
       .expressionAttributeValues(query13AttributeValues)
       .build();
 
-    final QueryResponse query13Response = dynamoDbClient.query(query13Request);
+    QueryResponse query13Response = dynamoDbClient.query(query13Request);
 
     // Assert 1 item was returned: `ticket1`
     assert query13Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery13 = false;
-    for (Map<String, AttributeValue> item : query13Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery13 = true;
-        assert item.get("Subject").s().equals("Bad bug");
-      }
-    }
-    assert foundKnownValueItemQuery13;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query13Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("Subject").s().equals("Bad bug");
   }
 
-  public static void runQuery14(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery14(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 14: Get employees by city.building.floor.desk
     // Key condition: PK3=city SK3 begins_with(building.floor.desk)
-    final Map<String, String> query14AttributeNames = new HashMap<>();
-    query14AttributeNames.put("#pk3", "PK3");
-    query14AttributeNames.put("#sk3", "SK3");
-    final Map<String, AttributeValue> query14AttributeValues = new HashMap<>();
-    query14AttributeValues.put(
+    Map<String, String> query14AttributeNames = Map.of(
+      "#pk3",
+      "PK3",
+      "#sk3",
+      "SK3"
+    );
+    Map<String, AttributeValue> query14AttributeValues = Map.of(
       ":city",
-      AttributeValue.builder().s("C-Seattle").build()
-    );
-    query14AttributeValues.put(
+      AttributeValue.fromS("C-Seattle"),
       ":location",
-      AttributeValue.builder().s("B-44~F-12~D-3").build()
+      AttributeValue.fromS("B-44~F-12~D-3"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query14AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query14Request = QueryRequest
+    QueryRequest query14Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-3")
       .keyConditionExpression("#pk3 = :city AND begins_with(#sk3, :location)")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query14AttributeNames)
       .expressionAttributeValues(query14AttributeValues)
       .build();
@@ -745,430 +703,396 @@ public class QueryRequests {
     // GSIs do not update instantly
     // so if the results come back empty
     // we retry after a short sleep
-    final int maxQueryAttempts = 10;
-    final Duration pollInterval = Duration.ofMillis(20);
+    int maxQueryAttempts = 10;
+    Duration pollInterval = Duration.ofMillis(20);
+    List<Map<String, AttributeValue>> query14Items = List.of();
     for (int attempt = 0; attempt < maxQueryAttempts; attempt++) {
-      final List<Map<String, AttributeValue>> query14Items = dynamoDbClient
-        .query(query14Request)
-        .items();
-
-      // if no results, sleep and try again
-      if (query14Items.isEmpty()) {
-        try {
-          Thread.sleep(pollInterval.toMillis());
-        } catch (InterruptedException exception) {
-          Thread.currentThread().interrupt();
-          break;
-        }
-        continue;
+      query14Items = dynamoDbClient.query(query14Request).items();
+      if (!query14Items.isEmpty()) {
+        break;
       }
-
-      // Assert 1 item was returned: `employee1`
-      assert query14Items.size() == 1;
-      // Known value test: assert some properties on one of the items
-      boolean foundKnownValueItemQuery14 = false;
-      for (final Map<String, AttributeValue> item : query14Items) {
-        if (item.get("partition_key").s().equals("employee1-java")) {
-          foundKnownValueItemQuery14 = true;
-          assert item.get("EmployeeID").s().equals("emp_001");
-          assert item.get("Location").m().get("Desk").s().equals("3");
-        }
+      try {
+        Thread.sleep(pollInterval.toMillis());
+      } catch (InterruptedException exception) {
+        Thread.currentThread().interrupt();
+        break;
       }
-      assert foundKnownValueItemQuery14;
-      break;
     }
+
+    // Assert 1 item was returned: `employee1`. This also fails if every attempt came back empty.
+    assert query14Items.size() == 1;
+    // Known value test: assert some properties on one of the items
+    Map<String, AttributeValue> employee1 = itemWithPartitionKey(
+      query14Items,
+      ExampleUtils.uniquePartitionKey("employee1")
+    );
+    assert employee1.get("EmployeeID").s().equals("emp_001");
+    assert employee1.get("Location").m().get("Desk").s().equals("3");
   }
 
-  public static void runQuery15(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery15(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 15: Get employees by manager email
     // Key condition: PK2 = ManagerEmail
-    final Map<String, String> query15AttributeNames = new HashMap<>();
-    query15AttributeNames.put("#pk2", "PK2");
-    final Map<String, AttributeValue> query15AttributeValues = new HashMap<>();
-    query15AttributeValues.put(
+    Map<String, String> query15AttributeNames = Map.of("#pk2", "PK2");
+    Map<String, AttributeValue> query15AttributeValues = Map.of(
       ":manageremail",
-      AttributeValue.builder().s("ME-zorro@gmail.com").build()
+      AttributeValue.fromS("ME-zorro@gmail.com"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query15AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query15Request = QueryRequest
+    QueryRequest query15Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :manageremail")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query15AttributeNames)
       .expressionAttributeValues(query15AttributeValues)
       .build();
 
-    final QueryResponse query15Response = dynamoDbClient.query(query15Request);
+    QueryResponse query15Response = dynamoDbClient.query(query15Request);
 
     // Assert 4 items returned:
     // Expected to be `employee1`, `employee2`, `employee3`, and `employee4`
     assert query15Response.items().size() == 4;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery15 = false;
-    for (Map<String, AttributeValue> item : query15Response.items()) {
-      if (item.get("partition_key").s().equals("employee1-java")) {
-        foundKnownValueItemQuery15 = true;
-        assert item.get("EmployeeID").s().equals("emp_001");
-        assert item.get("Location").m().get("Desk").s().equals("3");
-      }
-    }
-    assert foundKnownValueItemQuery15;
+    Map<String, AttributeValue> employee1 = itemWithPartitionKey(
+      query15Response.items(),
+      ExampleUtils.uniquePartitionKey("employee1")
+    );
+    assert employee1.get("EmployeeID").s().equals("emp_001");
+    assert employee1.get("Location").m().get("Desk").s().equals("3");
   }
 
-  public static void runQuery16(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery16(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 16: Get assigned tickets by assignee email
     // Key condition: PK2 = AssigneeEmail
-    final Map<String, String> query16AttributeNames = new HashMap<>();
-    query16AttributeNames.put("#pk2", "PK2");
-    final Map<String, AttributeValue> query16AttributeValues = new HashMap<>();
-    query16AttributeValues.put(
+    Map<String, String> query16AttributeNames = Map.of("#pk2", "PK2");
+    Map<String, AttributeValue> query16AttributeValues = Map.of(
       ":assigneeemail",
-      AttributeValue.builder().s("AE-able@gmail.com").build()
+      AttributeValue.fromS("AE-able@gmail.com"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query16AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query16Request = QueryRequest
+    QueryRequest query16Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-2")
       .keyConditionExpression("#pk2 = :assigneeemail")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query16AttributeNames)
       .expressionAttributeValues(query16AttributeValues)
       .build();
 
-    final QueryResponse query16Response = dynamoDbClient.query(query16Request);
+    QueryResponse query16Response = dynamoDbClient.query(query16Request);
 
     // Assert 2 items returned:
     // Expected to be `ticket1` and `ticket4`
     assert query16Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery16 = false;
-    for (Map<String, AttributeValue> item : query16Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery16 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
-      }
-    }
-    assert foundKnownValueItemQuery16;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query16Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("TicketNumber").s().equals("ticket_001");
   }
 
-  public static void runQuery17(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery17(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 17: Get tickets updated within the last 24 hours
     // Key condition: PK3 = Severity, SK3 > 24 hours ago
     // (For the sake of this example, we will assume
     //  the date is 2022-10-08T09:30:00, such that "24 hours ago"
     //  is 2022-10-07T09:30:00, and that our sample ticket record
     //  with TicketModTime=2022-10-07T14:32:25 will be returned.)
-    final Map<String, String> query17AttributeNames = new HashMap<>();
-    query17AttributeNames.put("#pk3", "PK3");
-    query17AttributeNames.put("#sk3", "SK3");
-    final Map<String, AttributeValue> query17AttributeValues = new HashMap<>();
-    query17AttributeValues.put(
+    Map<String, String> query17AttributeNames = Map.of(
+      "#pk3",
+      "PK3",
+      "#sk3",
+      "SK3"
+    );
+    Map<String, AttributeValue> query17AttributeValues = Map.of(
       ":severity",
-      AttributeValue.builder().s("S-3").build()
-    );
-    query17AttributeValues.put(
+      AttributeValue.fromS("S-3"),
       ":yesterday",
-      AttributeValue.builder().s("M-2022-10-07T09:30:00").build()
+      AttributeValue.fromS("M-2022-10-07T09:30:00"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query17AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query17Request = QueryRequest
+    QueryRequest query17Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-3")
       .keyConditionExpression("#pk3 = :severity AND #sk3 > :yesterday")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query17AttributeNames)
       .expressionAttributeValues(query17AttributeValues)
       .build();
 
-    final QueryResponse query17Response = dynamoDbClient.query(query17Request);
+    QueryResponse query17Response = dynamoDbClient.query(query17Request);
 
     // Assert 3 items returned:
     // Expected to be `ticket1`, `ticket2`, and `ticket4`
     assert query17Response.items().size() == 3;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery17 = false;
-    for (Map<String, AttributeValue> item : query17Response.items()) {
-      if (item.get("partition_key").s().equals("ticket1-java")) {
-        foundKnownValueItemQuery17 = true;
-        assert item.get("TicketNumber").s().equals("ticket_001");
-      }
-    }
-    assert foundKnownValueItemQuery17;
+    Map<String, AttributeValue> ticket1 = itemWithPartitionKey(
+      query17Response.items(),
+      ExampleUtils.uniquePartitionKey("ticket1")
+    );
+    assert ticket1.get("TicketNumber").s().equals("ticket_001");
   }
 
-  public static void runQuery18(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery18(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 18: Get projects by status, start and target date
     // Key condition: PK1 = Status, SK1 > StartDate
     // Filter condition: TargetDelivery < TargetDate
-    final Map<String, String> query18AttributeNames = new HashMap<>();
-    query18AttributeNames.put("#pk1", "PK1");
-    query18AttributeNames.put("#sk1", "SK1");
-    query18AttributeNames.put("#target", "ProjectTarget");
-    final Map<String, AttributeValue> query18AttributeValues = new HashMap<>();
-    query18AttributeValues.put(
+    Map<String, String> query18AttributeNames = Map.of(
+      "#pk1",
+      "PK1",
+      "#sk1",
+      "SK1",
+      "#target",
+      "ProjectTarget"
+    );
+    Map<String, AttributeValue> query18AttributeValues = Map.of(
       ":status",
-      AttributeValue.builder().s("PSts-Pending").build()
-    );
-    query18AttributeValues.put(
+      AttributeValue.fromS("PSts-Pending"),
       ":startdate",
-      AttributeValue.builder().s("PS-2022-01-01").build()
-    );
-    query18AttributeValues.put(
+      AttributeValue.fromS("PS-2022-01-01"),
       ":target",
-      AttributeValue.builder().s("2025-01-01").build()
+      AttributeValue.fromS("2025-01-01"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query18AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query18Request = QueryRequest
+    QueryRequest query18Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-1")
       .keyConditionExpression("#pk1 = :status AND #sk1 > :startdate")
       .filterExpression(
-        "#target < :target AND contains(partition_key, :javasuffix)"
+        "#target < :target AND contains(partition_key, :runSuffix)"
       )
       .expressionAttributeNames(query18AttributeNames)
       .expressionAttributeValues(query18AttributeValues)
       .build();
 
-    final QueryResponse query18Response = dynamoDbClient.query(query18Request);
+    QueryResponse query18Response = dynamoDbClient.query(query18Request);
 
     // Assert 1 item was returned: `project1`
     assert query18Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery18 = false;
-    for (Map<String, AttributeValue> item : query18Response.items()) {
-      if (item.get("partition_key").s().equals("project1-java")) {
-        foundKnownValueItemQuery18 = true;
-        assert item.get("ProjectName").s().equals("project_001");
-      }
-    }
-    assert foundKnownValueItemQuery18;
+    Map<String, AttributeValue> project1 = itemWithPartitionKey(
+      query18Response.items(),
+      ExampleUtils.uniquePartitionKey("project1")
+    );
+    assert project1.get("ProjectName").s().equals("project_001");
   }
 
-  public static void runQuery19(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery19(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 19: Get projects by name
     // Key condition: PK = ProjectName, SK = ProjectName
-    final Map<String, String> query19AttributeNames = new HashMap<>();
-    query19AttributeNames.put("#pk", "PK");
-    query19AttributeNames.put("#sk", "SK");
-    final Map<String, AttributeValue> query19AttributeValues = new HashMap<>();
-    query19AttributeValues.put(
+    Map<String, String> query19AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#sk",
+      "SK"
+    );
+    Map<String, AttributeValue> query19AttributeValues = Map.of(
       ":projectname",
-      AttributeValue.builder().s("P-project_001").build()
+      AttributeValue.fromS("P-project_001"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query19AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query19Request = QueryRequest
+    QueryRequest query19Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :projectname AND #sk = :projectname")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query19AttributeNames)
       .expressionAttributeValues(query19AttributeValues)
       .build();
 
-    final QueryResponse query19Response = dynamoDbClient.query(query19Request);
+    QueryResponse query19Response = dynamoDbClient.query(query19Request);
 
     // Assert 1 item was returned: `project1`
     assert query19Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery19 = false;
-    for (Map<String, AttributeValue> item : query19Response.items()) {
-      if (item.get("partition_key").s().equals("project1-java")) {
-        foundKnownValueItemQuery19 = true;
-        assert item.get("ProjectName").s().equals("project_001");
-      }
-    }
-    assert foundKnownValueItemQuery19;
+    Map<String, AttributeValue> project1 = itemWithPartitionKey(
+      query19Response.items(),
+      ExampleUtils.uniquePartitionKey("project1")
+    );
+    assert project1.get("ProjectName").s().equals("project_001");
   }
 
-  public static void runQuery20(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery20(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 20: Get Project History by date range (against timecard record)
     // Key condition: PK = ProjectName, SK between(date1, date2)
-    final Map<String, String> query20AttributeNames = new HashMap<>();
-    query20AttributeNames.put("#pk", "PK");
-    query20AttributeNames.put("#sk", "SK");
-    final Map<String, AttributeValue> query20AttributeValues = new HashMap<>();
-    query20AttributeValues.put(
+    Map<String, String> query20AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#sk",
+      "SK"
+    );
+    Map<String, AttributeValue> query20AttributeValues = Map.of(
       ":projectname",
-      AttributeValue.builder().s("P-project_002").build()
-    );
-    query20AttributeValues.put(
+      AttributeValue.fromS("P-project_002"),
       ":date1",
-      AttributeValue.builder().s("TC-2022-01-01").build()
-    );
-    query20AttributeValues.put(
+      AttributeValue.fromS("TC-2022-01-01"),
       ":date2",
-      AttributeValue.builder().s("TC-2023-01-01").build()
+      AttributeValue.fromS("TC-2023-01-01"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query20AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query20Request = QueryRequest
+    QueryRequest query20Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression(
         "#pk = :projectname AND #sk BETWEEN :date1 AND :date2"
       )
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query20AttributeNames)
       .expressionAttributeValues(query20AttributeValues)
       .build();
 
-    final QueryResponse query20Response = dynamoDbClient.query(query20Request);
+    QueryResponse query20Response = dynamoDbClient.query(query20Request);
 
     // Assert 2 items returned:
     // Expected to be `timecard1` and `timecard2`
     assert query20Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery20 = false;
-    for (Map<String, AttributeValue> item : query20Response.items()) {
-      if (item.get("partition_key").s().equals("timecard1-java")) {
-        foundKnownValueItemQuery20 = true;
-        assert item.get("ProjectName").s().equals("project_002");
-      }
-    }
-    assert foundKnownValueItemQuery20;
+    Map<String, AttributeValue> timecard1 = itemWithPartitionKey(
+      query20Response.items(),
+      ExampleUtils.uniquePartitionKey("timecard1")
+    );
+    assert timecard1.get("ProjectName").s().equals("project_002");
   }
 
-  public static void runQuery21(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery21(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 21: Get Project History by role
     // Key condition: PK = ProjectName
     // Filter condition: role=rolename
-    final Map<String, String> query21AttributeNames = new HashMap<>();
-    query21AttributeNames.put("#pk", "PK");
-    query21AttributeNames.put("#role", "Role");
-    final Map<String, AttributeValue> query21AttributeValues = new HashMap<>();
-    query21AttributeValues.put(
+    Map<String, String> query21AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#role",
+      "Role"
+    );
+    Map<String, AttributeValue> query21AttributeValues = Map.of(
       ":projectname",
-      AttributeValue.builder().s("P-project_002").build()
-    );
-    query21AttributeValues.put(
+      AttributeValue.fromS("P-project_002"),
       ":role",
-      AttributeValue.builder().s("SDE3").build()
+      AttributeValue.fromS("SDE3"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query21AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query21Request = QueryRequest
+    QueryRequest query21Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :projectname")
-      .filterExpression(
-        "#role = :role AND contains(partition_key, :javasuffix)"
-      )
+      .filterExpression("#role = :role AND contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query21AttributeNames)
       .expressionAttributeValues(query21AttributeValues)
       .build();
 
-    final QueryResponse query21Response = dynamoDbClient.query(query21Request);
+    QueryResponse query21Response = dynamoDbClient.query(query21Request);
 
     // Assert 1 item was returned: `timecard1`
     assert query21Response.items().size() == 1;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery21 = false;
-    for (Map<String, AttributeValue> item : query21Response.items()) {
-      if (item.get("partition_key").s().equals("timecard1-java")) {
-        foundKnownValueItemQuery21 = true;
-        assert item.get("ProjectName").s().equals("project_002");
-      }
-    }
-    assert foundKnownValueItemQuery21;
+    Map<String, AttributeValue> timecard1 = itemWithPartitionKey(
+      query21Response.items(),
+      ExampleUtils.uniquePartitionKey("timecard1")
+    );
+    assert timecard1.get("ProjectName").s().equals("project_002");
   }
 
-  public static void runQuery22(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery22(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 22: Get reservations by building ID
     // Key condition: PK = Building ID
-    final Map<String, String> query22AttributeNames = new HashMap<>();
-    query22AttributeNames.put("#pk", "PK");
-    final Map<String, AttributeValue> query22AttributeValues = new HashMap<>();
-    query22AttributeValues.put(
+    Map<String, String> query22AttributeNames = Map.of("#pk", "PK");
+    Map<String, AttributeValue> query22AttributeValues = Map.of(
       ":building",
-      AttributeValue.builder().s("B-SEA33").build()
+      AttributeValue.fromS("B-SEA33"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query22AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query22Request = QueryRequest
+    QueryRequest query22Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
       .keyConditionExpression("#pk = :building")
-      .filterExpression("contains(partition_key, :javasuffix)")
+      .filterExpression("contains(partition_key, :runSuffix)")
       .expressionAttributeNames(query22AttributeNames)
       .expressionAttributeValues(query22AttributeValues)
       .build();
 
-    final QueryResponse query22Response = dynamoDbClient.query(query22Request);
+    QueryResponse query22Response = dynamoDbClient.query(query22Request);
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
     assert query22Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery22 = false;
-    for (Map<String, AttributeValue> item : query22Response.items()) {
-      if (item.get("partition_key").s().equals("reservation1-java")) {
-        foundKnownValueItemQuery22 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-      }
-    }
-    assert foundKnownValueItemQuery22;
+    Map<String, AttributeValue> reservation1 = itemWithPartitionKey(
+      query22Response.items(),
+      ExampleUtils.uniquePartitionKey("reservation1")
+    );
+    assert reservation1.get("Subject").s().equals("Scan beacons");
   }
 
-  public static void runQuery23(String tableName, DynamoDbClient dynamoDbClient) {
+  private static void runQuery23(
+    String tableName,
+    DynamoDbClient dynamoDbClient
+  ) {
     // Query 23: Get reservations by building ID and time range
     // Key condition: PK = Building ID, SK between(date1, date2)
     // Filter condition: Duration > 0
-    final Map<String, String> query23AttributeNames = new HashMap<>();
-    query23AttributeNames.put("#pk", "PK");
-    query23AttributeNames.put("#sk", "SK");
-    query23AttributeNames.put("#duration", "Duration");
-    final Map<String, AttributeValue> query23AttributeValues = new HashMap<>();
-    query23AttributeValues.put(
+    Map<String, String> query23AttributeNames = Map.of(
+      "#pk",
+      "PK",
+      "#sk",
+      "SK",
+      "#duration",
+      "Duration"
+    );
+    Map<String, AttributeValue> query23AttributeValues = Map.of(
       ":building",
-      AttributeValue.builder().s("B-SEA33").build()
-    );
-    query23AttributeValues.put(
+      AttributeValue.fromS("B-SEA33"),
       ":date1",
-      AttributeValue.builder().s("MS-2022-07-01").build()
-    );
-    query23AttributeValues.put(
+      AttributeValue.fromS("MS-2022-07-01"),
       ":date2",
-      AttributeValue.builder().s("MS-2022-07-08").build()
-    );
-    query23AttributeValues.put(
+      AttributeValue.fromS("MS-2022-07-08"),
       ":zero",
-      AttributeValue.builder().s("0").build()
+      AttributeValue.fromS("0"),
+      ":runSuffix",
+      AttributeValue.fromS(ExampleUtils.runSuffix())
     );
-    query23AttributeValues.put(
-      ":javasuffix",
-      AttributeValue.builder().s("-java").build()
-    );
-    final QueryRequest query23Request = QueryRequest
+    QueryRequest query23Request = QueryRequest
       .builder()
       .tableName(tableName)
       .indexName("GSI-0")
@@ -1176,25 +1100,37 @@ public class QueryRequests {
         "#pk = :building AND #sk BETWEEN :date1 AND :date2"
       )
       .filterExpression(
-        "#duration > :zero AND contains(partition_key, :javasuffix)"
+        "#duration > :zero AND contains(partition_key, :runSuffix)"
       )
       .expressionAttributeNames(query23AttributeNames)
       .expressionAttributeValues(query23AttributeValues)
       .build();
 
-    final QueryResponse query23Response = dynamoDbClient.query(query23Request);
+    QueryResponse query23Response = dynamoDbClient.query(query23Request);
 
     // Assert 2 items returned:
     // Expected to be `reservation1` and `reservation2`
     assert query23Response.items().size() == 2;
     // Known value test: Assert some properties on one of the items
-    boolean foundKnownValueItemQuery23 = false;
-    for (Map<String, AttributeValue> item : query23Response.items()) {
-      if (item.get("partition_key").s().equals("reservation1-java")) {
-        foundKnownValueItemQuery23 = true;
-        assert item.get("Subject").s().equals("Scan beacons");
-      }
-    }
-    assert foundKnownValueItemQuery23;
+    Map<String, AttributeValue> reservation1 = itemWithPartitionKey(
+      query23Response.items(),
+      ExampleUtils.uniquePartitionKey("reservation1")
+    );
+    assert reservation1.get("Subject").s().equals("Scan beacons");
+  }
+
+  // Returns the item whose partition_key is partitionKey. Every item in this example has its own
+  // partition key, so there is at most one. Fails if the query results do not include it.
+  private static Map<String, AttributeValue> itemWithPartitionKey(
+    List<Map<String, AttributeValue>> items,
+    String partitionKey
+  ) {
+    return items
+      .stream()
+      .filter(item -> item.get("partition_key").s().equals(partitionKey))
+      .findFirst()
+      .orElseThrow(() ->
+        new AssertionError("No item with partition_key " + partitionKey)
+      );
   }
 }

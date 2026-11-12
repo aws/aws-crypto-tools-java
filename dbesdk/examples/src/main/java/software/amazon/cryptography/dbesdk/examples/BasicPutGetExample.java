@@ -1,6 +1,5 @@
 package software.amazon.cryptography.dbesdk.examples;
 
-import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -14,18 +13,18 @@ import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
-/*
-  This example sets up DynamoDB Encryption for the AWS SDK client
-  and uses the low level PutItem and GetItem DynamoDB APIs to demonstrate
-  putting a client-side encrypted item into DynamoDB
-  and then retrieving and decrypting that item from DynamoDB.
-
-  Running this example requires access to the DynamoDB Table whose name
-  is provided in CLI arguments.
-  This table must be configured with the following
-  primary key configuration:
-    - Partition key is named `partitionKeyName` with type (S)
-    - Sort key is named `sortKeyName` with type (N)
+/**
+ * This example sets up DynamoDB Encryption for the AWS SDK client
+ * and uses the low level PutItem and GetItem DynamoDB APIs to demonstrate
+ * putting a client-side encrypted item into DynamoDB
+ * and then retrieving and decrypting that item from DynamoDB.
+ *
+ * <p>Running this example requires access to the DynamoDB Table whose name
+ * is provided in CLI arguments.
+ * This table must be configured with the following
+ * primary key configuration:
+ *   - Partition key is named `partitionKeyName` with type (S)
+ *   - Sort key is named `sortKeyName` with type (N)
  */
 public class BasicPutGetExample {
 
@@ -41,7 +40,7 @@ public class BasicPutGetExample {
     // your data. For this example, we use an AWS KMS keyring with the KMS key we want to use. We
     // will create a `AwsKmsMrkMultiKeyring` because it correctly handles both Single-Region and
     // Multi-Region KMS keys.
-    final Keyring kmsKeyring = AwsKmsMrkMultiKeyring
+    Keyring kmsKeyring = AwsKmsMrkMultiKeyring
       .builder()
       .generator(kmsKeyId)
       .build();
@@ -88,7 +87,7 @@ public class BasicPutGetExample {
     // so that attribute is not signed and does not need to be listed.
 
     // Build the schema from the choices above.
-    final ItemEncryptionSchema schema = ItemEncryptionSchema
+    ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName(partitionKeyName)
       .sortKeyName(sortKeyName)
@@ -98,7 +97,7 @@ public class BasicPutGetExample {
       .build();
 
     // 4. Create the DynamoDB encryption configuration for the table we will write to.
-    final DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
+    DynamoDbTableEncryptionConfig config = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
@@ -112,13 +111,13 @@ public class BasicPutGetExample {
       // suites, see:
       //
       // https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
-      .algorithmSuiteId(
+      .algorithmSuite(
         AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
       )
       .build();
 
     // 5. Build the DynamoDB Encryption Interceptor.
-    final DynamoDbEncryptionInterceptor encryptionInterceptor =
+    DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
 
     // 6. Create a new AWS SDK DynamoDB client using the DynamoDB Encryption Interceptor created
@@ -133,19 +132,19 @@ public class BasicPutGetExample {
     ) {
       // 7. Put an item into the table using the client created above. Before the item reaches
       // DynamoDB, it will be encrypted client-side according to the configuration above.
-      final Map<String, AttributeValue> item = new HashMap<>();
-      item.put(
+      Map<String, AttributeValue> item = Map.of(
         partitionKeyName,
-        AttributeValue.builder().s(partitionKeyValue).build()
-      );
-      item.put(sortKeyName, AttributeValue.builder().n(sortKeyValue).build());
-      item.put(
+        AttributeValue.fromS(partitionKeyValue),
+        sortKeyName,
+        AttributeValue.fromN(sortKeyValue),
         "attribute1",
-        AttributeValue.builder().s("encrypt and sign me!").build()
+        AttributeValue.fromS("encrypt and sign me!"),
+        "attribute2",
+        AttributeValue.fromS("sign me!"),
+        ":attribute3",
+        AttributeValue.fromS("ignore me!")
       );
-      item.put("attribute2", AttributeValue.builder().s("sign me!").build());
-      item.put(":attribute3", AttributeValue.builder().s("ignore me!").build());
-      final PutItemRequest putRequest = PutItemRequest
+      PutItemRequest putRequest = PutItemRequest
         .builder()
         .tableName(tableName)
         .item(item)
@@ -155,13 +154,13 @@ public class BasicPutGetExample {
 
       // 8. Get the item back from the table using the same client. The client will decrypt the item
       // client-side on the way back, and return the original plaintext item.
-      final Map<String, AttributeValue> keyToGet = new HashMap<>();
-      keyToGet.put(
+      Map<String, AttributeValue> keyToGet = Map.of(
         partitionKeyName,
-        AttributeValue.builder().s(partitionKeyValue).build()
+        AttributeValue.fromS(partitionKeyValue),
+        sortKeyName,
+        AttributeValue.fromN(sortKeyValue)
       );
-      keyToGet.put(sortKeyName, AttributeValue.builder().n(sortKeyValue).build());
-      final GetItemRequest getRequest = GetItemRequest
+      GetItemRequest getRequest = GetItemRequest
         .builder()
         .key(keyToGet)
         .tableName(tableName)
@@ -174,15 +173,15 @@ public class BasicPutGetExample {
         .consistentRead(true)
         .build();
 
-      final GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
+      GetItemResponse getResponse = dynamoDbClient.getItem(getRequest);
 
       // Demonstrate that GetItem succeeded and returned the decrypted item
-      final Map<String, AttributeValue> returnedItem = getResponse.item();
+      Map<String, AttributeValue> returnedItem = getResponse.item();
       assert returnedItem.get("attribute1").s().equals("encrypt and sign me!");
     }
   }
 
-  public static void main(final String[] args) {
+  public static void main(String[] args) {
     if (args.length < 6) {
       throw new IllegalArgumentException(
         "To run this example, include the kmsKeyId as args[0], tableName as args[1], " +
@@ -190,12 +189,12 @@ public class BasicPutGetExample {
         "sortKeyValue as args[5]"
       );
     }
-    final String kmsKeyId = args[0];
-    final String tableName = args[1];
-    final String partitionKeyName = args[2];
-    final String sortKeyName = args[3];
-    final String partitionKeyValue = args[4];
-    final String sortKeyValue = args[5];
+    String kmsKeyId = args[0];
+    String tableName = args[1];
+    String partitionKeyName = args[2];
+    String sortKeyName = args[3];
+    String partitionKeyValue = args[4];
+    String sortKeyValue = args[5];
     putAndGetItem(
       kmsKeyId,
       tableName,
