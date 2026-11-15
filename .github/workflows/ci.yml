@@ -114,8 +114,9 @@ jobs:
       - name: Spotless (google-java-format)
         if: matrix.module != '(none)'
         run: ./gradlew $INIT -PciLint -p "$MODULE" spotlessCheck
+      # Runs after a Spotless failure too, so one push shows both.
       - name: Error Prone
-        if: matrix.module != '(none)'
+        if: ${{ !cancelled() && matrix.module != '(none)' }}
         run: ./gradlew $INIT -PciLint -p "$MODULE" compileJava compileTestJava
 
   # Every changed line has to run in a test (diff-cover over the lcov report).
