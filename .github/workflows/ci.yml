@@ -17,6 +17,11 @@ on:
 permissions:
   contents: read
 
+# bash with pipefail, so a gate piped to tee still fails.
+defaults:
+  run:
+    shell: bash
+
 env:
   INIT: -I ${{ github.workspace }}/.github/ci/ci.init.gradle
   JACOCO_VERSION: 0.8.16
