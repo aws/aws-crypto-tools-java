@@ -392,6 +392,10 @@ jobs:
       fail-fast: false
       matrix:
         module: ${{ fromJSON(needs.modules.outputs.duvet_modules) }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     uses: aws/aws-crypto-tools-commons/.github/workflows/duvet-test-reach-reusable.yml@lucmcdon/testing-infra-java
     with:
       library: ${{ matrix.module }}
@@ -412,6 +416,11 @@ jobs:
       fail-fast: false
       matrix:
         module: ${{ fromJSON(needs.modules.outputs.test_servers) }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
     uses: aws/aws-crypto-tools-commons/.github/workflows/mpl-test-server-reusable.yml@main
     with:
       focus: java
