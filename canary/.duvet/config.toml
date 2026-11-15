@@ -1,0 +1,19 @@
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "./src/main/java/**/*.java"
+
+[[source]]
+pattern = "./src/test/java/**/*.java"
+
+[[specification]]
+source = "spec/framework/structures.md"
+
+[report.html]
+enabled = true
+
+[report.json]
+enabled = true
+
+[report.snapshot]
+enabled = false

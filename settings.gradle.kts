@@ -3,3 +3,4 @@
 rootProject.name = "aws-crypto-tools-java"
 
 includeBuild("mpl")
+includeBuild("canary")
