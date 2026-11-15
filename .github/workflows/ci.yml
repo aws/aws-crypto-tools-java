@@ -142,7 +142,7 @@ jobs:
         run: |
           pip install --quiet diff-cover==9.2.4
           diff-cover "coverage/$MODULE.lcov" --compare-branch "origin/$GITHUB_BASE_REF" \
-            --include "$MODULE/*" --fail-under 100 --markdown-report patch-coverage.md
+            --include "$MODULE/**" --fail-under 100 --markdown-report patch-coverage.md
           cat patch-coverage.md >> "$GITHUB_STEP_SUMMARY"
       - name: Line coverage of the whole module
         if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
@@ -377,7 +377,7 @@ jobs:
           key: duvet-${{ runner.os }}-0.4
       - name: Install duvet
         if: env.HAS_DUVET == 'true'
-        run: command -v duvet || cargo +stable install duvet --version '^0.4' --locked
+        run: command -v duvet || cargo +stable install duvet --version '^0.4'
       # duvet fails on an annotation whose section or quote the specification does not have.
       - name: Duvet report
         if: env.HAS_DUVET == 'true'
