@@ -13,6 +13,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Runs the push-to-main checks (whole modules) on any branch.
+  workflow_dispatch:
 
 permissions:
   contents: read
