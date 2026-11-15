@@ -5,7 +5,7 @@
 //   -PciJavaVersion=N   compile and test with Java N instead of the module's toolchain
 //   -PciLint            Spotless (google-java-format) and Error Prone on the module's own code
 //   -PciPerTest         add PerTestCoverageListener to the tests (see per-test/src)
-//   -PciMutation        apply PIT; -PpitestClasses=a.B,a.B$* limits it to those classes
+//   -PciMutation        apply PIT to the classes -PpitestClasses=a.B,a.B$* names
 //
 // JaCoCo is always on, with the XML report written after the tests.
 
@@ -76,7 +76,11 @@ allprojects {
       project.pitest {
         pitestVersion = "1.30.2"
         junit5PluginVersion = "1.2.3"
-        targetClasses = project.hasProperty("pitestClasses") ? project.property("pitestClasses").split(",") as List : ["*"]
+        // A pattern as wide as "*" also matches PIT's own classes, which PIT refuses.
+        if (!project.hasProperty("pitestClasses")) {
+          throw new GradleException("-PciMutation needs -PpitestClasses, the classes to mutate")
+        }
+        targetClasses = project.property("pitestClasses").split(",") as List
         // Without this, PIT runs only the tests whose names match targetClasses.
         targetTests = ["*"]
         threads = Runtime.runtime.availableProcessors()

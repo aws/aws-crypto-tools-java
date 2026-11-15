@@ -327,15 +327,16 @@ jobs:
       - name: Mutate the whole module
         if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
         run: |
+          find "$MODULE" -path '*/src/main/java/*.java' -not -path '*/build/*' \
+            | python3 -c 'import json, sys; json.dump({f.strip(): [] for f in sys.stdin}, open("all.json", "w"))'
+          echo "CLASSES=$(python3 commons/test-server-common/tools/mutation/pit.py target-classes all.json $ROOTS)" >> "$GITHUB_ENV"
           echo "SCOPE=full" >> "$GITHUB_ENV"
           echo "LINES=" >> "$GITHUB_ENV"
       - name: PIT
-        if: env.HAS_CODE == 'true' && (github.event_name != 'pull_request' || env.CLASSES != '')
+        if: env.HAS_CODE == 'true' && env.CLASSES != ''
         run: |
           start=$(date +%s)
-          pitest_classes=()
-          if [ -n "$CLASSES" ]; then pitest_classes=("-PpitestClasses=$CLASSES"); fi
-          ./gradlew $INIT -PciMutation "${pitest_classes[@]}" -p "$MODULE" pitest
+          ./gradlew $INIT -PciMutation "-PpitestClasses=$CLASSES" -p "$MODULE" pitest
           echo "SECONDS_TAKEN=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
       - name: Write results.json
         if: env.HAS_CODE == 'true'
