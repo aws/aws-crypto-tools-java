@@ -360,7 +360,14 @@ public final class BranchKeyStore implements AutoCloseable {
       //= spec/framework/branch-key-store.md#getkeystoreinfo
       //= type=implication
       //# This MUST include:
-      GetKeyStoreInfoResponse info = new GetKeyStoreInfoResponse(keyStoreId, ddbTableName, logicalKeyStoreName, grantTokens, kmsConfiguration);
+      GetKeyStoreInfoResponse info = GetKeyStoreInfoResponse
+        .builder()
+        .keyStoreId(keyStoreId)
+        .keyStoreName(ddbTableName)
+        .logicalKeyStoreName(logicalKeyStoreName)
+        .grantTokens(grantTokens)
+        .kmsConfiguration(kmsConfiguration)
+        .build();
       return new BranchKeyStore(info, operations);
     }
   }

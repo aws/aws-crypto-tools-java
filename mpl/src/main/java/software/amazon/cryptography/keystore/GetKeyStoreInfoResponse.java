@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.keystore;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
 /** Output of {@link BranchKeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
 public final class GetKeyStoreInfoResponse {
@@ -14,18 +19,26 @@ public final class GetKeyStoreInfoResponse {
   private final List<String> grantTokens;
   private final KmsConfiguration kmsConfiguration;
 
-  GetKeyStoreInfoResponse(
-    String keyStoreId,
-    String keyStoreName,
-    String logicalKeyStoreName,
-    List<String> grantTokens,
-    KmsConfiguration kmsConfiguration
-  ) {
-    this.keyStoreId = keyStoreId;
-    this.keyStoreName = keyStoreName;
-    this.logicalKeyStoreName = logicalKeyStoreName;
-    this.grantTokens = grantTokens;
-    this.kmsConfiguration = kmsConfiguration;
+  private GetKeyStoreInfoResponse(Builder builder) {
+    this.keyStoreId = builder.keyStoreId;
+    this.keyStoreName = builder.keyStoreName;
+    this.logicalKeyStoreName = builder.logicalKeyStoreName;
+    this.grantTokens = Collections.unmodifiableList(new ArrayList<>(builder.grantTokens));
+    this.kmsConfiguration = builder.kmsConfiguration;
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /** A builder holding this response's values. */
+  public Builder toBuilder() {
+    return new Builder()
+      .keyStoreId(keyStoreId)
+      .keyStoreName(keyStoreName)
+      .logicalKeyStoreName(logicalKeyStoreName)
+      .grantTokens(grantTokens)
+      .kmsConfiguration(kmsConfiguration);
   }
 
   public String keyStoreId() {
@@ -77,5 +90,64 @@ public final class GetKeyStoreInfoResponse {
       "GetKeyStoreInfoResponse[" + keyStoreId + ", table " + keyStoreName + ", logical name " + logicalKeyStoreName + ", " +
       kmsConfiguration + ", " + grantTokens.size() + " grant tokens]"
     );
+  }
+
+  /** Not thread-safe. Requires every member except {@code grantTokens}, which defaults to none. */
+  public static final class Builder {
+
+    private String keyStoreId;
+    private String keyStoreName;
+    private String logicalKeyStoreName;
+    private List<String> grantTokens = Collections.emptyList();
+    private KmsConfiguration kmsConfiguration;
+
+    private Builder() {}
+
+    public Builder keyStoreId(String keyStoreId) {
+      this.keyStoreId = keyStoreId;
+      return this;
+    }
+
+    /** The DynamoDB table name. */
+    public Builder keyStoreName(String keyStoreName) {
+      this.keyStoreName = keyStoreName;
+      return this;
+    }
+
+    public Builder logicalKeyStoreName(String logicalKeyStoreName) {
+      this.logicalKeyStoreName = logicalKeyStoreName;
+      return this;
+    }
+
+    public Builder grantTokens(Collection<String> grantTokens) {
+      this.grantTokens = new ArrayList<>(grantTokens);
+      return this;
+    }
+
+    /** The same as {@link #grantTokens(Collection)} with these values; a null array is passed on as a null collection. */
+    public Builder grantTokens(String... grantTokens) {
+      return grantTokens(grantTokens == null ? null : Arrays.asList(grantTokens));
+    }
+
+    public Builder kmsConfiguration(KmsConfiguration kmsConfiguration) {
+      this.kmsConfiguration = kmsConfiguration;
+      return this;
+    }
+
+    public GetKeyStoreInfoResponse build() {
+      if (keyStoreId == null) {
+        throw new ValidationException("Missing value for required field `keyStoreId`");
+      }
+      if (keyStoreName == null) {
+        throw new ValidationException("Missing value for required field `keyStoreName`");
+      }
+      if (logicalKeyStoreName == null) {
+        throw new ValidationException("Missing value for required field `logicalKeyStoreName`");
+      }
+      if (kmsConfiguration == null) {
+        throw new ValidationException("Missing value for required field `kmsConfiguration`");
+      }
+      return new GetKeyStoreInfoResponse(this);
+    }
   }
 }
