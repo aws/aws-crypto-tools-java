@@ -10,11 +10,11 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme;
 
 /**
  * Writes an item with a KMS ECDH keyring, which wraps the data key with a key derived from the sender's KMS key and
@@ -44,7 +44,7 @@ public final class KmsEcdhKeyringExample {
     // 2. The sender's keyring. Building it calls GetPublicKey for the sender's key.
     Keyring senderKeyring = AwsKmsEcdhKeyring
       .builder()
-      .keyAgreementScheme(KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(senderKeyArn, recipientPublicKey))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(senderKeyArn, recipientPublicKey))
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
       .kmsClient(kmsClient)
       .build();
@@ -52,7 +52,7 @@ public final class KmsEcdhKeyringExample {
     // 3. The recipient's keyring: it decrypts any item addressed to its key, from any sender, and encrypts nothing.
     Keyring recipientKeyring = AwsKmsEcdhKeyring
       .builder()
-      .keyAgreementScheme(KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(recipientKeyArn))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(recipientKeyArn))
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
       .kmsClient(kmsClient)
       .build();
@@ -86,7 +86,7 @@ public final class KmsEcdhKeyringExample {
       .schema(schema)
       .keyring(keyring)
       // A suite without an asymmetric signature, as the DB-ESDK's own ECDH examples use.
-      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
+      .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
       .build();
     DynamoDbEncryptionInterceptor interceptor = DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
     return DynamoDbClient.builder().overrideConfiguration(o -> o.addExecutionInterceptor(interceptor)).build();
