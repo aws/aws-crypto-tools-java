@@ -9,12 +9,12 @@ import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.esdk.DecryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkNoMatchingDataKeyException;
+import software.amazon.cryptography.esdk.EsdkValidationException;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
-import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
 
 /**
@@ -42,7 +42,7 @@ public final class RequiredEncryptionContextCmmExample {
     // 1. Instantiate the ESDK, and create the materials managers.
     EsdkClient esdk = EsdkClient.create();
     Keyring keyring = AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build();
-    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.of(keyring);
+    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.create(keyring);
     CryptographicMaterialsManager requiredContextCmm = RequiredEncryptionContextCryptographicMaterialsManager
       .builder()
       .underlyingCmm(defaultCmm)
@@ -88,13 +88,13 @@ public final class RequiredEncryptionContextCmmExample {
         b.ciphertext(ciphertext).materialsManager(requiredContextCmm).encryptionContext(reproducedContext)
       );
       throw new IllegalStateException("Decrypted without a required pair");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // The reproduced context is missing requiredKey2.
     }
     try {
       esdk.decrypt(b -> b.ciphertext(ciphertext).materialsManager(defaultCmm).encryptionContext(reproducedContext));
       throw new IllegalStateException("Decrypted without a required pair");
-    } catch (NoMatchingDataKeyException expected) {
+    } catch (EsdkNoMatchingDataKeyException expected) {
       // KMS Decrypt failed for the only encrypted data key.
       if (expected.failures().isEmpty()) {
         throw new IllegalStateException("No KMS Decrypt was attempted");

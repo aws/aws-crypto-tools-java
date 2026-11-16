@@ -14,9 +14,9 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.cryptography.esdk.EncryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.esdk.EsdkValidationException;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
 
 /**
@@ -71,7 +71,7 @@ public final class KmsRsaKeyringExample {
         .plaintext(EXAMPLE_DATA)
         .keyring(encryptingKeyring)
         .encryptionContext(encryptionContext)
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
+        .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
     );
     byte[] decrypted = esdk
       .decrypt(b ->
@@ -86,7 +86,7 @@ public final class KmsRsaKeyringExample {
     try {
       esdk.encrypt(b -> b.plaintext(EXAMPLE_DATA).keyring(encryptingKeyring));
       throw new IllegalStateException("The KMS RSA keyring encrypted with a signing suite");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // Choose a suite without a signature, as in step 4.
     }
   }

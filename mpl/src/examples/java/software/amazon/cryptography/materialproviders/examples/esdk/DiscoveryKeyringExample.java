@@ -8,8 +8,8 @@ import java.util.Collections;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkNoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryMultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
@@ -88,7 +88,7 @@ public final class DiscoveryKeyringExample {
     try {
       esdk.decrypt(b -> b.ciphertext(ciphertext).keyring(otherAccountKeyring).encryptionContext(encryptionContext));
       throw new IllegalStateException("A keyring for another account decrypted the message");
-    } catch (NoMatchingDataKeyException expected) {
+    } catch (EsdkNoMatchingDataKeyException expected) {
       // No key was tried, so there are no failed attempts.
       if (!expected.failures().isEmpty()) {
         throw new IllegalStateException("A skipped key was reported as a failed attempt");

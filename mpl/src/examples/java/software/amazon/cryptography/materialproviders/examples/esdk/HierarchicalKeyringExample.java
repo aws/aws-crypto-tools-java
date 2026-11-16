@@ -10,11 +10,11 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkNoMatchingDataKeyException;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.CacheType;
-import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.exceptions.ResourceNotFoundException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
@@ -107,7 +107,7 @@ public final class HierarchicalKeyringExample {
       try {
         esdk.decrypt(b -> b.ciphertext(ciphertextA).keyring(tenantBKeyring));
         throw new IllegalStateException("Tenant B's keyring decrypted tenant A's message");
-      } catch (NoMatchingDataKeyException expected) {
+      } catch (EsdkNoMatchingDataKeyException expected) {
         // The message's only encrypted data key is for tenant A's branch key.
       }
 

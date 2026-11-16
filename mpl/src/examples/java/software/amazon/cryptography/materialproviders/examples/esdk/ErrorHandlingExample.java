@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
@@ -15,6 +16,9 @@ import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkErrorKind;
+import software.amazon.cryptography.esdk.EsdkException;
+import software.amazon.cryptography.esdk.EsdkNoMatchingDataKeyException;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
@@ -26,8 +30,10 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchica
 /**
  * Handles the failures of a hierarchical keyring and its key store, from coarse to fine.
  *
- * <p>Every failure of the MPL and the ESDK is a {@link MaterialProvidersException}, so each call needs one catch;
- * an exception thrown by the caller's own code, such as a branch key id supplier, passes through unchanged.
+ * <p>Every failure of an ESDK call is an {@link EsdkException}, and every failure of an MPL call, such as the key
+ * store's, is a {@link MaterialProvidersException}, so each call needs one catch. An MPL failure inside an ESDK call
+ * is the {@code EsdkException}'s cause and has the same kind. An exception thrown by the caller's own code, such as
+ * a branch key id supplier, passes through unchanged.
  * Decide from the accessors, never from the message text, which can change in any release:
  * {@code isRetryable()}, then {@code kind()}, then {@code findCause(Class)} for the AWS SDK exception.
  *
@@ -89,7 +95,7 @@ public final class ErrorHandlingExample {
       byte[] ciphertext;
       try {
         ciphertext = esdk.encrypt(b -> b.plaintext(EXAMPLE_DATA).keyring(keyring)).ciphertext();
-      } catch (MaterialProvidersException e) {
+      } catch (EsdkException e) {
         System.err.println("encrypt: " + whatToDo(e, resources));
         throw e;
       }
@@ -98,7 +104,7 @@ public final class ErrorHandlingExample {
       byte[] plaintext;
       try {
         plaintext = esdk.decrypt(b -> b.ciphertext(ciphertext).keyring(keyring)).plaintext();
-      } catch (MaterialProvidersException e) {
+      } catch (EsdkException e) {
         System.err.println("decrypt: " + whatToDo(e, resources));
         throw e;
       }
@@ -109,7 +115,7 @@ public final class ErrorHandlingExample {
       // 3. A modified message fails, and retrying cannot help.
       byte[] tampered = ciphertext.clone();
       tampered[tampered.length - 1] ^= 1;
-      MaterialProvidersException tamperedFailure = expectFailure(esdk, tampered, keyring);
+      EsdkException tamperedFailure = expectFailure(esdk, tampered, keyring);
       System.out.println("modified message: " + whatToDo(tamperedFailure, resources));
       if (tamperedFailure.isRetryable()) {
         throw new IllegalStateException("A modified message was reported as retryable");
@@ -117,10 +123,10 @@ public final class ErrorHandlingExample {
 
       // 4. A keyring for another branch key finds no encrypted data key it can use.
       Keyring otherKeyring = hierarchicalKeyring(keyStore, "another-branch-key-id");
-      MaterialProvidersException notForThisKeyring = expectFailure(esdk, ciphertext, otherKeyring);
+      EsdkException notForThisKeyring = expectFailure(esdk, ciphertext, otherKeyring);
       System.out.println("other branch key: " + whatToDo(notForThisKeyring, resources));
-      if (!(notForThisKeyring instanceof NoMatchingDataKeyException)) {
-        throw new IllegalStateException("Expected NoMatchingDataKeyException, got " + notForThisKeyring);
+      if (!(notForThisKeyring instanceof EsdkNoMatchingDataKeyException)) {
+        throw new IllegalStateException("Expected EsdkNoMatchingDataKeyException, got " + notForThisKeyring);
       }
 
       // 5. A key store call: a branch key version that does not exist.
@@ -137,7 +143,30 @@ public final class ErrorHandlingExample {
     }
   }
 
-  /** What to do about a failure, deciding from coarse to fine. */
+  /** What to do about a failure of an ESDK call. */
+  static String whatToDo(EsdkException e, Resources resources) {
+    if (e.kind() == EsdkErrorKind.MALFORMED_MESSAGE) {
+      return "the ciphertext is not an ESDK message";
+    }
+    // An MPL failure keeps its kind as the cause, so the MPL's handling applies to it.
+    Optional<MaterialProvidersException> mpl = e.findCause(MaterialProvidersException.class);
+    if (mpl.isPresent()) {
+      return whatToDo(mpl.get(), resources);
+    }
+    if (e.isRetryable()) {
+      return "retry later: " + e.getMessage();
+    }
+    switch (e.kind()) {
+      case CRYPTOGRAPHIC:
+        // A tag or signature in the message did not verify.
+        return "the message is corrupt or was modified";
+      default:
+        // EsdkErrorKind gains values in later releases, so a default branch handles the rest.
+        return "failed: " + e;
+    }
+  }
+
+  /** What to do about a failure of an MPL call, deciding from coarse to fine. */
   static String whatToDo(MaterialProvidersException e, Resources resources) {
     // One check covers throttling, timeouts, and any kind whose AWS SDK cause is retryable.
     // The SDK clients already retried, so retry later. No retryKind() accessor: the caller picks the backoff.
@@ -172,8 +201,7 @@ public final class ErrorHandlingExample {
         // Usually a malformed key store record. No resource() accessor: the exception does not name the record.
         return "check the key store record of branch key " + resources.branchKeyId + ": " + e.getMessage();
       case CRYPTOGRAPHIC:
-        // A tag or signature did not verify, or the bytes are not a message.
-        // The ESDK 4.0 sketch has no separate kind for a malformed message, so both land here.
+        // A tag or signature did not verify.
         return "the message is corrupt or was modified";
       case CONFLICT:
         // No reason() accessor: on createKey a conflict means the id exists; on versionKey, a concurrent change.
@@ -213,10 +241,10 @@ public final class ErrorHandlingExample {
       .isPresent();
   }
 
-  private static MaterialProvidersException expectFailure(EsdkClient esdk, byte[] ciphertext, Keyring keyring) {
+  private static EsdkException expectFailure(EsdkClient esdk, byte[] ciphertext, Keyring keyring) {
     try {
       esdk.decrypt(b -> b.ciphertext(ciphertext).keyring(keyring));
-    } catch (MaterialProvidersException e) {
+    } catch (EsdkException e) {
       return e;
     }
     throw new IllegalStateException("Decrypt succeeded");
