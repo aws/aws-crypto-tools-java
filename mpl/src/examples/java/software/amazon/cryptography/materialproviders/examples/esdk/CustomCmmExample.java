@@ -51,6 +51,7 @@ public final class CustomCmmExample {
 
     // 2. Create a keyring, and wrap its default materials manager in the custom one.
     // wrappingKey takes SecretBytes, a byte[], or, as here, a JCA SecretKey; the keyring keeps its own copy.
+    // A JCA key cannot be cleared; RawAesKeyringExample keeps the key in SecretBytes, which can.
     KeyGenerator generator = KeyGenerator.getInstance("AES");
     generator.init(256);
     SecretKey wrappingKey = generator.generateKey();
