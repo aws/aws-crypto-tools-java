@@ -117,6 +117,7 @@ class EsdkExamplesTest {
   @Test
   void rawKeyrings() throws Exception {
     RawAesKeyringExample.encryptAndDecrypt();
+    RawAesKeyringExample.encryptAndDecryptWithJcaKey();
     RawRsaKeyringExample.encryptAndDecrypt();
     RawEcdhKeyringExample.encryptAndDecrypt();
   }

@@ -3,8 +3,11 @@
 package software.amazon.cryptography.materialproviders.examples.esdk;
 
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
@@ -34,6 +37,26 @@ public final class RawAesKeyringExample {
     Map<String, String> encryptionContext = new HashMap<>();
     encryptionContext.put("encryption", "context");
     encryptionContext.put("is not", "secret");
+
+    byte[] ciphertext = crypto.encryptData(keyring, EXAMPLE_DATA, encryptionContext);
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertext, encryptionContext).getResult());
+  }
+
+  /** The same keyring from a JCA key, for code that already holds one; the keyring copies its RAW encoding. */
+  public static void encryptAndDecryptWithJcaKey() throws GeneralSecurityException {
+    EsdkLikeClient crypto = EsdkLikeClient.builder().build();
+    KeyGenerator generator = KeyGenerator.getInstance("AES");
+    generator.init(256);
+    SecretKey aesKey = generator.generateKey();
+    Keyring keyring = RawAesKeyring
+      .builder()
+      .keyNamespace("my-key-namespace")
+      .keyName("my-aes-key-name")
+      .wrappingKey(aesKey)
+      .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
+      .build();
+    Map<String, String> encryptionContext = new HashMap<>();
+    encryptionContext.put("encryption", "context");
 
     byte[] ciphertext = crypto.encryptData(keyring, EXAMPLE_DATA, encryptionContext);
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertext, encryptionContext).getResult());

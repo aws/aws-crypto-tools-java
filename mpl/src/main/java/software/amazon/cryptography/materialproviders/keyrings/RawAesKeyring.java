@@ -7,6 +7,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import javax.crypto.SecretKey;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -286,6 +287,37 @@ public final class RawAesKeyring implements Keyring {
     /** The AES key; {@link #build()} copies it. */
     public Builder wrappingKey(SecretBytes wrappingKey) {
       this.wrappingKey = wrappingKey;
+      return this;
+    }
+
+    /** {@link #wrappingKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
+    public Builder wrappingKey(byte[] wrappingKey) {
+      this.wrappingKey = wrappingKey == null ? null : SecretBytes.copyOf(wrappingKey);
+      return this;
+    }
+
+    /**
+     * {@link #wrappingKey(SecretBytes)} with the bytes of {@code wrappingKey.getEncoded()}, copied now.
+     *
+     * @throws ValidationException if the key has no encoding (for example, it is held in a hardware module) or its format is not {@code RAW}
+     */
+    public Builder wrappingKey(SecretKey wrappingKey) {
+      if (wrappingKey == null) {
+        this.wrappingKey = null;
+        return this;
+      }
+      byte[] encoded = wrappingKey.getEncoded();
+      try {
+        if (encoded == null) {
+          throw new ValidationException("wrappingKey has no encoded form");
+        }
+        if (!"RAW".equals(wrappingKey.getFormat())) {
+          throw new ValidationException("wrappingKey must use the RAW encoding format");
+        }
+        this.wrappingKey = SecretBytes.copyOf(encoded);
+      } finally {
+        Bytes.zero(encoded);
+      }
       return this;
     }
 

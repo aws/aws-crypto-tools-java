@@ -305,6 +305,12 @@ public final class RawRsaKeyring implements Keyring {
       return this;
     }
 
+    /** {@link #privateKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
+    public Builder privateKey(byte[] privateKey) {
+      this.privateKey = privateKey == null ? null : SecretBytes.copyOf(privateKey);
+      return this;
+    }
+
     /**
      * {@link #publicKey(byte[])} with the PEM of {@code publicKey.getEncoded()}, so the keyring behaves as with those bytes.
      *

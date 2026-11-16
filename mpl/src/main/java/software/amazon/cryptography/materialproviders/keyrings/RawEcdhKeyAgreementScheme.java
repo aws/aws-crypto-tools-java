@@ -41,6 +41,16 @@ public abstract class RawEcdhKeyAgreementScheme {
     return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderStaticPrivateKey.copy(), recipientPublicKey.clone());
   }
 
+  /**
+   * {@link #rawPrivateKeyToStaticPublicKey(SecretBytes, byte[])} with the private key in an array, copied now;
+   * zero your own array when you no longer need it.
+   */
+  public static RawEcdhKeyAgreementScheme rawPrivateKeyToStaticPublicKey(byte[] senderStaticPrivateKey, byte[] recipientPublicKey) {
+    KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
+    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+    return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, SecretBytes.copyOf(senderStaticPrivateKey), recipientPublicKey.clone());
+  }
+
   /** {@link #rawPrivateKeyToStaticPublicKey(SecretBytes, byte[])} with JCA keys. */
   public static RawEcdhKeyAgreementScheme rawPrivateKeyToStaticPublicKey(PrivateKey senderStaticPrivateKey, PublicKey recipientPublicKey) {
     KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
@@ -65,6 +75,12 @@ public abstract class RawEcdhKeyAgreementScheme {
   public static RawEcdhKeyAgreementScheme publicKeyDiscovery(SecretBytes recipientStaticPrivateKey) {
     KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
     return new Of(Kind.PUBLIC_KEY_DISCOVERY, recipientStaticPrivateKey.copy(), null);
+  }
+
+  /** {@link #publicKeyDiscovery(SecretBytes)} with the key in an array, copied now; zero your own array when you no longer need it. */
+  public static RawEcdhKeyAgreementScheme publicKeyDiscovery(byte[] recipientStaticPrivateKey) {
+    KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
+    return new Of(Kind.PUBLIC_KEY_DISCOVERY, SecretBytes.copyOf(recipientStaticPrivateKey), null);
   }
 
   /** {@link #publicKeyDiscovery(SecretBytes)} with a JCA key. */

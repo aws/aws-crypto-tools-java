@@ -294,6 +294,11 @@ public final class EncryptionMaterials implements Destroyable {
       return this;
     }
 
+    /** {@link #signingKeyPair(SecretBytes, byte[])} with the signing key in an array; zero your own array when you no longer need it. */
+    public Builder signingKeyPair(byte[] signingKey, byte[] verificationKey) {
+      return signingKeyPair(SecretBytes.copyOf(signingKey), verificationKey);
+    }
+
     /**
      * @throws ValidationException if the context uses the reserved key or lacks a required key,
      *   or a signing key pair is missing for a signing suite or present for another
