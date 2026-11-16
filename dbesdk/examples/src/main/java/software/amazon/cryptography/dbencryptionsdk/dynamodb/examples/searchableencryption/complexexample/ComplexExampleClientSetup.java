@@ -7,6 +7,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeaconConstructor;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeaconConstructorPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
@@ -55,9 +56,9 @@ public final class ComplexExampleClientSetup {
 
     // 2. Define constructors
     //    A constructor is one allowed way to assemble a compound beacon value: an ordered list of
-    //    the compound beacon's encrypted and signed parts, joined by its separator. addRequiredPart
-    //    and addOptionalPart add one part name, addRequiredParts and addOptionalParts add several,
-    //    and the parts are written in the order they are added, across calls. When an item is
+    //    the compound beacon's encrypted and signed parts, joined by its separator. Each
+    //    CompoundBeaconConstructorPart names one of those parts and says whether it is required or
+    //    optional, and the parts are written in the order they are listed. When an item is
     //    written, the compound beacon's constructors are tried in order, and the first one whose
     //    required parts are all on the item is used; an optional part that is missing is left
     //    out. The constructors below build the PK and SK values for each record type in this
@@ -68,32 +69,30 @@ public final class ComplexExampleClientSetup {
     // If this is the first matching constructor in the constructor list (constructor list
     // described more below), the compound beacon will use this constructor, and the compound
     // beacon will be written as `E-X`.
-    CompoundBeaconConstructor employeeIdConstructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredPart("EmployeeID")
-      .build();
+    CompoundBeaconConstructor employeeIdConstructor =
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("EmployeeID")
+      );
 
     CompoundBeaconConstructor ticketNumberConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("TicketNumber")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("TicketNumber")
+      );
 
-    CompoundBeaconConstructor projectNameConstructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredPart("ProjectName")
-      .build();
+    CompoundBeaconConstructor projectNameConstructor =
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("ProjectName")
+      );
 
     CompoundBeaconConstructor ticketModTimeConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("TicketModTime")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("TicketModTime")
+      );
 
-    CompoundBeaconConstructor buildingConstructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredPart("Building")
-      .build();
+    CompoundBeaconConstructor buildingConstructor =
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("Building")
+      );
 
     // This constructor requires all of "MeetingStart", "Location.Floor", and "Location.Room"
     // attributes. If an item has all of these attributes, it will match this constructor.
@@ -103,80 +102,73 @@ public final class ComplexExampleClientSetup {
     // In a constructor with more than one part, the order of the part names defines the order the
     // parts are written in. Reordering them reorders the beacon value.
     CompoundBeaconConstructor meetingStartFloorRoomConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredParts("MeetingStart", "Floor", "Room")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("MeetingStart"),
+        CompoundBeaconConstructorPart.required("Floor"),
+        CompoundBeaconConstructorPart.required("Room")
+      );
 
     CompoundBeaconConstructor timeCardStartEmployeeEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredParts("TimeCardStart", "EmployeeEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("TimeCardStart"),
+        CompoundBeaconConstructorPart.required("EmployeeEmail")
+      );
 
     CompoundBeaconConstructor timeCardStartConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("TimeCardStart")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("TimeCardStart")
+      );
 
     CompoundBeaconConstructor creatorEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("CreatorEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("CreatorEmail")
+      );
 
     CompoundBeaconConstructor projectStatusConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("ProjectStatus")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("ProjectStatus")
+      );
 
     CompoundBeaconConstructor employeeEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("EmployeeEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("EmployeeEmail")
+      );
 
     CompoundBeaconConstructor organizerEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("OrganizerEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("OrganizerEmail")
+      );
 
     CompoundBeaconConstructor projectStartConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("ProjectStart")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("ProjectStart")
+      );
 
     CompoundBeaconConstructor managerEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("ManagerEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("ManagerEmail")
+      );
 
     CompoundBeaconConstructor assigneeEmailConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredPart("AssigneeEmail")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("AssigneeEmail")
+      );
 
-    CompoundBeaconConstructor cityConstructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredPart("City")
-      .build();
+    CompoundBeaconConstructor cityConstructor = CompoundBeaconConstructor.of(
+      CompoundBeaconConstructorPart.required("City")
+    );
 
-    CompoundBeaconConstructor severityConstructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredPart("Severity")
-      .build();
+    CompoundBeaconConstructor severityConstructor =
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("Severity")
+      );
 
     CompoundBeaconConstructor buildingFloorDeskConstructor =
-      CompoundBeaconConstructor
-        .builder()
-        .addRequiredParts("Building", "Floor", "Desk")
-        .build();
+      CompoundBeaconConstructor.of(
+        CompoundBeaconConstructorPart.required("Building"),
+        CompoundBeaconConstructorPart.required("Floor"),
+        CompoundBeaconConstructorPart.required("Desk")
+      );
 
     // 3. Create BeaconConfig.
     //    The standard beacons, encrypted parts, signed parts and compound beacons are passed

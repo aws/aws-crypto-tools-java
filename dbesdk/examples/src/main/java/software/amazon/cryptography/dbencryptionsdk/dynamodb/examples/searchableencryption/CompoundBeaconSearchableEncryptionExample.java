@@ -19,6 +19,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconKeySource;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.BeaconStyle;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeaconConstructor;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.CompoundBeaconConstructorPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
@@ -121,15 +122,15 @@ public class CompoundBeaconSearchableEncryptionExample {
       .build();
 
     // A constructor is one allowed way to assemble the compound beacon's value: an ordered list of
-    // parts, joined by the compound beacon's separator. addRequiredPart names parts that must be on
-    // the item for this constructor to be used; addOptionalPart names parts that are left out when
-    // they are missing. addRequiredParts and addOptionalParts add several names at once. The parts
-    // are written in the order they are added. This constructor writes the beacon as
+    // parts, joined by the compound beacon's separator. Each part names an encrypted or signed part
+    // and says whether the constructor needs it: a required part must be on the item for this
+    // constructor to be used, and an optional part is left out when it is missing. The parts are
+    // written in the order they are listed. This constructor writes the beacon as
     // `L-XXX.U-YYYYYYYY` and needs both parts.
-    CompoundBeaconConstructor constructor = CompoundBeaconConstructor
-      .builder()
-      .addRequiredParts("inspector_id_last4", "unit")
-      .build();
+    CompoundBeaconConstructor constructor = CompoundBeaconConstructor.of(
+      CompoundBeaconConstructorPart.required("inspector_id_last4"),
+      CompoundBeaconConstructorPart.required("unit")
+    );
 
     // 3. Define compound beacon.
     //    A compound beacon allows one to serve multiple beacons or attributes from a single index.
