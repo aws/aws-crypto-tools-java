@@ -43,6 +43,11 @@ class GetKeyStoreInfoResponseTest {
   }
 
   @Test
+  void rejectsNullGrantTokens() {
+    assertThrows(NullPointerException.class, () -> complete().grantTokens(Arrays.asList("a", null)));
+  }
+
+  @Test
   void rejectsMissingMembers() {
     assertMessage("keyStoreId", complete().keyStoreId(null));
     assertMessage("keyStoreName", complete().keyStoreName(null));

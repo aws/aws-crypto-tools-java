@@ -52,6 +52,15 @@ class SecretOverloadsTest {
     assertRoundTrip(aes().wrappingKey(new SecretKeySpec(key, "AES")).build(), aes().wrappingKey(key).build());
   }
 
+  // getEncoded() returns a new copy of the key each time; the keyring must not leave that copy behind.
+  @Test
+  void aesSecretKeyEncodingIsZeroed() {
+    byte[] shared = new byte[32];
+    Arrays.fill(shared, (byte) 5);
+    aes().wrappingKey(new Unencoded("RAW", shared, true)).build();
+    assertArrayEquals(new byte[32], shared);
+  }
+
   @Test
   void aesSecretKeyWithoutRawEncodingIsRejected() {
     assertMessage("wrappingKey has no encoded form", () -> aes().wrappingKey(new Unencoded(null, null)));
@@ -150,10 +159,17 @@ class SecretOverloadsTest {
     private static final long serialVersionUID = 1L;
     private final String format;
     private final byte[] encoded;
+    // Hands out the array itself, so a test can see what the caller does with it.
+    private final boolean shared;
 
     Unencoded(String format, byte[] encoded) {
+      this(format, encoded, false);
+    }
+
+    Unencoded(String format, byte[] encoded, boolean shared) {
       this.format = format;
       this.encoded = encoded;
+      this.shared = shared;
     }
 
     @Override
@@ -168,7 +184,7 @@ class SecretOverloadsTest {
 
     @Override
     public byte[] getEncoded() {
-      return encoded == null ? null : encoded.clone();
+      return encoded == null || shared ? encoded : encoded.clone();
     }
   }
 }

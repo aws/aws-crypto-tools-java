@@ -120,7 +120,11 @@ public final class GetKeyStoreInfoResponse {
     }
 
     public Builder grantTokens(Collection<String> grantTokens) {
-      this.grantTokens = new ArrayList<>(grantTokens);
+      List<String> copy = new ArrayList<>(grantTokens);
+      for (String token : copy) {
+        Objects.requireNonNull(token, "grant token");
+      }
+      this.grantTokens = copy;
       return this;
     }
 

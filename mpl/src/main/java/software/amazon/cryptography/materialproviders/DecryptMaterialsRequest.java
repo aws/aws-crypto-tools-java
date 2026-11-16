@@ -140,7 +140,6 @@ public final class DecryptMaterialsRequest {
       if (algorithmSuite == null) {
         throw new ValidationException("Missing value for required field `algorithmSuite`");
       }
-      MaterialsRules.requireBuiltInSuite(algorithmSuite);
       if (commitmentPolicy == null) {
         throw new ValidationException("Missing value for required field `commitmentPolicy`");
       }
@@ -150,6 +149,7 @@ public final class DecryptMaterialsRequest {
       if (encryptionContext == null) {
         throw new ValidationException("Missing value for required field `encryptionContext`");
       }
+      MaterialsRules.requireBuiltInSuite(algorithmSuite);
       return new DecryptMaterialsRequest(this);
     }
   }
