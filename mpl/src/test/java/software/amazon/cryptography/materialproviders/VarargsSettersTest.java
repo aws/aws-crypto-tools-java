@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
@@ -211,6 +212,15 @@ class VarargsSettersTest {
   }
 
   @Test
+  void keyStoreInfoGrantTokens() {
+    matches(TOKENS, t -> info().grantTokens(t).build(), t -> info().grantTokens(t).build(), GetKeyStoreInfoResponse::grantTokens);
+  }
+
+  private static GetKeyStoreInfoResponse.Builder info() {
+    return GetKeyStoreInfoResponse.builder().keyStoreId("id").keyStoreName("table").logicalKeyStoreName("logical").kmsConfiguration(KmsConfiguration.discovery());
+  }
+
+  @Test
   void requiredEncryptionContextKeys() {
     CryptographicMaterialsManager underlying = DefaultCryptographicMaterialsManager.create(aes("a"));
     matches(
@@ -300,7 +310,7 @@ class VarargsSettersTest {
         }
       }
     }
-    assertEquals(22, setters.size(), setters.toString());
+    assertEquals(23, setters.size(), setters.toString());
     assertEquals(new ArrayList<String>(), missing);
   }
 
