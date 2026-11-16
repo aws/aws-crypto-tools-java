@@ -54,7 +54,7 @@ public final class BasicPutGetExample {
         .logicalTableName(tableName)
         .schema(schema)
         .keyring(keyring)
-        .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
+        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
         .build();
       DynamoDbEncryptionInterceptor interceptor = DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
       try (

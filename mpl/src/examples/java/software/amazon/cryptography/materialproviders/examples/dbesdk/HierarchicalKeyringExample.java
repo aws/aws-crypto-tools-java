@@ -8,6 +8,7 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.kms.KmsClient;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.BranchKeyIdRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemBranchKeyIdSupplier;
@@ -123,10 +124,10 @@ public final class HierarchicalKeyringExample {
       this.tenant2BranchKeyId = tenant2BranchKeyId;
     }
 
-    // The item context always holds the item's primary key.
+    // The request's attributes always hold the item's primary key.
     @Override
-    public String getBranchKeyId(Map<String, AttributeValue> itemContext) {
-      String tenant = itemContext.get("partition_key").s();
+    public String getBranchKeyId(BranchKeyIdRequest request) {
+      String tenant = request.attributes().get("partition_key").s();
       if ("tenant1".equals(tenant)) {
         return tenant1BranchKeyId;
       }

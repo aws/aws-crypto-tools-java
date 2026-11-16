@@ -86,7 +86,7 @@ public final class KmsEcdhKeyringExample {
       .schema(schema)
       .keyring(keyring)
       // A suite without an asymmetric signature, as the DB-ESDK's own ECDH examples use.
-      .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
+      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
       .build();
     DynamoDbEncryptionInterceptor interceptor = DynamoDbEncryptionInterceptor.builder().tableConfigs(config).build();
     return DynamoDbClient.builder().overrideConfiguration(o -> o.addExecutionInterceptor(interceptor)).build();
