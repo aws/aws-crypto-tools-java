@@ -36,7 +36,7 @@ import software.amazon.awssdk.services.kms.model.KmsException;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeKms;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -65,7 +65,7 @@ class KmsKeyringsNativeApiTest {
   private final KmsClient kms = aws.kmsClient("native", REGION);
   private final String key = aws.kms().createSymmetricKey(REGION);
   private final EncryptionMaterials start = EncryptionMaterials
-    .builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+    .builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
     .encryptionContext(EncryptionContext.of("a", "b"))
     .build();
 

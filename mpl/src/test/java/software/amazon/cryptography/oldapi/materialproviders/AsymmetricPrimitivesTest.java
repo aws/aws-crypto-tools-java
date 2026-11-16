@@ -4,7 +4,6 @@ package software.amazon.cryptography.oldapi.materialproviders;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,6 +46,7 @@ import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -453,7 +453,7 @@ class AsymmetricPrimitivesTest {
   // The materials' JCA keys follow the same encodings as ECDSASign and ECDSAVerify.
   @Test
   void materialsKeysAgreeWithEcdsa() throws Exception {
-    AlgorithmSuite suite = AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
+    AlgorithmSuite suite = EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
     for (int i = 0; i < 10; i++) {
       GenerateECDSASignatureKeyOutput keys = ecdsaKeys(
         ReferenceMpl.call(
@@ -498,7 +498,7 @@ class AsymmetricPrimitivesTest {
   // A signing key with its top bit set is negative, as ECDSASign reads it; a compressed point may carry extra leading zeros.
   @Test
   void materialsKeysReadUnusualEncodingsAsEcdsaDoes() {
-    AlgorithmSuite suite = AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_HKDF_SHA256_ECDSA_P256;
+    AlgorithmSuite suite = EsdkAlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_HKDF_SHA256_ECDSA_P256;
     BigInteger n = curveOf(ECDSASignatureAlgorithm.ECDSA_P256).getN();
     byte[] negative = n.subtract(BigInteger.ONE).toByteArray();
     negative = Arrays.copyOfRange(negative, negative.length - 32, negative.length);

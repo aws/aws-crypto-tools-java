@@ -7,7 +7,12 @@
  * <p>This is major version 2 of {@code software.amazon.cryptography:aws-cryptographic-material-providers}.
  * It replaces the Dafny-based 1.x releases in the same packages, so the two cannot share a classpath.
  *
- * <p>Every component builds itself with a static {@code builder()} or {@code of(...)}; there is no factory client.
+ * <p>Every component builds itself with a static {@code builder()} or, where a builder adds nothing, {@code create(...)};
+ * there is no factory client. {@code of(...)} makes value types such as {@link software.amazon.cryptography.materialproviders.EncryptionContext}.
+ *
+ * <p>Algorithm suites are {@link software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite} and
+ * {@link software.amazon.cryptography.materialproviders.DbeAlgorithmSuite}; materials and materials manager requests take either
+ * as an {@link software.amazon.cryptography.materialproviders.AlgorithmSuite}.
  *
  * <table>
  *   <caption>Where to start</caption>
@@ -25,6 +30,8 @@
  * <ul>
  *   <li>Keyrings, materials managers, caches, and key stores are thread-safe; builders are not.</li>
  *   <li>Value types are immutable. Byte arrays and collections are copied when passed in and when returned.</li>
+ *   <li>Secrets are {@link software.amazon.cryptography.materialproviders.SecretBytes}. A builder that takes one also takes a
+ *       {@code byte[]}, which it copies; the caller zeroes its own array.</li>
  *   <li>No method returns null; absent values are {@link java.util.Optional} or empty collections.</li>
  *   <li>The library never closes an AWS SDK client it was given. It closes clients it created when the owner is closed.</li>
  *   <li>Failures the library reports extend

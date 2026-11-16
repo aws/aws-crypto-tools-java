@@ -71,7 +71,7 @@ public final class EncryptionMaterials implements Destroyable {
    * to the encryption context under {@code aws-crypto-public-key}.
    */
   public static Builder builder(AlgorithmSuite suite) {
-    return new Builder(Objects.requireNonNull(suite, "suite"));
+    return new Builder(MaterialsRules.requireBuiltInSuite(Objects.requireNonNull(suite, "suite")));
   }
 
   public AlgorithmSuite algorithmSuite() {

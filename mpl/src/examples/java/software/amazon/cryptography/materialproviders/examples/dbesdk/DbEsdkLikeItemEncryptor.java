@@ -29,6 +29,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -100,7 +101,7 @@ public final class DbEsdkLikeItemEncryptor {
   private final String sortKeyName;
   private final Map<String, CryptoAction> actions;
   private final NativeMplMaterialResolver resolver;
-  private final AlgorithmSuite algorithmSuite;
+  private final DbeAlgorithmSuite algorithmSuite;
   private final int version;
 
   private DbEsdkLikeItemEncryptor(Builder builder, NativeMplMaterialResolver resolver) {
@@ -210,12 +211,12 @@ public final class DbEsdkLikeItemEncryptor {
   public static final class ParsedHeader {
 
     private final int version;
-    private final AlgorithmSuite algorithmSuite;
+    private final DbeAlgorithmSuite algorithmSuite;
     private final byte[] messageId;
     private final EncryptionContext storedEncryptionContext;
     private final List<EncryptedDataKey> encryptedDataKeys;
 
-    ParsedHeader(int version, AlgorithmSuite algorithmSuite, byte[] messageId, EncryptionContext storedEncryptionContext, List<EncryptedDataKey> edks) {
+    ParsedHeader(int version, DbeAlgorithmSuite algorithmSuite, byte[] messageId, EncryptionContext storedEncryptionContext, List<EncryptedDataKey> edks) {
       this.version = version;
       this.algorithmSuite = algorithmSuite;
       this.messageId = messageId;
@@ -223,7 +224,7 @@ public final class DbEsdkLikeItemEncryptor {
       this.encryptedDataKeys = Collections.unmodifiableList(edks);
     }
 
-    public AlgorithmSuite algorithmSuite() {
+    public DbeAlgorithmSuite algorithmSuite() {
       return algorithmSuite;
     }
 
@@ -476,7 +477,7 @@ public final class DbEsdkLikeItemEncryptor {
       }
       return new ParsedHeader(
         version,
-        AlgorithmSuite.fromBinaryId(suiteId),
+        DbeAlgorithmSuite.fromBinaryId(suiteId),
         messageId,
         EncryptionContext.fromUtf8(stored),
         edks
@@ -545,7 +546,7 @@ public final class DbEsdkLikeItemEncryptor {
     private Map<String, CryptoAction> actions = new LinkedHashMap<>();
     private Keyring keyring;
     private CryptographicMaterialsManager cmm;
-    private AlgorithmSuite algorithmSuite;
+    private DbeAlgorithmSuite algorithmSuite;
 
     private Builder() {}
 
@@ -579,8 +580,8 @@ public final class DbEsdkLikeItemEncryptor {
       return this;
     }
 
-    /** A DBE suite; default: the DBE commitment policy's default, which signs with ECDSA P-384. */
-    public Builder algorithmSuite(AlgorithmSuite algorithmSuite) {
+    /** Default: the DBE commitment policy's default, which signs with ECDSA P-384. */
+    public Builder algorithmSuite(DbeAlgorithmSuite algorithmSuite) {
       this.algorithmSuite = algorithmSuite;
       return this;
     }
@@ -594,9 +595,6 @@ public final class DbEsdkLikeItemEncryptor {
       requireKeyAction(partitionKeyName, "Partition");
       if (sortKeyName != null) {
         requireKeyAction(sortKeyName, "Sort");
-      }
-      if (algorithmSuite != null && algorithmSuite.format() != AlgorithmSuite.Format.DBE) {
-        throw new IllegalArgumentException("Not a DBE suite: " + algorithmSuite);
       }
       NativeMplMaterialResolver resolver = keyring != null
         ? NativeMplMaterialResolver.forKeyring(keyring)

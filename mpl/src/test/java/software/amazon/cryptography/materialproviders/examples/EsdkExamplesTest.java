@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
@@ -262,7 +262,7 @@ class EsdkExamplesTest {
         return defaultCmm.decryptMaterials(
           DecryptMaterialsRequest
             .builder()
-            .algorithmSuite(AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
+            .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
             .commitmentPolicy(request.commitmentPolicy())
             .encryptedDataKeys(request.encryptedDataKeys())
             .encryptionContext(request.encryptionContext())
@@ -359,7 +359,7 @@ class EsdkExamplesTest {
     assertEquals(OptionalLong.empty(), recording.encryptRequest.maxPlaintextLength());
     handler.getMaterialsForEncrypt(CONTEXT, CryptoAlgorithm.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, CommitmentPolicy.RequireEncryptRequireDecrypt, 0);
     assertEquals(OptionalLong.of(0), recording.encryptRequest.maxPlaintextLength());
-    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, recording.encryptRequest.algorithmSuite().get());
+    assertEquals(EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, recording.encryptRequest.algorithmSuite().get());
   }
 
   @Test

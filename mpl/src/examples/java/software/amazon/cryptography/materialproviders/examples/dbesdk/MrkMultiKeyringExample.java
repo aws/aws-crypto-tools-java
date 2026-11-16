@@ -3,7 +3,7 @@
 package software.amazon.cryptography.materialproviders.examples.dbesdk;
 
 import java.util.Map;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
 
@@ -36,7 +36,7 @@ public final class MrkMultiKeyringExample {
         .sortKeyName(ExampleItems.SORT_KEY)
         .attributeActionsOnEncrypt(ExampleItems.actions())
         .keyring(writerKeyring)
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
+        .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
         .build();
       Map<String, String> item = ExampleItems.item("mrkMultiKeyringItem");
       Map<String, String> encrypted = writer.encryptItem(item);

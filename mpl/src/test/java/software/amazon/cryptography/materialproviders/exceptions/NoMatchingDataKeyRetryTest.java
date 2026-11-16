@@ -14,7 +14,7 @@ import software.amazon.awssdk.core.exception.RetryableException;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -71,8 +71,8 @@ class NoMatchingDataKeyRetryTest {
       KmsClient kms = aws.kmsClient("retry", "us-west-2");
       Keyring keyring = AwsKmsKeyring.builder().kmsKeyId(aws.kms().createSymmetricKey("us-west-2")).kmsClient(kms).build();
       Keyring multi = MultiKeyring.builder().generator(keyring).build();
-      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
-      DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
+      EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
+      DecryptionMaterials start = DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
       List<EncryptedDataKey> edks = encrypted.encryptedDataKeys();
 
       aws.kms().fail("Decrypt", null, ServiceError.throttling("slow down"));

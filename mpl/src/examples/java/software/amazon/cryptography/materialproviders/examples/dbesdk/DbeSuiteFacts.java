@@ -3,6 +3,7 @@
 package software.amazon.cryptography.materialproviders.examples.dbesdk;
 
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 
 /**
  * Integration example: the DB-ESDK header names its suite with one flavor byte.
@@ -25,15 +26,12 @@ public final class DbeSuiteFacts {
    *
    * @throws software.amazon.cryptography.materialproviders.exceptions.ValidationException for an unknown flavor
    */
-  public static AlgorithmSuite fromFlavor(byte flavor) {
-    return AlgorithmSuite.fromBinaryId(DBE_ID_PREFIX | (flavor & 0xFF));
+  public static DbeAlgorithmSuite fromFlavor(byte flavor) {
+    return DbeAlgorithmSuite.fromBinaryId(DBE_ID_PREFIX | (flavor & 0xFF));
   }
 
   /** The flavor byte the DB-ESDK writes in its header. */
-  public static byte flavor(AlgorithmSuite suite) {
-    if (suite.format() != AlgorithmSuite.Format.DBE) {
-      throw new IllegalArgumentException("Not a DBE suite: " + suite);
-    }
+  public static byte flavor(DbeAlgorithmSuite suite) {
     return suite.binaryId()[1];
   }
 }

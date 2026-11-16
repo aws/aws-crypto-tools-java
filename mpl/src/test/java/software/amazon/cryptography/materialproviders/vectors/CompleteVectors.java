@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
 import software.amazon.cryptography.materialproviders.vectors.TestVectors.EncryptKind;
 import software.amazon.cryptography.materialproviders.vectors.TestVectors.EncryptVector;
@@ -270,7 +271,7 @@ final class CompleteVectors {
     }
   }
 
-  private static final AlgorithmSuite STATIC_SUITE = AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF;
+  private static final AlgorithmSuite STATIC_SUITE = EsdkAlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF;
   private static final KeyDescription STATIC_PLAINTEXT_DATA_KEY = new KeyDescription.Static("static-plaintext-data-key");
   private static final KeyDescription STATIC_NO_PLAINTEXT_DATA_KEY = new KeyDescription.Static("no-plaintext-data-key");
   // AllDefaultCmm.RawAesKeyring: the last AES key name.

@@ -21,7 +21,7 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 // The keyring requests, DecryptMaterialsRequest.toBuilder, and the builders that take any Map<String, String> as an encryption context.
 class RequestsTest {
 
-  private static final AlgorithmSuite SUITE = AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY;
+  private static final AlgorithmSuite SUITE = EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY;
   private static final List<EncryptedDataKey> EDKS = Collections.singletonList(EncryptedDataKey.builder()
       .keyProviderId("p")
       .keyProviderInfo(new byte[] { 1 })

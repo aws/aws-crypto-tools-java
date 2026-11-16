@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.MaterialsRules;
 
 //= spec/framework/cmm-interface.md#encryption-materials-request
 //= type=implication
@@ -144,6 +145,9 @@ public final class GetEncryptionMaterialsRequest {
       }
       if (commitmentPolicy == null) {
         throw new ValidationException("Missing value for required field `commitmentPolicy`");
+      }
+      if (algorithmSuite != null) {
+        MaterialsRules.requireBuiltInSuite(algorithmSuite);
       }
       return new GetEncryptionMaterialsRequest(this);
     }

@@ -11,7 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -32,7 +32,7 @@ class MultiKeyringApiTest {
     MultiKeyring multi = MultiKeyring.builder().generator(aes("g")).childKeyrings(children).build();
     assertEquals(children, multi.childKeyrings());
     EncryptionMaterials encrypted = multi.onEncrypt(
-      OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()
+      OnEncryptRequest.builder().materials(EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()
     ).materials();
     assertEquals(3, encrypted.encryptedDataKeys().size());
   }
@@ -52,7 +52,7 @@ class MultiKeyringApiTest {
         return null;
       }
     };
-    EncryptionMaterials start = EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
+    EncryptionMaterials start = EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
     OnEncryptRequest encrypt = OnEncryptRequest.builder().materials(start).build();
     assertThrows(NullPointerException.class, () -> MultiKeyring.builder().generator(returnsNull).build().onEncrypt(encrypt));
     MultiKeyring nullChild = MultiKeyring.builder().generator(aes("g")).childKeyrings(Collections.singletonList(returnsNull)).build();
@@ -61,7 +61,7 @@ class MultiKeyringApiTest {
     List<EncryptedDataKey> edks = aes("g").onEncrypt(encrypt).materials().encryptedDataKeys();
     OnDecryptRequest decrypt = OnDecryptRequest
       .builder()
-      .materials(DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build())
+      .materials(DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build())
       .encryptedDataKeys(edks)
       .build();
     assertTrue(MultiKeyring.builder().generator(returnsNull).childKeyrings(Collections.singletonList(aes("g"))).build().onDecrypt(decrypt).materials().plaintextDataKey().isPresent());

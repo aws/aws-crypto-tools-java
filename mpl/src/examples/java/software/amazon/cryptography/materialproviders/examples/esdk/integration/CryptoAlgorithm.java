@@ -3,12 +3,13 @@
 package software.amazon.cryptography.materialproviders.examples.esdk.integration;
 
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 
 /**
  * The ESDK's {@code com.amazonaws.encryptionsdk.CryptoAlgorithm}, rebuilt on the native suite catalogue.
  *
  * <p>ESDK 3.x builds a {@code MaterialProviders} client for each constant and calls {@code GetAlgorithmSuiteInfo}
- * while the enum initializes. Here each constant looks its {@link AlgorithmSuite} up by id, with no client.
+ * while the enum initializes. Here each constant looks its {@link EsdkAlgorithmSuite} up by id, with no client.
  * The getters that read MPL suite facts keep their ESDK names and return what ESDK 3.x returns. Getters that do not
  * depend on the MPL ({@code getBlockSize}, {@code getMaxContentLen}, {@code getKeyAlgo}, key derivation) are left out;
  * {@link #getKdfMacAlgo} is not in the ESDK and serves the stand-in's key derivation.
@@ -27,15 +28,15 @@ public enum CryptoAlgorithm {
   ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384(0x0578);
 
   private final short value;
-  private final AlgorithmSuite suite;
+  private final EsdkAlgorithmSuite suite;
 
   CryptoAlgorithm(int value) {
     this.value = (short) value;
-    this.suite = AlgorithmSuite.fromBinaryId(value);
+    this.suite = EsdkAlgorithmSuite.fromBinaryId(value);
   }
 
   /** Replaces {@code getAlgorithmSuiteId()}, which returned the MPL's {@code AlgorithmSuiteId} union. */
-  public AlgorithmSuite algorithmSuite() {
+  public EsdkAlgorithmSuite algorithmSuite() {
     return suite;
   }
 

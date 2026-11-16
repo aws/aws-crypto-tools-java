@@ -57,7 +57,7 @@ class VarargsSettersTest {
   private static final String REGION = "us-west-2";
   private static final String KEY = "arn:aws:kms:us-west-2:111122223333:key/k1";
   private static final String OTHER_KEY = "arn:aws:kms:us-east-1:111122223333:key/k2";
-  private static final AlgorithmSuite SUITE = AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF;
+  private static final AlgorithmSuite SUITE = EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF;
 
   private static final String[][] TOKENS = {
     { "t1", "t2" },

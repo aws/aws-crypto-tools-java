@@ -9,12 +9,15 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
 import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
@@ -41,17 +44,21 @@ final class Wire {
   // Enumerations
   // ---------------------------------------------------------------------
 
-  static AlgorithmSuite suite(String wire) {
-    AlgorithmSuite suite;
+  static EsdkAlgorithmSuite suite(String wire) {
     try {
-      suite = AlgorithmSuite.valueOf(wire);
+      return EsdkAlgorithmSuite.valueOf(wire);
     } catch (IllegalArgumentException e) {
       throw unknown("algorithm suite", wire);
     }
-    if (suite.format() != AlgorithmSuite.Format.ESDK) {
-      throw unknown("algorithm suite", wire);
+  }
+
+  // GetAlgorithmSuiteInfo takes an id of either format; the formats' ids do not overlap.
+  static AlgorithmSuite suiteFromBinaryId(byte[] binaryId) {
+    try {
+      return EsdkAlgorithmSuite.fromBinaryId(binaryId);
+    } catch (ValidationException e) {
+      return DbeAlgorithmSuite.fromBinaryId(binaryId);
     }
-    return suite;
   }
 
   static String suiteToWire(AlgorithmSuite suite) {

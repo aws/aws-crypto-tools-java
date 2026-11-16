@@ -18,6 +18,7 @@ import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.OnDecryptRequest;
@@ -26,7 +27,7 @@ import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 // The public API parts the differential tests cannot reach: argument checks, copies, and accessors.
 class RawEcdhKeyringApiTest {
 
-  private static final AlgorithmSuite SUITE = AlgorithmSuite.fromBinaryId(new byte[] { 0x01, 0x78 });
+  private static final AlgorithmSuite SUITE = EsdkAlgorithmSuite.fromBinaryId(new byte[] { 0x01, 0x78 });
 
   @Test
   void requiredArguments() {

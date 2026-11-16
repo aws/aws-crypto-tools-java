@@ -8,7 +8,9 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
@@ -32,6 +34,14 @@ public final class MaterialsRules {
   public static final String EC_PUBLIC_KEY_FIELD = "aws-crypto-public-key";
 
   private MaterialsRules() {}
+
+  /** Rejects an algorithm suite that is not one of the library's enums, whose rules the checks depend on. */
+  public static <S extends AlgorithmSuite> S requireBuiltInSuite(S suite) {
+    if (!(suite instanceof EsdkAlgorithmSuite) && !(suite instanceof DbeAlgorithmSuite)) {
+      throw new ValidationException("Algorithm suite must be an EsdkAlgorithmSuite or a DbeAlgorithmSuite");
+    }
+    return suite;
+  }
 
   /** The fields of encryption materials. Lists are never null; absent secrets are null. */
   public static final class Encryption {

@@ -116,7 +116,7 @@ class JcaKeysTest {
     Recording recordingRsa = new Recording(rsa.getPrivate());
     RawRsaKeyring keyring = rsa().publicKey(rsa.getPublic()).privateKey(recordingRsa).build();
     assertCleared(recordingRsa);
-    assertTrue(keyring.onDecrypt(OnDecryptRequest.builder().materials(software.amazon.cryptography.materialproviders.DecryptionMaterials.builder(software.amazon.cryptography.materialproviders.AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).encryptedDataKeys(keyring.onEncrypt(OnEncryptRequest.builder().materials(software.amazon.cryptography.materialproviders.EncryptionMaterials.builder(software.amazon.cryptography.materialproviders.AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials().encryptedDataKeys()).build()).materials().plaintextDataKey().isPresent());
+    assertTrue(keyring.onDecrypt(OnDecryptRequest.builder().materials(software.amazon.cryptography.materialproviders.DecryptionMaterials.builder(software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).encryptedDataKeys(keyring.onEncrypt(OnEncryptRequest.builder().materials(software.amazon.cryptography.materialproviders.EncryptionMaterials.builder(software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials().encryptedDataKeys()).build()).materials().plaintextDataKey().isPresent());
 
     KeyPair ec = keyPair("EC", "secp256r1");
     Recording sender = new Recording(ec.getPrivate());

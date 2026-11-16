@@ -19,6 +19,8 @@ package software.amazon.cryptography.materialproviders;
  *
  * <p>The checks look only at {@link AlgorithmSuite#isCommitting()}, not at the suite's format,
  * so an ESDK policy accepts DBE suites on the same terms.
+ * {@link #defaultSuite()} returns the policy's own format: {@link EsdkCommitmentPolicy#defaultSuite()} an
+ * {@link EsdkAlgorithmSuite}, {@link DbeCommitmentPolicy#defaultSuite()} a {@link DbeAlgorithmSuite}.
  */
 public interface CommitmentPolicy {
   boolean allowsEncrypt(AlgorithmSuite suite);

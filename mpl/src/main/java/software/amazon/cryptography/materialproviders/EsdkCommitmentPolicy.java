@@ -53,18 +53,18 @@ public enum EsdkCommitmentPolicy implements CommitmentPolicy {
 
   // Per Defaults.dfy, which returns 0x0378 for FORBID although the spec text it cites names 0x0078.
   @Override
-  public AlgorithmSuite defaultSuite() {
+  public EsdkAlgorithmSuite defaultSuite() {
     return this == FORBID_ENCRYPT_ALLOW_DECRYPT
       //= spec/framework/commitment-policy.md#esdk-forbid-encrypt-allow-decrypt
       //= type=exception
       //= reason=The default suite for FORBID_ENCRYPT_ALLOW_DECRYPT is 0x0378 (HKDF-SHA384 with ECDSA P-384), as in the Dafny MPL.
       //# - `ESDK.ALG_AES_256_GCM_IV12_TAG16_NO_KDF` MUST be the default algorithm suite
-      ? AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384
+      ? EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384
       //= spec/framework/commitment-policy.md#esdk-require-encrypt-allow-decrypt
       //# - `05 78` MUST be the default algorithm suite
       //
       //= spec/framework/commitment-policy.md#esdk-require-encrypt-require-decrypt
       //# - `05 78` MUST be the default algorithm suite
-      : AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
+      : EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
   }
 }

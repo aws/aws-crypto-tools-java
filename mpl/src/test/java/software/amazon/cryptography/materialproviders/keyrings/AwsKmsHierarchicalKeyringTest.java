@@ -29,7 +29,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
@@ -247,7 +247,7 @@ class AwsKmsHierarchicalKeyringTest {
       "BranchKeyIdSupplier returned no branch key id.",
       assertThrows(ValidationException.class, () -> nullId.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage()
     );
-    DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
+    DecryptionMaterials start = DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
     assertEquals(
       "BranchKeyIdSupplier returned no branch key id.",
       assertThrows(ValidationException.class, () -> nullId.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(Collections.emptyList()).build())).getMessage()
@@ -264,7 +264,7 @@ class AwsKmsHierarchicalKeyringTest {
   void decryptFailureKinds() {
     AwsKmsHierarchicalKeyring keyring = builder().build();
     EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build()).materials();
-    DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
+    DecryptionMaterials start = DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
     NoMatchingDataKeyException none = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(Collections.emptyList()).build()));
     assertTrue(none.failures().isEmpty());
     EncryptedDataKey edk = encrypted.encryptedDataKeys().get(0);
@@ -325,7 +325,7 @@ class AwsKmsHierarchicalKeyringTest {
   private void assertConcurrentReads(AwsKmsHierarchicalKeyring keyring, int expectedReads) throws Exception {
     List<EncryptionMaterials> encrypted = concurrently(i -> keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build()).materials());
     assertEquals(2 * expectedReads, reads());
-    DecryptionMaterials start = DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
+    DecryptionMaterials start = DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
     List<DecryptionMaterials> decrypted = concurrently(i -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.get(i).encryptedDataKeys()).build()).materials());
     assertEquals(2 * expectedReads, reads());
     for (int i = 0; i < THREADS; i++) {
@@ -367,7 +367,7 @@ class AwsKmsHierarchicalKeyringTest {
   }
 
   private static EncryptionMaterials materials() {
-    return EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
+    return EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).encryptionContext(EncryptionContext.of("a", "b")).build();
   }
 
   // Key store reads since the last call; each is a DynamoDB GetItem and a KMS Decrypt.

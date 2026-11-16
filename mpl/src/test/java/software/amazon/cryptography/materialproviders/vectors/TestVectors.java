@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.AllSuites;
 import software.amazon.cryptography.materialproviders.CommitmentPolicy;
 import software.amazon.cryptography.materialproviders.DbeCommitmentPolicy;
 import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
@@ -457,7 +457,7 @@ final class TestVectors {
       binaryId[i] = (byte) Integer.parseInt(even.substring(2 * i, 2 * i + 2), 16);
     }
     try {
-      return AlgorithmSuite.fromBinaryId(binaryId);
+      return AllSuites.fromBinaryId(binaryId);
     } catch (RuntimeException e) {
       throw new VectorException("Invalid Suite:" + hex);
     }
@@ -481,7 +481,7 @@ final class TestVectors {
   }
 
   static List<AlgorithmSuite> allSuites() {
-    return Arrays.asList(AlgorithmSuite.values());
+    return AllSuites.all();
   }
 
   private static List<String> requiredEncryptionContextKeys(JsonNode json) {

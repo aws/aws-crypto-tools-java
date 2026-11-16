@@ -165,7 +165,7 @@ class DefaultClientSupplierTest {
   void multiKeyringClosesOnlyItsOwnClients() {
     String key = aws.kms().createSymmetricKey(REGION);
     software.amazon.cryptography.materialproviders.EncryptionMaterials start = software.amazon.cryptography.materialproviders.EncryptionMaterials
-      .builder(software.amazon.cryptography.materialproviders.AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
+      .builder(software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
       .build();
     AwsKmsMultiKeyring owning = AwsKmsMultiKeyring.builder().generator(key).build();
     owning.onEncrypt(OnEncryptRequest.builder().materials(start).build());

@@ -24,6 +24,7 @@ import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -44,7 +45,7 @@ import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 // builder and configuration checks, copies, accessors, and error kinds with the SDK exception as cause.
 class KmsAsymmetricKeyringsNativeApiTest {
 
-  private static final AlgorithmSuite SUITE = AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF;
+  private static final AlgorithmSuite SUITE = EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF;
 
   private final FakeAws aws = FakeAws.start();
   private final KmsClient kms = aws.kmsClient("native", REGION);

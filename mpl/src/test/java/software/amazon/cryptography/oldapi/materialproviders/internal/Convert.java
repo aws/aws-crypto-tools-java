@@ -41,8 +41,9 @@ public final class Convert {
   private Convert() {}
 
   public static software.amazon.cryptography.materialproviders.AlgorithmSuite suite(AlgorithmSuiteId id) {
-    String name = id.ESDK() != null ? id.ESDK().name() : id.DBE().name();
-    return software.amazon.cryptography.materialproviders.AlgorithmSuite.valueOf(name);
+    return id.ESDK() != null
+      ? software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite.valueOf(id.ESDK().name())
+      : software.amazon.cryptography.materialproviders.DbeAlgorithmSuite.valueOf(id.DBE().name());
   }
 
   public static AlgorithmSuiteId id(software.amazon.cryptography.materialproviders.AlgorithmSuite suite) {

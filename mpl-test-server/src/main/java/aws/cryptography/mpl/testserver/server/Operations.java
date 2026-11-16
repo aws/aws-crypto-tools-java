@@ -66,7 +66,7 @@ final class Operations {
       case "CreateRawEcdhKeyring":
         return createRawEcdhKeyring(request);
       case "GetAlgorithmSuiteInfo":
-        return Wire.suiteInfoToWire(AlgorithmSuite.fromBinaryId(Cbor.blob(request, "binaryId")));
+        return Wire.suiteInfoToWire(Wire.suiteFromBinaryId(Cbor.blob(request, "binaryId")));
       case "ValidateCommitmentPolicyOnEncrypt":
         return validateCommitmentPolicyOnEncrypt(request);
       case "ValidateCommitmentPolicyOnDecrypt":

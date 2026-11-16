@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DbeCommitmentPolicy;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
@@ -70,7 +70,7 @@ public final class NativeMplMaterialResolver {
   public EncryptionMaterials forEncrypt(
     Map<String, byte[]> baseContext,
     Map<String, byte[]> v2Context,
-    AlgorithmSuite configuredSuite,
+    DbeAlgorithmSuite configuredSuite,
     long maxPlaintextLength
   ) {
     GetEncryptionMaterialsRequest request = GetEncryptionMaterialsRequest
@@ -90,7 +90,7 @@ public final class NativeMplMaterialResolver {
    * @param v2Context the version-2 entries rebuilt from the item's plaintext SIGN_AND_INCLUDE fields
    */
   public DecryptionMaterials forDecrypt(
-    AlgorithmSuite headerSuite,
+    DbeAlgorithmSuite headerSuite,
     List<EncryptedDataKey> encryptedDataKeys,
     Map<String, byte[]> storedContext,
     Map<String, byte[]> baseContext,

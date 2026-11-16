@@ -9,7 +9,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
 
 /**
@@ -44,7 +44,7 @@ public final class KmsRsaKeyringExample {
       .sortKeyName(ExampleItems.SORT_KEY)
       .attributeActionsOnEncrypt(ExampleItems.actions())
       .keyring(keyring)
-      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
+      .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
       .build();
     return ExampleItems.roundTrip(encryptor, ExampleItems.item("kmsRsaKeyringItem"));
   }

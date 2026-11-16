@@ -26,9 +26,9 @@ public enum DbeCommitmentPolicy implements CommitmentPolicy {
   }
 
   @Override
-  public AlgorithmSuite defaultSuite() {
+  public DbeAlgorithmSuite defaultSuite() {
     //= spec/framework/commitment-policy.md#dbe-require-encrypt-require-decrypt
     //# - `67 01` MUST be the default algorithm suite
-    return AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384;
+    return DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384;
   }
 }

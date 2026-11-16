@@ -30,7 +30,7 @@ class NativeApiTest {
   @Test
   void aTamperedRsaKeyIsACryptographicFailure() {
     RawRsaKeyring keyring = rsa(RSA[0].clone(), RSA[1].clone());
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
     EncryptedDataKey edk = encrypted.encryptedDataKeys().get(0);
     byte[] ciphertext = edk.ciphertext();
     ciphertext[5] ^= 1;
@@ -50,7 +50,7 @@ class NativeApiTest {
     RawRsaKeyring keyring = rsa("not a key".getBytes(java.nio.charset.StandardCharsets.US_ASCII), null);
     assertThrows(
       ValidationException.class,
-      () -> keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build())
+      () -> keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build())
     );
   }
 
@@ -71,7 +71,7 @@ class NativeApiTest {
     RawRsaKeyring keyring = rsa(publicKey, privateKey);
     Arrays.fill(publicKey, (byte) 0);
     privateKey.destroy();
-    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
+    EncryptionMaterials encrypted = keyring.onEncrypt(OnEncryptRequest.builder().materials(EncryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()).build()).materials();
     DecryptionMaterials decrypted = keyring.onDecrypt(OnDecryptRequest.builder().materials(decryption()).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials();
     assertArrayEquals(encrypted.plaintextDataKey().get().toByteArray(), decrypted.plaintextDataKey().get().toByteArray());
   }
@@ -84,12 +84,12 @@ class NativeApiTest {
     EncryptionContext context = EncryptionContext.of("d", "4", "b", "2", "c", "3", "\u00e9", "5");
     EncryptionMaterials encrypted = cmm.getEncryptionMaterials(
       GetEncryptionMaterialsRequest.builder().encryptionContext(context).commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
+        .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
     ).encryptionMaterials();
     DecryptionMaterials decrypted = cmm.decryptMaterials(
       DecryptMaterialsRequest
         .builder()
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+        .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
         .commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
         .encryptedDataKeys(encrypted.encryptedDataKeys())
         .encryptionContext(EncryptionContext.empty())
@@ -111,11 +111,11 @@ class NativeApiTest {
       .build();
     EncryptionMaterials encrypted = cmm.getEncryptionMaterials(
       GetEncryptionMaterialsRequest.builder().encryptionContext(EncryptionContext.of("a", "1")).commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
+        .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
     ).encryptionMaterials();
     DecryptMaterialsRequest request = DecryptMaterialsRequest
       .builder()
-      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+      .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
       .commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
       .encryptedDataKeys(encrypted.encryptedDataKeys())
       .encryptionContext(EncryptionContext.of("a", "1"))
@@ -145,6 +145,6 @@ class NativeApiTest {
   }
 
   private static DecryptionMaterials decryption() {
-    return DecryptionMaterials.builder(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
+    return DecryptionMaterials.builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build();
   }
 }

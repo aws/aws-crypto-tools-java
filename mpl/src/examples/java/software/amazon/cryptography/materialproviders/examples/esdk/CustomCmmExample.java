@@ -6,13 +6,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
-import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
-import software.amazon.cryptography.materialproviders.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsRequest;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
@@ -70,7 +68,7 @@ public final class CustomCmmExample {
         .toBuilder()
         .encryptionContext(request.encryptionContext().with(KEY, application));
       if (!request.algorithmSuite().isPresent()) {
-        stamped.algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384);
+        stamped.algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384);
       } else if (!request.algorithmSuite().get().isSigning()) {
         throw new ValidationException("Messages must be signed");
       }

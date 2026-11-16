@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.MaterialsRules;
 
 //= spec/framework/cmm-interface.md#decrypt-materials-request
 //= type=implication
@@ -139,6 +140,7 @@ public final class DecryptMaterialsRequest {
       if (algorithmSuite == null) {
         throw new ValidationException("Missing value for required field `algorithmSuite`");
       }
+      MaterialsRules.requireBuiltInSuite(algorithmSuite);
       if (commitmentPolicy == null) {
         throw new ValidationException("Missing value for required field `commitmentPolicy`");
       }

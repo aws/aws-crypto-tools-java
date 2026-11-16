@@ -207,7 +207,7 @@ public enum AlgorithmSuite {
   public static AlgorithmSuite ofBinaryId(byte[] binaryId) {
     software.amazon.cryptography.materialproviders.AlgorithmSuite core;
     try {
-      core = software.amazon.cryptography.materialproviders.AlgorithmSuite.fromBinaryId(binaryId);
+      core = software.amazon.cryptography.materialproviders.AllSuites.fromBinaryId(binaryId);
     } catch (software.amazon.cryptography.materialproviders.exceptions.ValidationException e) {
       throw AwsCryptographicMaterialProvidersException.builder().message(e.getMessage()).build();
     }

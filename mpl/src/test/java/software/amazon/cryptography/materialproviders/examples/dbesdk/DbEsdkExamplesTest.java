@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
@@ -74,7 +74,7 @@ class DbEsdkExamplesTest {
     Map<String, String> encrypted = MrkMultiKeyringExample.encryptAndDecryptInAnotherRegion(mrk.get(0), mrk.get(1), fakeClients);
 
     ParsedHeader header = DbEsdkLikeItemEncryptor.parseHeader(encrypted);
-    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384, header.algorithmSuite());
+    assertEquals(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384, header.algorithmSuite());
     EncryptedDataKey edk = header.encryptedDataKeys().get(0);
     assertEquals("aws-kms", edk.keyProviderId());
     assertEquals(mrk.get(0), new String(edk.keyProviderInfo(), StandardCharsets.UTF_8));
@@ -150,7 +150,7 @@ class DbEsdkExamplesTest {
     String rsaKey = aws.kms().createRsaKey(WEST, "RSA_2048");
     Map<String, String> encrypted = KmsRsaKeyringExample.encryptAndDecrypt(aws.kmsClient("native", WEST), rsaKey);
     ParsedHeader header = DbEsdkLikeItemEncryptor.parseHeader(encrypted);
-    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384, header.algorithmSuite());
+    assertEquals(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384, header.algorithmSuite());
     assertEquals("aws-kms-rsa", header.encryptedDataKeys().get(0).keyProviderId());
     // One HMAC-SHA-384 recipient tag and no signature.
     assertEquals(48, java.util.Base64.getDecoder().decode(encrypted.get(DbEsdkLikeItemEncryptor.FOOTER)).length);
@@ -252,7 +252,7 @@ class DbEsdkExamplesTest {
     v2.put("aws-crypto-attr.a", bytes("2"));
 
     EncryptionMaterials encryption = resolver.forEncrypt(base, v2, null, 10);
-    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384, encryption.algorithmSuite());
+    assertEquals(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384, encryption.algorithmSuite());
     // StructuredEncryption's version-2 keys, then the item encryptor's base keys, as the nested managers add them.
     assertEquals(
       Arrays.asList("aws-crypto-attr.a", "aws-crypto-attr.b", "aws-crypto-legend", "aws-crypto-table-name"),
@@ -261,8 +261,9 @@ class DbEsdkExamplesTest {
     assertEquals(encryption.encryptedDataKeys().size(), encryption.symmetricSigningKeys().size());
     assertEquals(384, ((ECPrivateKey) encryption.signingPrivateKey().get()).getParams().getCurve().getField().getFieldSize());
 
+    DbeAlgorithmSuite suite = (DbeAlgorithmSuite) encryption.algorithmSuite();
     DecryptionMaterials decryption = resolver.forDecrypt(
-      encryption.algorithmSuite(),
+      suite,
       encryption.encryptedDataKeys(),
       NativeMplMaterialResolver.toByteContext(withoutRequired(encryption)),
       base,
@@ -277,7 +278,7 @@ class DbEsdkExamplesTest {
     assertThrows(
       NoMatchingDataKeyException.class,
       () -> resolver.forDecrypt(
-        encryption.algorithmSuite(),
+        suite,
         encryption.encryptedDataKeys(),
         NativeMplMaterialResolver.toByteContext(withoutRequired(encryption)),
         base,
@@ -301,7 +302,7 @@ class DbEsdkExamplesTest {
   @Test
   void suiteCatalogueMatchesTheDbEsdkConstants() {
     for (byte flavor : new byte[] { 0x00, 0x01 }) {
-      AlgorithmSuite suite = DbeSuiteFacts.fromFlavor(flavor);
+      DbeAlgorithmSuite suite = DbeSuiteFacts.fromFlavor(flavor);
       assertEquals(flavor, DbeSuiteFacts.flavor(suite));
       assertEquals(flavor == 0x01, suite.isSigning());
       assertEquals("HmacSHA512", suite.keyDerivation().hmacAlgorithm().get());
@@ -405,7 +406,7 @@ class DbEsdkExamplesTest {
       .sortKeyName(ExampleItems.SORT_KEY)
       .attributeActionsOnEncrypt(ExampleItems.actions())
       .keyring(aesKeyring())
-      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
+      .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384)
       .build();
     Map<String, String> unsignedItem = unsigned.encryptItem(ExampleItems.item("tamper"));
     byte[] footer = java.util.Base64.getDecoder().decode(unsignedItem.get(DbEsdkLikeItemEncryptor.FOOTER));

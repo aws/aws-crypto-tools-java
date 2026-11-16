@@ -15,6 +15,7 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
@@ -23,7 +24,7 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 import software.amazon.cryptography.materialproviders.internal.primitives.Ecdsa;
 
 // The JCA names on AlgorithmSuite, checked against what each constant's name says and against the JCA itself,
-// and fromBinaryId(int) against fromBinaryId(byte[]), which AlgorithmSuitesTest compares with the reference for every 2-byte id.
+// and each format's fromBinaryId(int) against its fromBinaryId(byte[]), which AlgorithmSuitesTest compares with the reference for every 2-byte id.
 class AlgorithmSuiteNamesTest {
 
   private static final Pattern KDF = Pattern.compile("_HKDF_SHA(\\d+)");
@@ -32,7 +33,7 @@ class AlgorithmSuiteNamesTest {
 
   @Test
   void namesFollowTheConstantName() {
-    for (AlgorithmSuite suite : AlgorithmSuite.values()) {
+    for (AlgorithmSuite suite : AllSuites.all()) {
       String name = suite.name();
       assertEquals(group(KDF, name).map(bits -> "HmacSHA" + bits), suite.keyDerivation().hmacAlgorithm(), name);
       assertEquals(group(SIGNATURE, name).map(bits -> "SHA" + bits + "withECDSA"), suite.signature().map(AlgorithmSuite.Signature::jcaAlgorithm), name);
@@ -44,7 +45,7 @@ class AlgorithmSuiteNamesTest {
 
   @Test
   void theJcaAcceptsEveryName() throws GeneralSecurityException {
-    for (AlgorithmSuite suite : AlgorithmSuite.values()) {
+    for (AlgorithmSuite suite : AllSuites.all()) {
       for (Optional<String> mac : Arrays.asList(suite.keyDerivation().hmacAlgorithm(), suite.commitmentHmacAlgorithm(), suite.symmetricSignatureHmacAlgorithm())) {
         if (mac.isPresent()) {
           assertEquals(mac.get(), Mac.getInstance(mac.get()).getAlgorithm());
@@ -59,8 +60,8 @@ class AlgorithmSuiteNamesTest {
     byte[] message = "message".getBytes(StandardCharsets.UTF_8);
     for (AlgorithmSuite.Signature algorithm : AlgorithmSuite.Signature.values()) {
       AlgorithmSuite suite = algorithm == AlgorithmSuite.Signature.ECDSA_P256
-        ? AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_HKDF_SHA256_ECDSA_P256
-        : AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
+        ? EsdkAlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_HKDF_SHA256_ECDSA_P256
+        : EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384;
       byte[][] pair = Ecdsa.generateKeyPair(algorithm);
       EncryptionMaterials encryption = EncryptionMaterials.builder(suite).signingKeyPair(SecretBytes.copyOf(pair[1]), pair[0]).build();
       DecryptionMaterials decryption = DecryptionMaterials.builder(suite).encryptionContext(encryption.encryptionContext()).build();
@@ -86,19 +87,25 @@ class AlgorithmSuiteNamesTest {
   void theIntLookupAgreesWithTheByteLookupForEveryTwoByteId() {
     for (int id = 0; id <= 0xFFFF; id++) {
       byte[] binaryId = { (byte) (id >> 8), (byte) id };
-      AlgorithmSuite expected;
-      try {
-        expected = AlgorithmSuite.fromBinaryId(binaryId);
-      } catch (ValidationException e) {
-        final int unknown = id;
-        assertEquals(e.getMessage(), assertThrows(ValidationException.class, () -> AlgorithmSuite.fromBinaryId(unknown)).getMessage());
-        continue;
-      }
-      assertSame(expected, AlgorithmSuite.fromBinaryId(id));
+      final int same = id;
+      assertLookupsAgree(() -> EsdkAlgorithmSuite.fromBinaryId(binaryId), () -> EsdkAlgorithmSuite.fromBinaryId(same));
+      assertLookupsAgree(() -> DbeAlgorithmSuite.fromBinaryId(binaryId), () -> DbeAlgorithmSuite.fromBinaryId(same));
     }
-    for (int outOfRange : new int[] { -1, 0x10000, 0x10478, Integer.MIN_VALUE }) {
-      assertThrows(ValidationException.class, () -> AlgorithmSuite.fromBinaryId(outOfRange));
+    for (int outOfRange : new int[] { -1, 0x10000, 0x10478, 0x16700, Integer.MIN_VALUE }) {
+      assertThrows(ValidationException.class, () -> EsdkAlgorithmSuite.fromBinaryId(outOfRange));
+      assertThrows(ValidationException.class, () -> DbeAlgorithmSuite.fromBinaryId(outOfRange));
     }
+  }
+
+  private static void assertLookupsAgree(Supplier<AlgorithmSuite> bytes, Supplier<AlgorithmSuite> number) {
+    AlgorithmSuite expected;
+    try {
+      expected = bytes.get();
+    } catch (ValidationException e) {
+      assertEquals(e.getMessage(), assertThrows(ValidationException.class, number::get).getMessage());
+      return;
+    }
+    assertSame(expected, number.get());
   }
 
   private static Optional<String> group(Pattern pattern, String name) {

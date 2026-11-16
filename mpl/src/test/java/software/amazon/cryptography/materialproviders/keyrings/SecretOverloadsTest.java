@@ -18,6 +18,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -30,7 +31,7 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 // The byte[] and SecretKey forms of secret settings behave as the SecretBytes form with the same bytes.
 class SecretOverloadsTest {
 
-  private static final AlgorithmSuite SUITE = AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA256;
+  private static final AlgorithmSuite SUITE = EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA256;
   private static final EncryptionContext CONTEXT = EncryptionContext.of("a", "b");
 
   @Test
@@ -94,7 +95,7 @@ class SecretOverloadsTest {
 
   @Test
   void signingKeyPairFromBytes() {
-    AlgorithmSuite signing = AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384;
+    AlgorithmSuite signing = EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384;
     byte[] signingKey = { 1, 2, 3 };
     EncryptionMaterials materials = EncryptionMaterials.builder(signing).signingKeyPair(signingKey, new byte[] { 4 }).build();
     Arrays.fill(signingKey, (byte) 0);
