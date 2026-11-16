@@ -45,7 +45,7 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKey
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 
@@ -356,7 +356,7 @@ class VarargsSettersTest {
 
   private AwsKmsEcdhKeyring.Builder ecdh() {
     return AwsKmsEcdhKeyring.builder()
-      .keyAgreementScheme(KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(eccKey))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(eccKey))
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
       .kmsClient(kms);
   }

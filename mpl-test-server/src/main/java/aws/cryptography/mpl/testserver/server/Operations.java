@@ -26,7 +26,7 @@ import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 
 /**
@@ -170,7 +170,7 @@ final class Operations {
         return rawEcdhKeyring(
           curve,
           Cbor.blob(config, "senderStaticPrivateKey"),
-          key -> RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(key, Cbor.blob(config, "recipientPublicKey"))
+          key -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(key, Cbor.blob(config, "recipientPublicKey"))
         );
       case "EphemeralPrivateKeyToStaticPublicKey":
         return keyringResponse(
@@ -178,12 +178,12 @@ final class Operations {
             .builder()
             .curveSpec(curve)
             .keyAgreementScheme(
-              RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(Cbor.blob(config, "recipientPublicKey"))
+              RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(Cbor.blob(config, "recipientPublicKey"))
             )
             .build()
         );
       case "PublicKeyDiscovery":
-        return rawEcdhKeyring(curve, Cbor.blob(config, "recipientStaticPrivateKey"), RawEcdhStaticConfigurations::publicKeyDiscovery);
+        return rawEcdhKeyring(curve, Cbor.blob(config, "recipientStaticPrivateKey"), RawEcdhKeyAgreementScheme::publicKeyDiscovery);
       default:
         throw ModeledError.generic("unknown key agreement scheme: " + scheme.getKey());
     }
@@ -193,7 +193,7 @@ final class Operations {
   private ObjectNode rawEcdhKeyring(
     EcdhCurveSpec curve,
     byte[] privateKey,
-    Function<SecretBytes, RawEcdhStaticConfigurations> scheme
+    Function<SecretBytes, RawEcdhKeyAgreementScheme> scheme
   ) {
     try (SecretBytes key = SecretBytes.copyOf(privateKey)) {
       return keyringResponse(RawEcdhKeyring.builder().curveSpec(curve).keyAgreementScheme(scheme.apply(key)).build());

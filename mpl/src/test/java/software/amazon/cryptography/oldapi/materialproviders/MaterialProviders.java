@@ -255,19 +255,19 @@ public class MaterialProviders {
     }
   }
 
-  private static software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations ecdhScheme(RawEcdhStaticConfigurations scheme) {
+  private static software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme ecdhScheme(RawEcdhStaticConfigurations scheme) {
     if (scheme.RawPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(
         SecretBytes.copyOf(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().senderStaticPrivateKey())),
         Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().recipientPublicKey())
       );
     }
     if (scheme.EphemeralPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(
         Buffers.toArray(scheme.EphemeralPrivateKeyToStaticPublicKey().recipientPublicKey())
       );
     }
-    return software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations.publicKeyDiscovery(
+    return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.publicKeyDiscovery(
       SecretBytes.copyOf(Buffers.toArray(scheme.PublicKeyDiscovery().recipientStaticPrivateKey()))
     );
   }
@@ -445,18 +445,18 @@ public class MaterialProviders {
     );
   }
 
-  private static software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
+  private static software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
     if (scheme.KmsPublicKeyDiscovery() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(
+      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(
         scheme.KmsPublicKeyDiscovery().recipientKmsIdentifier()
       );
     }
     String sender = scheme.KmsPrivateKeyToStaticPublicKey().senderKmsIdentifier();
     byte[] recipientPublicKey = Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().recipientPublicKey());
     if (scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey() == null) {
-      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
+      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
     }
-    return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(
+    return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(
       sender,
       Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey()),
       recipientPublicKey

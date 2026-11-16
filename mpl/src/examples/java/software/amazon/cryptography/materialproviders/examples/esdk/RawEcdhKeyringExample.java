@@ -12,7 +12,7 @@ import java.util.Map;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 
 /**
  * Pattern (i): data keys wrapped under an ECDH-derived key. A sender with a static key pair, a sender with a new key pair
@@ -32,9 +32,9 @@ public final class RawEcdhKeyringExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
 
-    Keyring staticSender = ecdh(RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()));
-    Keyring ephemeralSender = ecdh(RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()));
-    Keyring recipientDiscovery = ecdh(RawEcdhStaticConfigurations.publicKeyDiscovery(recipient.getPrivate()));
+    Keyring staticSender = ecdh(RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()));
+    Keyring ephemeralSender = ecdh(RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()));
+    Keyring recipientDiscovery = ecdh(RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()));
 
     byte[] fromStatic = crypto.encryptData(staticSender, EXAMPLE_DATA, encryptionContext);
     byte[] fromEphemeral = crypto.encryptData(ephemeralSender, EXAMPLE_DATA, encryptionContext);
@@ -44,7 +44,7 @@ public final class RawEcdhKeyringExample {
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(staticSender, fromStatic, encryptionContext).getResult());
   }
 
-  private static Keyring ecdh(RawEcdhStaticConfigurations scheme) {
+  private static Keyring ecdh(RawEcdhKeyAgreementScheme scheme) {
     return RawEcdhKeyring.builder().curveSpec(EcdhCurveSpec.ECC_NIST_P256).keyAgreementScheme(scheme).build();
   }
 }

@@ -6,7 +6,7 @@ import java.util.Map;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme;
 
 /**
  * Customer example (KmsEcdhKeyringExample): ECDH with KMS key agreement keys on P-256.
@@ -28,13 +28,13 @@ public final class KmsEcdhKeyringExample {
     AwsKmsEcdhKeyring sender = AwsKmsEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(senderKeyArn, recipientPublicKey))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(senderKeyArn, recipientPublicKey))
       .kmsClient(kms)
       .build();
     AwsKmsEcdhKeyring recipient = AwsKmsEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(recipientKeyArn))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(recipientKeyArn))
       .kmsClient(kms)
       .build();
 

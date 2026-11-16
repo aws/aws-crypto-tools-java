@@ -34,7 +34,7 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Outcomes;
 import software.amazon.cryptography.oldapi.materialproviders.KeyringTests.Pair;
@@ -118,7 +118,7 @@ class JcaKeyOverloadsTest {
 
       Pair statically = ecdh(
         curve,
-        RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()),
+        RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .RawPrivateKeyToStaticPublicKey(
@@ -128,7 +128,7 @@ class JcaKeyOverloadsTest {
       );
       Pair ephemeral = ecdh(
         curve,
-        RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()),
+        RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .EphemeralPrivateKeyToStaticPublicKey(EphemeralPrivateKeyToStaticPublicKeyInput.builder().recipientPublicKey(ByteBuffer.wrap(recipientDer)).build())
@@ -136,7 +136,7 @@ class JcaKeyOverloadsTest {
       );
       Pair discovery = ecdh(
         curve,
-        RawEcdhStaticConfigurations.publicKeyDiscovery(recipient.getPrivate()),
+        RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .PublicKeyDiscovery(PublicKeyDiscoveryInput.builder().recipientStaticPrivateKey(ByteBuffer.wrap(recipientPem)).build())
@@ -195,7 +195,7 @@ class JcaKeyOverloadsTest {
     }
   }
 
-  private Pair ecdh(EcdhCurveSpec curve, RawEcdhStaticConfigurations nativeScheme, software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations referenceScheme) {
+  private Pair ecdh(EcdhCurveSpec curve, RawEcdhKeyAgreementScheme nativeScheme, software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations referenceScheme) {
     CreateRawEcdhKeyringInput input = CreateRawEcdhKeyringInput.builder().curveSpec(ECDHCurveSpec.valueOf(curve.name())).KeyAgreementScheme(referenceScheme).build();
     return new Pair(
       new NativeKeyring(RawEcdhKeyring.builder().curveSpec(curve).keyAgreementScheme(nativeScheme).build()),

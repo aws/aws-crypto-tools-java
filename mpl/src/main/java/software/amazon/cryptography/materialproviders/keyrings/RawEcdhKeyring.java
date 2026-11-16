@@ -40,7 +40,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Ecdh;
 //# MUST implement the [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
 public final class RawEcdhKeyring implements Keyring {
 
-  private final RawEcdhStaticConfigurations keyAgreementScheme;
+  private final RawEcdhKeyAgreementScheme keyAgreementScheme;
   private final EcdhCurveSpec curveSpec;
   // The configured key, or for discovery the one derived from the recipient's private key.
   private final byte[] recipientPublicKey;
@@ -60,8 +60,8 @@ public final class RawEcdhKeyring implements Keyring {
     return new Builder();
   }
 
-  /** Which keys are fixed: see {@link RawEcdhStaticConfigurations}. */
-  public RawEcdhStaticConfigurations keyAgreementScheme() {
+  /** Which keys are fixed: see {@link RawEcdhKeyAgreementScheme}. */
+  public RawEcdhKeyAgreementScheme keyAgreementScheme() {
     return keyAgreementScheme;
   }
 
@@ -76,12 +76,12 @@ public final class RawEcdhKeyring implements Keyring {
   @Override
   public OnEncryptResponse onEncrypt(OnEncryptRequest request) {
     EncryptionMaterials materials = request.materials();
-    RawEcdhStaticConfigurations.Kind kind = keyAgreementScheme.kind();
+    RawEcdhKeyAgreementScheme.Kind kind = keyAgreementScheme.kind();
     //= spec/framework/raw-ecdh-keyring.md#onencrypt
     //= type=implication
     //# OnEncrypt MUST fail if configured with a
     //# [PublicKeyDiscovery Key Agreement Configuration](./key-agreement-schemas.md#publickeydiscovery)
-    if (kind == RawEcdhStaticConfigurations.Kind.PUBLIC_KEY_DISCOVERY) {
+    if (kind == RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY) {
       throw new ValidationException("PublicKeyDiscovery Key Agreement Scheme is forbidden on encrypt.");
     }
     byte[] sharedSecret;
@@ -92,7 +92,7 @@ public final class RawEcdhKeyring implements Keyring {
     
     //= spec/framework/raw-ecdh-keyring.md#onencrypt
     //# If the keyring fails to compute the shared secret, the keyring MUST fail.
-    if (kind == RawEcdhStaticConfigurations.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY) {
+    if (kind == RawEcdhKeyAgreementScheme.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY) {
       byte[][] ephemeral = Ecdh.generateKeyPair(curveSpec);
       try {
         senderPublicKey = Ecdh.compressPublicKey(ephemeral[1]);
@@ -144,7 +144,7 @@ public final class RawEcdhKeyring implements Keyring {
     
     //= spec/framework/key-agreement-schemas.md#ephemeralprivatekeytostaticpublickey
     //# On decrypt, the keyring MUST fail.
-    if (keyAgreementScheme.kind() == RawEcdhStaticConfigurations.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY) {
+    if (keyAgreementScheme.kind() == RawEcdhKeyAgreementScheme.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY) {
       throw new ValidationException("EphemeralPrivateKeyToStaticPublicKey Key Agreement Scheme is forbidden on decrypt.");
     }
     MaterialsRules.Decryption fields = MaterialsAccess.fields(materials);
@@ -215,7 +215,7 @@ public final class RawEcdhKeyring implements Keyring {
     //# - MUST verify that the recipient public key stored on
     //# the message ciphertext matches the configured recipient's
     //# public key.
-    if (keyAgreementScheme.kind() == RawEcdhStaticConfigurations.Kind.PUBLIC_KEY_DISCOVERY) {
+    if (keyAgreementScheme.kind() == RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY) {
       return recipient;
     }
     //= spec/framework/key-agreement-schemas.md#rawprivatekeytostaticpublickey
@@ -234,7 +234,7 @@ public final class RawEcdhKeyring implements Keyring {
     // (this keyring sent it) or as the sender (sent to this keyring), so the other key is always the configured recipient's,
     // already validated at creation. A discovery keyring takes the message's sender key.
     byte[] otherPublicKey;
-    if (keyAgreementScheme.kind() == RawEcdhStaticConfigurations.Kind.PUBLIC_KEY_DISCOVERY) {
+    if (keyAgreementScheme.kind() == RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY) {
       otherPublicKey = Ecdh.decompressPublicKey(info.senderPublicKey, curveSpec);
       EcdhEdkWrapping.requireValidPublicKey(Ecdh.validatePublicKey(curveSpec, otherPublicKey), "sender public key in the provider info");
     } else {
@@ -270,13 +270,13 @@ public final class RawEcdhKeyring implements Keyring {
     // The DER length of a P-256, P-384, or P-521 public key with a named curve and an uncompressed point.
     private static final int[] PUBLIC_KEY_LENGTHS = { 91, 120, 158 };
 
-    private RawEcdhStaticConfigurations keyAgreementScheme;
+    private RawEcdhKeyAgreementScheme keyAgreementScheme;
     private EcdhCurveSpec curveSpec;
 
     private Builder() {}
 
-    /** Which keys are fixed: see {@link RawEcdhStaticConfigurations}. */
-    public Builder keyAgreementScheme(RawEcdhStaticConfigurations keyAgreementScheme) {
+    /** Which keys are fixed: see {@link RawEcdhKeyAgreementScheme}. */
+    public Builder keyAgreementScheme(RawEcdhKeyAgreementScheme keyAgreementScheme) {
       this.keyAgreementScheme = keyAgreementScheme;
       return this;
     }

@@ -17,7 +17,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Pem;
  * {@link RawEcdhKeyring.Builder#build()} checks the keys themselves.
  * Immutable.
  */
-public abstract class RawEcdhStaticConfigurations {
+public abstract class RawEcdhKeyAgreementScheme {
 
   /** The kinds, for {@code switch}. More constants may be added; a {@code switch} needs a {@code default} branch. */
   public enum Kind {
@@ -29,20 +29,20 @@ public abstract class RawEcdhStaticConfigurations {
   private final SecretBytes privateKey;
   private final byte[] recipientPublicKey;
 
-  private RawEcdhStaticConfigurations(SecretBytes privateKey, byte[] recipientPublicKey) {
+  private RawEcdhKeyAgreementScheme(SecretBytes privateKey, byte[] recipientPublicKey) {
     this.privateKey = privateKey;
     this.recipientPublicKey = recipientPublicKey;
   }
 
   /** A fixed sender key pair and recipient public key; encrypts and decrypts. */
-  public static RawEcdhStaticConfigurations rawPrivateKeyToStaticPublicKey(SecretBytes senderStaticPrivateKey, byte[] recipientPublicKey) {
+  public static RawEcdhKeyAgreementScheme rawPrivateKeyToStaticPublicKey(SecretBytes senderStaticPrivateKey, byte[] recipientPublicKey) {
     KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderStaticPrivateKey.copy(), recipientPublicKey.clone());
   }
 
   /** {@link #rawPrivateKeyToStaticPublicKey(SecretBytes, byte[])} with JCA keys. */
-  public static RawEcdhStaticConfigurations rawPrivateKeyToStaticPublicKey(PrivateKey senderStaticPrivateKey, PublicKey recipientPublicKey) {
+  public static RawEcdhKeyAgreementScheme rawPrivateKeyToStaticPublicKey(PrivateKey senderStaticPrivateKey, PublicKey recipientPublicKey) {
     KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     byte[] recipient = Pem.encoded(recipientPublicKey, "recipientPublicKey").clone();
@@ -50,25 +50,25 @@ public abstract class RawEcdhStaticConfigurations {
   }
 
   /** A new sender key pair per message; encrypts only. */
-  public static RawEcdhStaticConfigurations ephemeralPrivateKeyToStaticPublicKey(byte[] recipientPublicKey) {
+  public static RawEcdhKeyAgreementScheme ephemeralPrivateKeyToStaticPublicKey(byte[] recipientPublicKey) {
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     return new Of(Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, null, recipientPublicKey.clone());
   }
 
   /** {@link #ephemeralPrivateKeyToStaticPublicKey(byte[])} with a JCA key. */
-  public static RawEcdhStaticConfigurations ephemeralPrivateKeyToStaticPublicKey(PublicKey recipientPublicKey) {
+  public static RawEcdhKeyAgreementScheme ephemeralPrivateKeyToStaticPublicKey(PublicKey recipientPublicKey) {
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     return new Of(Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, null, Pem.encoded(recipientPublicKey, "recipientPublicKey").clone());
   }
 
   /** The recipient's private key; decrypts any message addressed to it, encrypts nothing. */
-  public static RawEcdhStaticConfigurations publicKeyDiscovery(SecretBytes recipientStaticPrivateKey) {
+  public static RawEcdhKeyAgreementScheme publicKeyDiscovery(SecretBytes recipientStaticPrivateKey) {
     KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
     return new Of(Kind.PUBLIC_KEY_DISCOVERY, recipientStaticPrivateKey.copy(), null);
   }
 
   /** {@link #publicKeyDiscovery(SecretBytes)} with a JCA key. */
-  public static RawEcdhStaticConfigurations publicKeyDiscovery(PrivateKey recipientStaticPrivateKey) {
+  public static RawEcdhKeyAgreementScheme publicKeyDiscovery(PrivateKey recipientStaticPrivateKey) {
     KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
     return new Of(Kind.PUBLIC_KEY_DISCOVERY, Pem.privateKey(recipientStaticPrivateKey, "recipientStaticPrivateKey"), null);
   }
@@ -85,7 +85,7 @@ public abstract class RawEcdhStaticConfigurations {
     return recipientPublicKey;
   }
 
-  private static final class Of extends RawEcdhStaticConfigurations {
+  private static final class Of extends RawEcdhKeyAgreementScheme {
 
     private final Kind kind;
 

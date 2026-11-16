@@ -15,7 +15,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Pem;
  * {@link AwsKmsEcdhKeyring.Builder#build()} checks the values themselves.
  * Immutable.
  */
-public abstract class KmsEcdhStaticConfigurations {
+public abstract class KmsEcdhKeyAgreementScheme {
 
   /** The kinds, for {@code switch}. More constants may be added; a {@code switch} needs a {@code default} branch. */
   public enum Kind {
@@ -30,7 +30,7 @@ public abstract class KmsEcdhStaticConfigurations {
   // Null for discovery.
   private final byte[] recipientPublicKey;
 
-  private KmsEcdhStaticConfigurations(String kmsIdentifier, byte[] senderPublicKey, byte[] recipientPublicKey) {
+  private KmsEcdhKeyAgreementScheme(String kmsIdentifier, byte[] senderPublicKey, byte[] recipientPublicKey) {
     this.kmsIdentifier = kmsIdentifier;
     this.senderPublicKey = senderPublicKey;
     this.recipientPublicKey = recipientPublicKey;
@@ -40,14 +40,14 @@ public abstract class KmsEcdhStaticConfigurations {
    * The sender is a KMS key agreement key; {@code recipientPublicKey} is fixed. Encrypts and decrypts.
    * The keyring fetches the sender's public key with KMS GetPublicKey when it is built.
    */
-  public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, byte[] recipientPublicKey) {
+  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, byte[] recipientPublicKey) {
     KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, null, recipientPublicKey.clone());
   }
 
   /** As above with the sender's public key supplied, so the keyring makes no GetPublicKey call. */
-  public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(
+  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(
     String senderKmsIdentifier,
     byte[] senderPublicKey,
     byte[] recipientPublicKey
@@ -59,14 +59,14 @@ public abstract class KmsEcdhStaticConfigurations {
   }
 
   /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[])} with a JCA key. */
-  public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, PublicKey recipientPublicKey) {
+  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, PublicKey recipientPublicKey) {
     KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
     KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
     return kmsPrivateKeyToStaticPublicKey(senderKmsIdentifier, Pem.encoded(recipientPublicKey, "recipientPublicKey"));
   }
 
   /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[], byte[])} with JCA keys. */
-  public static KmsEcdhStaticConfigurations kmsPrivateKeyToStaticPublicKey(
+  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(
     String senderKmsIdentifier,
     PublicKey senderPublicKey,
     PublicKey recipientPublicKey
@@ -85,7 +85,7 @@ public abstract class KmsEcdhStaticConfigurations {
    * The recipient is a KMS key agreement key; decrypts any message addressed to it, encrypts nothing.
    * The keyring fetches the recipient's public key with KMS GetPublicKey when it is built.
    */
-  public static KmsEcdhStaticConfigurations kmsPublicKeyDiscovery(String recipientKmsIdentifier) {
+  public static KmsEcdhKeyAgreementScheme kmsPublicKeyDiscovery(String recipientKmsIdentifier) {
     KeyringNames.requireSet(recipientKmsIdentifier, "recipientKmsIdentifier");
     return new Of(Kind.KMS_PUBLIC_KEY_DISCOVERY, recipientKmsIdentifier, null, null);
   }
@@ -107,7 +107,7 @@ public abstract class KmsEcdhStaticConfigurations {
     return recipientPublicKey;
   }
 
-  private static final class Of extends KmsEcdhStaticConfigurations {
+  private static final class Of extends KmsEcdhKeyAgreementScheme {
 
     private final Kind kind;
 

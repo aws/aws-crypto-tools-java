@@ -31,7 +31,7 @@ import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 import software.amazon.cryptography.materialproviders.OnDecryptRequest;
 import software.amazon.cryptography.materialproviders.OnEncryptRequest;
@@ -204,12 +204,12 @@ final class NativeSide implements Side {
 
   private Keyring rawEcdh(KeyDescription.RawEcdh ecdh, KeyMaterial material) {
     EcdhCurveSpec curve = curve(ecdh.curveSpec);
-    RawEcdhStaticConfigurations scheme;
+    RawEcdhKeyAgreementScheme scheme;
     switch (ecdh.keyAgreementScheme) {
       case "static":
         {
           KeyMaterial.PrivateEcdh key = need(material, KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
+          scheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(
             SecretBytes.copyOf(utf8(key.senderPem)),
             Base64.getDecoder().decode(key.recipientPublicKey)
           );
@@ -218,13 +218,13 @@ final class NativeSide implements Side {
       case "ephemeral":
         {
           KeyMaterial.PrivateEcdh key = need(env.keys.get(ecdh.recipientKeyId), KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(Base64.getDecoder().decode(key.recipientPublicKey));
+          scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(Base64.getDecoder().decode(key.recipientPublicKey));
           break;
         }
       case "discovery":
         {
           KeyMaterial.PrivateEcdh key = need(env.keys.get(ecdh.recipientKeyId), KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhStaticConfigurations.publicKeyDiscovery(SecretBytes.copyOf(utf8(key.recipientPem)));
+          scheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery(SecretBytes.copyOf(utf8(key.recipientPem)));
           break;
         }
       default:

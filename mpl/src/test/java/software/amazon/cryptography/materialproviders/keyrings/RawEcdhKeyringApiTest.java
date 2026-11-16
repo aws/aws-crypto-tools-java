@@ -31,11 +31,11 @@ class RawEcdhKeyringApiTest {
   @Test
   void requiredArguments() {
     byte[] key = new byte[1];
-    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(null, key));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(SecretBytes.copyOf(key), null));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey((byte[]) null));
-    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhStaticConfigurations.publicKeyDiscovery((SecretBytes) null));
-    RawEcdhStaticConfigurations scheme = RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(key);
+    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(null, key));
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(SecretBytes.copyOf(key), null));
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey((byte[]) null));
+    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery((SecretBytes) null));
+    RawEcdhKeyAgreementScheme scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(key);
     assertMessage("Missing value for required field `keyAgreementScheme`", () -> RawEcdhKeyring.builder().curveSpec(EcdhCurveSpec.ECC_NIST_P256).build());
     assertMessage("Missing value for required field `curveSpec`", () -> RawEcdhKeyring.builder().keyAgreementScheme(scheme).build());
   }
@@ -48,16 +48,16 @@ class RawEcdhKeyringApiTest {
     SecretBytes senderPrivate = privatePem(sender);
     SecretBytes recipientPrivate = privatePem(recipient);
     byte[] recipientPublic = recipient.getPublic().getEncoded();
-    RawEcdhStaticConfigurations staticScheme = RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(senderPrivate, recipientPublic);
-    RawEcdhStaticConfigurations ephemeralScheme = RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(recipientPublic);
-    RawEcdhStaticConfigurations discoveryScheme = RawEcdhStaticConfigurations.publicKeyDiscovery(recipientPrivate);
+    RawEcdhKeyAgreementScheme staticScheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(senderPrivate, recipientPublic);
+    RawEcdhKeyAgreementScheme ephemeralScheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipientPublic);
+    RawEcdhKeyAgreementScheme discoveryScheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipientPrivate);
     senderPrivate.destroy();
     recipientPrivate.destroy();
     Arrays.fill(recipientPublic, (byte) 0);
 
-    assertEquals(RawEcdhStaticConfigurations.Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, staticScheme.kind());
-    assertEquals(RawEcdhStaticConfigurations.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, ephemeralScheme.kind());
-    assertEquals(RawEcdhStaticConfigurations.Kind.PUBLIC_KEY_DISCOVERY, discoveryScheme.kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, staticScheme.kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, ephemeralScheme.kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY, discoveryScheme.kind());
     RawEcdhKeyring staticKeyring = keyring(staticScheme);
     RawEcdhKeyring discoveryKeyring = keyring(discoveryScheme);
     assertSame(staticScheme, staticKeyring.keyAgreementScheme());
@@ -71,7 +71,7 @@ class RawEcdhKeyringApiTest {
     }
   }
 
-  private static RawEcdhKeyring keyring(RawEcdhStaticConfigurations scheme) {
+  private static RawEcdhKeyring keyring(RawEcdhKeyAgreementScheme scheme) {
     return RawEcdhKeyring.builder().keyAgreementScheme(scheme).curveSpec(EcdhCurveSpec.ECC_NIST_P256).build();
   }
 

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 
 /**
  * Customer example (RawEcdhKeyringExample): ECDH between local P-256 key pairs.
@@ -28,17 +28,17 @@ public final class RawEcdhKeyringExample {
     RawEcdhKeyring staticSender = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()))
+      .keyAgreementScheme(RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()))
       .build();
     RawEcdhKeyring ephemeralSender = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()))
+      .keyAgreementScheme(RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()))
       .build();
     RawEcdhKeyring recipientDiscovery = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhStaticConfigurations.publicKeyDiscovery(recipient.getPrivate()))
+      .keyAgreementScheme(RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()))
       .build();
 
     Map<String, String> item = ExampleItems.item("rawEcdhItem");

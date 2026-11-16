@@ -54,7 +54,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
   // KMS PublicKeyType: 1 to 8192 bytes.
   private static final int MAX_PUBLIC_KEY_LENGTH = 8192;
 
-  private final KmsEcdhStaticConfigurations keyAgreementScheme;
+  private final KmsEcdhKeyAgreementScheme keyAgreementScheme;
   private final EcdhCurveSpec curveSpec;
   private final KmsClient kmsClient;
   private final List<String> grantTokens;
@@ -84,8 +84,8 @@ public final class AwsKmsEcdhKeyring implements Keyring {
     return new Builder();
   }
 
-  /** Which keys are fixed: see {@link KmsEcdhStaticConfigurations}. */
-  public KmsEcdhStaticConfigurations keyAgreementScheme() {
+  /** Which keys are fixed: see {@link KmsEcdhKeyAgreementScheme}. */
+  public KmsEcdhKeyAgreementScheme keyAgreementScheme() {
     return keyAgreementScheme;
   }
 
@@ -200,7 +200,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
   }
 
   private boolean isDiscovery() {
-    return keyAgreementScheme.kind() == KmsEcdhStaticConfigurations.Kind.KMS_PUBLIC_KEY_DISCOVERY;
+    return keyAgreementScheme.kind() == KmsEcdhKeyAgreementScheme.Kind.KMS_PUBLIC_KEY_DISCOVERY;
   }
 
   // Discovery checks only the recipient; a static keyring also accepts its own keys with the roles swapped.
@@ -326,15 +326,15 @@ public final class AwsKmsEcdhKeyring implements Keyring {
    */
   public static final class Builder {
 
-    private KmsEcdhStaticConfigurations keyAgreementScheme;
+    private KmsEcdhKeyAgreementScheme keyAgreementScheme;
     private EcdhCurveSpec curveSpec;
     private KmsClient kmsClient;
     private Collection<String> grantTokens;
 
     private Builder() {}
 
-    /** Which keys are fixed: see {@link KmsEcdhStaticConfigurations}. */
-    public Builder keyAgreementScheme(KmsEcdhStaticConfigurations keyAgreementScheme) {
+    /** Which keys are fixed: see {@link KmsEcdhKeyAgreementScheme}. */
+    public Builder keyAgreementScheme(KmsEcdhKeyAgreementScheme keyAgreementScheme) {
       this.keyAgreementScheme = keyAgreementScheme;
       return this;
     }
@@ -384,7 +384,7 @@ public final class AwsKmsEcdhKeyring implements Keyring {
       byte[] recipientPublicKey;
       byte[] senderPublicKey = null;
       byte[] compressedSenderPublicKey = new byte[0];
-      if (keyAgreementScheme.kind() == KmsEcdhStaticConfigurations.Kind.KMS_PUBLIC_KEY_DISCOVERY) {
+      if (keyAgreementScheme.kind() == KmsEcdhKeyAgreementScheme.Kind.KMS_PUBLIC_KEY_DISCOVERY) {
         //= spec/framework/key-agreement-schemas.md#kmspublickeydiscovery
         //# - MUST provide the recipient's AWS KMS key identifier
         AwsKmsIdentifier.validateKeyId(kmsIdentifier);
