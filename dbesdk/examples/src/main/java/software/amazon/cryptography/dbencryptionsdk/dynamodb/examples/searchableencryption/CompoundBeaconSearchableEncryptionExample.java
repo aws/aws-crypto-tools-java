@@ -123,11 +123,12 @@ public class CompoundBeaconSearchableEncryptionExample {
     // A constructor is one allowed way to assemble the compound beacon's value: an ordered list of
     // parts, joined by the compound beacon's separator. addRequiredPart names parts that must be on
     // the item for this constructor to be used; addOptionalPart names parts that are left out when
-    // they are missing. Each takes one or more names, and the parts are written in the order they
-    // are given. This constructor writes the beacon as `L-XXX.U-YYYYYYYY` and needs both parts.
+    // they are missing. addRequiredParts and addOptionalParts add several names at once. The parts
+    // are written in the order they are added. This constructor writes the beacon as
+    // `L-XXX.U-YYYYYYYY` and needs both parts.
     CompoundBeaconConstructor constructor = CompoundBeaconConstructor
       .builder()
-      .addRequiredPart("inspector_id_last4", "unit")
+      .addRequiredParts("inspector_id_last4", "unit")
       .build();
 
     // 3. Define compound beacon.

@@ -56,11 +56,12 @@ public final class ComplexExampleClientSetup {
     // 2. Define constructors
     //    A constructor is one allowed way to assemble a compound beacon value: an ordered list of
     //    the compound beacon's encrypted and signed parts, joined by its separator. addRequiredPart
-    //    and addOptionalPart each take one or more part names, and the parts are written in the
-    //    order they are given, across calls. When an item is written, the compound beacon's
-    //    constructors are tried in order, and the first one whose required parts are all on the
-    //    item is used; an optional part that is missing is left out. The constructors below build
-    //    the PK and SK values for each record type in this example. All their parts are required.
+    //    and addOptionalPart add one part name, addRequiredParts and addOptionalParts add several,
+    //    and the parts are written in the order they are added, across calls. When an item is
+    //    written, the compound beacon's constructors are tried in order, and the first one whose
+    //    required parts are all on the item is used; an optional part that is missing is left
+    //    out. The constructors below build the PK and SK values for each record type in this
+    //    example. All their parts are required.
 
     // The employee ID constructor only requires an employee ID.
     // If an item has an attribute with name "EmployeeID", it will match this constructor.
@@ -104,13 +105,13 @@ public final class ComplexExampleClientSetup {
     CompoundBeaconConstructor meetingStartFloorRoomConstructor =
       CompoundBeaconConstructor
         .builder()
-        .addRequiredPart("MeetingStart", "Floor", "Room")
+        .addRequiredParts("MeetingStart", "Floor", "Room")
         .build();
 
     CompoundBeaconConstructor timeCardStartEmployeeEmailConstructor =
       CompoundBeaconConstructor
         .builder()
-        .addRequiredPart("TimeCardStart", "EmployeeEmail")
+        .addRequiredParts("TimeCardStart", "EmployeeEmail")
         .build();
 
     CompoundBeaconConstructor timeCardStartConstructor =
@@ -174,7 +175,7 @@ public final class ComplexExampleClientSetup {
     CompoundBeaconConstructor buildingFloorDeskConstructor =
       CompoundBeaconConstructor
         .builder()
-        .addRequiredPart("Building", "Floor", "Desk")
+        .addRequiredParts("Building", "Floor", "Desk")
         .build();
 
     // 3. Create BeaconConfig.
