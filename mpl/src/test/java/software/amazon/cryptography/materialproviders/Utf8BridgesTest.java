@@ -46,25 +46,37 @@ class Utf8BridgesTest {
   }
 
   @Test
-  void encryptedDataKeyOfUtf8() {
+  void encryptedDataKeyFromUtf8Id() {
     byte[] id = utf8("aws-kms-\u00e9");
     byte[] info = { 1, 2 };
     byte[] ciphertext = { 3 };
-    EncryptedDataKey edk = EncryptedDataKey.ofUtf8(id, info, ciphertext);
-    assertEquals(EncryptedDataKey.of("aws-kms-\u00e9", info, ciphertext), edk);
+    EncryptedDataKey edk = EncryptedDataKey.builder().keyProviderIdUtf8(id).keyProviderInfo(info).ciphertext(ciphertext).build();
+    assertEquals(EncryptedDataKey.builder()
+        .keyProviderId("aws-kms-\u00e9")
+        .keyProviderInfo(info)
+        .ciphertext(ciphertext)
+        .build(), edk);
     info[0] = 9;
     ciphertext[0] = 9;
     assertArrayEquals(new byte[] { 1, 2 }, edk.keyProviderInfo());
     assertArrayEquals(new byte[] { 3 }, edk.ciphertext());
     assertEquals(
       "Key provider id must be well-formed UTF-8",
-      assertThrows(ValidationException.class, () -> EncryptedDataKey.ofUtf8(NOT_UTF8, info, ciphertext)).getMessage()
+      assertThrows(ValidationException.class, () -> EncryptedDataKey.builder()
+          .keyProviderIdUtf8(NOT_UTF8)
+          .keyProviderInfo(info)
+          .ciphertext(ciphertext)
+          .build()).getMessage()
     );
   }
 
   @Test
   void keyProviderIdAsUtf8() {
-    EncryptedDataKey edk = EncryptedDataKey.of("\u00e9\ud83d\ude00", new byte[0], new byte[0]);
+    EncryptedDataKey edk = EncryptedDataKey.builder()
+        .keyProviderId("\u00e9\ud83d\ude00")
+        .keyProviderInfo(new byte[0])
+        .ciphertext(new byte[0])
+        .build();
     byte[] id = edk.keyProviderIdUtf8();
     assertArrayEquals("\u00e9\ud83d\ude00".getBytes(StandardCharsets.UTF_8), id);
     id[0] = 0;
@@ -78,7 +90,11 @@ class Utf8BridgesTest {
     for (String id : new String[] { "a\ud800", "\udc00", "\ud83d" }) {
       assertEquals(
         "Key provider id must be well-formed UTF-16",
-        assertThrows(ValidationException.class, () -> EncryptedDataKey.of(id, new byte[0], new byte[0])).getMessage()
+        assertThrows(ValidationException.class, () -> EncryptedDataKey.builder()
+            .keyProviderId(id)
+            .keyProviderInfo(new byte[0])
+            .ciphertext(new byte[0])
+            .build()).getMessage()
       );
     }
   }

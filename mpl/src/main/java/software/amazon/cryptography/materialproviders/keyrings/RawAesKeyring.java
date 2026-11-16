@@ -103,7 +103,11 @@ public final class RawAesKeyring implements Keyring {
       return wrapped.generated(plaintextMaterial);
     };
     EdkWrapping.WrapResult<byte[]> result = EdkWrapping.wrap(materials, wrap, generateAndWrap);
-    EncryptedDataKey edk = EncryptedDataKey.of(keyNamespace, providerInfo(result.info), result.wrappedMaterial);
+    EncryptedDataKey edk = EncryptedDataKey.builder()
+        .keyProviderId(keyNamespace)
+        .keyProviderInfo(providerInfo(result.info))
+        .ciphertext(result.wrappedMaterial)
+        .build();
     //= spec/framework/raw-aes-keyring.md#onencrypt
     //# The keyring MUST append the constructed encrypted data key to the
     //# encrypted data key list in the [encryption materials]

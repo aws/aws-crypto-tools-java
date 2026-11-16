@@ -123,11 +123,11 @@ public final class Convert {
   }
 
   public static software.amazon.cryptography.materialproviders.EncryptedDataKey edk(EncryptedDataKey edk) {
-    return software.amazon.cryptography.materialproviders.EncryptedDataKey.of(
-      edk.keyProviderId(),
-      Buffers.toArray(edk.keyProviderInfo()),
-      Buffers.toArray(edk.ciphertext())
-    );
+    return software.amazon.cryptography.materialproviders.EncryptedDataKey.builder()
+        .keyProviderId(edk.keyProviderId())
+        .keyProviderInfo(Buffers.toArray(edk.keyProviderInfo()))
+        .ciphertext(Buffers.toArray(edk.ciphertext()))
+        .build();
   }
 
   public static EncryptedDataKey edk(software.amazon.cryptography.materialproviders.EncryptedDataKey edk) {

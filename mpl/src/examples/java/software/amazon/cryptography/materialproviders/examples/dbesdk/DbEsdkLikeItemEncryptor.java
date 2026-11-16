@@ -468,7 +468,11 @@ public final class DbEsdkLikeItemEncryptor {
       }
       List<EncryptedDataKey> edks = new ArrayList<>();
       for (int i = in.readUnsignedByte(); i > 0; i--) {
-        edks.add(EncryptedDataKey.ofUtf8(readShortField(in), readShortField(in), readShortField(in)));
+        edks.add(EncryptedDataKey.builder()
+            .keyProviderIdUtf8(readShortField(in))
+            .keyProviderInfo(readShortField(in))
+            .ciphertext(readShortField(in))
+            .build());
       }
       return new ParsedHeader(
         version,

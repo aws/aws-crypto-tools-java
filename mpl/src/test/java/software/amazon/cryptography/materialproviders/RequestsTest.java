@@ -22,7 +22,11 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 class RequestsTest {
 
   private static final AlgorithmSuite SUITE = AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY;
-  private static final List<EncryptedDataKey> EDKS = Collections.singletonList(EncryptedDataKey.of("p", new byte[] { 1 }, new byte[] { 2 }));
+  private static final List<EncryptedDataKey> EDKS = Collections.singletonList(EncryptedDataKey.builder()
+      .keyProviderId("p")
+      .keyProviderInfo(new byte[] { 1 })
+      .ciphertext(new byte[] { 2 })
+      .build());
 
   @Test
   void keyringRequestsHoldTheCallersMaterialsAndACopyOfTheKeys() {

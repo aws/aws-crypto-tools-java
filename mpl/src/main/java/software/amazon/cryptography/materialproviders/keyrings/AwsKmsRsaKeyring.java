@@ -150,7 +150,11 @@ public final class AwsKmsRsaKeyring implements Keyring {
       }
     );
     return OnEncryptResponse.builder()
-      .materials(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, Utf8.encode(kmsKeyId), result.wrappedMaterial)))
+      .materials(result.addTo(materials, EncryptedDataKey.builder()
+          .keyProviderId(PROVIDER_ID)
+          .keyProviderInfo(Utf8.encode(kmsKeyId))
+          .ciphertext(result.wrappedMaterial)
+          .build()))
       .build();
   }
 

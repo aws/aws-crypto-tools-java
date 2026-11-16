@@ -195,7 +195,11 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //
     //= spec/framework/aws-kms/aws-kms-hierarchical-keyring.md#onencrypt
     //# [ciphertext](../structures.md#ciphertext): MUST be serialized as the [hierarchical keyring ciphertext](#ciphertext)
-    return OnEncryptResponse.builder().materials(result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, idBytes, result.wrappedMaterial))).build();
+    return OnEncryptResponse.builder().materials(result.addTo(materials, EncryptedDataKey.builder()
+        .keyProviderId(PROVIDER_ID)
+        .keyProviderInfo(idBytes)
+        .ciphertext(result.wrappedMaterial)
+        .build())).build();
   }
 
   @Override

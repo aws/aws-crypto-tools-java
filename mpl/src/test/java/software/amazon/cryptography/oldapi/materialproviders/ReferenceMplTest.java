@@ -56,7 +56,11 @@ class ReferenceMplTest {
       assertNotSame(type, Class.forName(ReferenceMpl.apiName(type), false, loader));
     }
     // Only the old-API copy maps to the reference; main classes share its packages.
-    Object main = software.amazon.cryptography.materialproviders.EncryptedDataKey.of("provider", new byte[0], new byte[0]);
+    Object main = software.amazon.cryptography.materialproviders.EncryptedDataKey.builder()
+        .keyProviderId("provider")
+        .keyProviderInfo(new byte[0])
+        .ciphertext(new byte[0])
+        .build();
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> ReferenceMpl.toReference(main));
     assertEquals("cannot rebuild " + main.getClass().getName(), e.getMessage());
   }

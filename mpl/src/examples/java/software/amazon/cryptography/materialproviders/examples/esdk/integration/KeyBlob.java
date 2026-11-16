@@ -27,7 +27,11 @@ public final class KeyBlob {
 
   /** Replaces the {@code EncryptedDataKey.builder()} with two {@code ByteBuffer.wrap} calls in {@code CMMHandler}. */
   public EncryptedDataKey toEncryptedDataKey() {
-    return EncryptedDataKey.of(providerId, providerInformation, encryptedDataKey);
+    return EncryptedDataKey.builder()
+        .keyProviderId(providerId)
+        .keyProviderInfo(providerInformation)
+        .ciphertext(encryptedDataKey)
+        .build();
   }
 
   public String getProviderId() {

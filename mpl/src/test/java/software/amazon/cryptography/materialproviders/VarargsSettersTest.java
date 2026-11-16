@@ -242,8 +242,16 @@ class VarargsSettersTest {
 
   @Test
   void encryptedDataKeys() {
-    EncryptedDataKey first = EncryptedDataKey.of("p", new byte[] { 1 }, new byte[] { 2 });
-    EncryptedDataKey second = EncryptedDataKey.of("q", new byte[] { 3 }, new byte[] { 4 });
+    EncryptedDataKey first = EncryptedDataKey.builder()
+        .keyProviderId("p")
+        .keyProviderInfo(new byte[] { 1 })
+        .ciphertext(new byte[] { 2 })
+        .build();
+    EncryptedDataKey second = EncryptedDataKey.builder()
+        .keyProviderId("q")
+        .keyProviderInfo(new byte[] { 3 })
+        .ciphertext(new byte[] { 4 })
+        .build();
     EncryptedDataKey[][] keys = { { first, second }, {}, null, { first, null } };
     DecryptionMaterials materials = DecryptionMaterials.builder(SUITE).build();
     matches(

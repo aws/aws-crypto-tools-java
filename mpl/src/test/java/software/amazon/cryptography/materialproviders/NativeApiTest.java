@@ -36,7 +36,11 @@ class NativeApiTest {
     ciphertext[5] ^= 1;
     NoMatchingDataKeyException e = assertThrows(
       NoMatchingDataKeyException.class,
-      () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(decryption()).encryptedDataKeys(Collections.singletonList(EncryptedDataKey.of(edk.keyProviderId(), edk.keyProviderInfo(), ciphertext))).build())
+      () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(decryption()).encryptedDataKeys(Collections.singletonList(EncryptedDataKey.builder()
+          .keyProviderId(edk.keyProviderId())
+          .keyProviderInfo(edk.keyProviderInfo())
+          .ciphertext(ciphertext)
+          .build())).build())
     );
     assertInstanceOf(CryptographicException.class, e.failures().get(0));
   }

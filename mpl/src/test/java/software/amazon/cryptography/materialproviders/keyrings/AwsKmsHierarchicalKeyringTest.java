@@ -271,8 +271,16 @@ class AwsKmsHierarchicalKeyringTest {
     byte[] ciphertext = edk.ciphertext();
     ciphertext[ciphertext.length - 1] ^= 1;
     List<EncryptedDataKey> tampered = new ArrayList<>();
-    tampered.add(EncryptedDataKey.of(edk.keyProviderId(), edk.keyProviderInfo(), ciphertext));
-    tampered.add(EncryptedDataKey.of(edk.keyProviderId(), edk.keyProviderInfo(), new byte[3]));
+    tampered.add(EncryptedDataKey.builder()
+        .keyProviderId(edk.keyProviderId())
+        .keyProviderInfo(edk.keyProviderInfo())
+        .ciphertext(ciphertext)
+        .build());
+    tampered.add(EncryptedDataKey.builder()
+        .keyProviderId(edk.keyProviderId())
+        .keyProviderInfo(edk.keyProviderInfo())
+        .ciphertext(new byte[3])
+        .build());
     NoMatchingDataKeyException failed = assertThrows(NoMatchingDataKeyException.class, () -> keyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(tampered).build()));
     assertEquals(2, failed.failures().size());
     assertEquals("Received EDK Ciphertext of incorrect length.", failed.failures().get(1).getMessage());

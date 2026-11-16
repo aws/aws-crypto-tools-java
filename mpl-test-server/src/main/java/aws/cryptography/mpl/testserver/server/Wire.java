@@ -181,11 +181,11 @@ final class Wire {
     List<EncryptedDataKey> edks = new ArrayList<>();
     for (JsonNode edk : Cbor.list(node, field)) {
       edks.add(
-        EncryptedDataKey.of(
-          Cbor.string(edk, "keyProviderId"),
-          Cbor.blob(edk, "keyProviderInfo"),
-          Cbor.blob(edk, "ciphertext")
-        )
+        EncryptedDataKey.builder()
+            .keyProviderId(Cbor.string(edk, "keyProviderId"))
+            .keyProviderInfo(Cbor.blob(edk, "keyProviderInfo"))
+            .ciphertext(Cbor.blob(edk, "ciphertext"))
+            .build()
       );
     }
     return edks;

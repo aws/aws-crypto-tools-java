@@ -33,7 +33,7 @@ import software.amazon.cryptography.materialproviders.internal.Utf8;
 //= reason=Only the built-in keyrings can be held to this; a custom keyring may produce any ciphertext.
 //# Some key provider MUST be capable of deterministically obtaining the plaintext key from the ciphertext.
 /**
- * A data key encrypted by one keyring, as stored in a message.
+ * A data key encrypted by one keyring, as stored in a message. Build one with {@link #builder()}.
  * Immutable; {@code equals} compares all three fields; {@code toString} shows the provider id and field lengths.
  */
 public final class EncryptedDataKey {
@@ -48,28 +48,13 @@ public final class EncryptedDataKey {
     this.ciphertext = ciphertext;
   }
 
-  /**
-   * @param keyProviderId text identifying the keyring kind, for example {@code aws-kms}; a message stores it as UTF-8
-   * @throws ValidationException if {@code keyProviderId} is not well-formed UTF-16 (a lone surrogate), so it has no UTF-8 form
-   */
-  public static EncryptedDataKey of(String keyProviderId, byte[] keyProviderInfo, byte[] ciphertext) {
-    if (!Utf8.isEncodable(Objects.requireNonNull(keyProviderId, "keyProviderId"))) {
-      throw new ValidationException("Key provider id must be well-formed UTF-16");
-    }
-    return new EncryptedDataKey(keyProviderId, keyProviderInfo.clone(), ciphertext.clone());
+  public static Builder builder() {
+    return new Builder();
   }
 
-  /**
-   * An encrypted data key read as a message stores it, with the provider id as UTF-8 bytes. All three arrays are copied.
-   *
-   * @throws ValidationException if {@code keyProviderId} is not well-formed UTF-8
-   */
-  public static EncryptedDataKey ofUtf8(byte[] keyProviderId, byte[] keyProviderInfo, byte[] ciphertext) {
-    String id = Utf8.decode(keyProviderId);
-    if (id == null) {
-      throw new ValidationException("Key provider id must be well-formed UTF-8");
-    }
-    return of(id, keyProviderInfo, ciphertext);
+  /** A builder holding this key's values. */
+  public Builder toBuilder() {
+    return new Builder().keyProviderId(keyProviderId).keyProviderInfo(keyProviderInfo).ciphertext(ciphertext);
   }
 
   public String keyProviderId() {
@@ -114,5 +99,67 @@ public final class EncryptedDataKey {
     return (
       "EncryptedDataKey[" + keyProviderId + ", info " + keyProviderInfo.length + " bytes, ciphertext " + ciphertext.length + " bytes]"
     );
+  }
+
+  /** Not thread-safe. Requires a key provider id, key provider info and ciphertext; arrays are copied in. */
+  public static final class Builder {
+
+    private String keyProviderId;
+    private byte[] keyProviderIdUtf8;
+    private byte[] keyProviderInfo;
+    private byte[] ciphertext;
+
+    private Builder() {}
+
+    /** Text identifying the keyring kind, for example {@code aws-kms}; a message stores it as UTF-8. */
+    public Builder keyProviderId(String keyProviderId) {
+      this.keyProviderId = keyProviderId;
+      this.keyProviderIdUtf8 = null;
+      return this;
+    }
+
+    /** The provider id as the UTF-8 bytes a message stores; replaces {@link #keyProviderId(String)}. */
+    public Builder keyProviderIdUtf8(byte[] keyProviderIdUtf8) {
+      this.keyProviderIdUtf8 = keyProviderIdUtf8 == null ? null : keyProviderIdUtf8.clone();
+      this.keyProviderId = null;
+      return this;
+    }
+
+    public Builder keyProviderInfo(byte[] keyProviderInfo) {
+      this.keyProviderInfo = keyProviderInfo == null ? null : keyProviderInfo.clone();
+      return this;
+    }
+
+    public Builder ciphertext(byte[] ciphertext) {
+      this.ciphertext = ciphertext == null ? null : ciphertext.clone();
+      return this;
+    }
+
+    /**
+     * @throws ValidationException if a member is missing, if the provider id is not well-formed UTF-16 (a lone
+     *     surrogate, so it has no UTF-8 form), or if the bytes given to {@link #keyProviderIdUtf8(byte[])} are not UTF-8
+     */
+    public EncryptedDataKey build() {
+      String id = keyProviderId;
+      if (keyProviderIdUtf8 != null) {
+        id = Utf8.decode(keyProviderIdUtf8);
+        if (id == null) {
+          throw new ValidationException("Key provider id must be well-formed UTF-8");
+        }
+      }
+      if (id == null) {
+        throw new ValidationException("Missing value for required field `keyProviderId`");
+      }
+      if (keyProviderInfo == null) {
+        throw new ValidationException("Missing value for required field `keyProviderInfo`");
+      }
+      if (ciphertext == null) {
+        throw new ValidationException("Missing value for required field `ciphertext`");
+      }
+      if (!Utf8.isEncodable(id)) {
+        throw new ValidationException("Key provider id must be well-formed UTF-16");
+      }
+      return new EncryptedDataKey(id, keyProviderInfo.clone(), ciphertext.clone());
+    }
   }
 }

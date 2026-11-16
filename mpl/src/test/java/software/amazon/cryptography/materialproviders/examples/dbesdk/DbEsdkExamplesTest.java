@@ -290,7 +290,11 @@ class DbEsdkExamplesTest {
   void resolverRejectsBytesThatAreNotUtf8() {
     byte[] notUtf8 = { (byte) 0xC3 };
     assertThrows(ValidationException.class, () -> EncryptionContext.fromUtf8(Collections.singletonMap("k", notUtf8)));
-    assertThrows(ValidationException.class, () -> EncryptedDataKey.ofUtf8(notUtf8, new byte[0], new byte[0]));
+    assertThrows(ValidationException.class, () -> EncryptedDataKey.builder()
+        .keyProviderIdUtf8(notUtf8)
+        .keyProviderInfo(new byte[0])
+        .ciphertext(new byte[0])
+        .build());
   }
 
   // The values the native DB-ESDK's test server hard-codes for both DBE suites.

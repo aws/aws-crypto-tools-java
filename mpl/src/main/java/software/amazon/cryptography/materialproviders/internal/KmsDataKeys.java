@@ -170,7 +170,11 @@ public final class KmsDataKeys {
       //= type=implication
       //# If all Encrypt calls succeed, OnEncrypt MUST output the modified
       //# [encryption materials](../structures.md#encryption-materials).
-      return result.addTo(materials, EncryptedDataKey.of(PROVIDER_ID, providerInfo, result.wrappedMaterial));
+      return result.addTo(materials, EncryptedDataKey.builder()
+          .keyProviderId(PROVIDER_ID)
+          .keyProviderInfo(providerInfo)
+          .ciphertext(result.wrappedMaterial)
+          .build());
     } finally {
       Bytes.zero(result.plaintextDataKey);
       Bytes.zero(result.symmetricSigningKey);

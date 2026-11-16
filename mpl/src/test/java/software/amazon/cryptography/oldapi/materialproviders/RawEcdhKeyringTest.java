@@ -465,11 +465,11 @@ class RawEcdhKeyringTest {
       EcdhEdkWrapping.wrap(sharedSecret, fixedInfo),
       EcdhEdkWrapping.generateAndWrap(sharedSecret, fixedInfo)
     );
-    software.amazon.cryptography.materialproviders.EncryptedDataKey edk = software.amazon.cryptography.materialproviders.EncryptedDataKey.of(
-      providerId,
-      EcdhEdkWrapping.providerInfo(sender, recipient),
-      result.wrappedMaterial
-    );
+    software.amazon.cryptography.materialproviders.EncryptedDataKey edk = software.amazon.cryptography.materialproviders.EncryptedDataKey.builder()
+        .keyProviderId(providerId)
+        .keyProviderInfo(EcdhEdkWrapping.providerInfo(sender, recipient))
+        .ciphertext(result.wrappedMaterial)
+        .build();
     return Convert.materials(result.addTo(materials, edk));
   }
 

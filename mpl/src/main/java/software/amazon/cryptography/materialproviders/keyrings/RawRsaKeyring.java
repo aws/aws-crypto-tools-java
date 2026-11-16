@@ -135,7 +135,11 @@ public final class RawRsaKeyring implements Keyring {
     //#     ciphertext output by the RSA encryption of the plaintext data
     //#     key.
     return OnEncryptResponse.builder()
-      .materials(result.addTo(materials, EncryptedDataKey.of(keyNamespace, keyNameBytes.clone(), result.wrappedMaterial)))
+      .materials(result.addTo(materials, EncryptedDataKey.builder()
+          .keyProviderId(keyNamespace)
+          .keyProviderInfo(keyNameBytes.clone())
+          .ciphertext(result.wrappedMaterial)
+          .build()))
       .build();
   }
 

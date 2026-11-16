@@ -98,7 +98,11 @@ public final class CustomKeyringExample {
       }
       byte[] ciphertext = ByteBuffer.allocate(iv.length + wrapped.length).put(iv).put(wrapped).array();
       return OnEncryptResponse.builder()
-        .materials(withKey.withEncryptedDataKey(EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext)))
+        .materials(withKey.withEncryptedDataKey(EncryptedDataKey.builder()
+            .keyProviderId(PROVIDER_ID)
+            .keyProviderInfo(keyName.getBytes(StandardCharsets.UTF_8))
+            .ciphertext(ciphertext)
+            .build()))
         .build();
     }
 

@@ -31,7 +31,7 @@ import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionCont
  *
  * <p>The DB-ESDK keeps encryption context values as {@code byte[]} and EDK provider ids as {@code byte[]},
  * as they are on the wire; the MPL uses {@code String}.
- * {@link EncryptionContext#fromUtf8} and {@link EncryptedDataKey#ofUtf8} decode strictly, so bytes that are not UTF-8 fail
+ * {@link EncryptionContext#fromUtf8} and {@link EncryptedDataKey.Builder#keyProviderIdUtf8} decode strictly, so bytes that are not UTF-8 fail
  * instead of turning into U+FFFD and silently changing the context.
  *
  * <p>Per the Dafny DB-ESDK's item encryptor (EncryptItem, DecryptItem) and StructuredEncryption (EncryptStructure, DecryptStructure):

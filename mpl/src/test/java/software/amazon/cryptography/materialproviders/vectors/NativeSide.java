@@ -88,7 +88,11 @@ final class NativeSide implements Side {
       public Decrypted decryptMaterials(TestVectors.DecryptVector vector) {
         List<EncryptedDataKey> edks = new ArrayList<>();
         for (TestVectors.Edk edk : vector.encryptedDataKeys) {
-          edks.add(EncryptedDataKey.of(edk.keyProviderId, edk.keyProviderInfo, edk.ciphertext));
+          edks.add(EncryptedDataKey.builder()
+              .keyProviderId(edk.keyProviderId)
+              .keyProviderInfo(edk.keyProviderInfo)
+              .ciphertext(edk.ciphertext)
+              .build());
         }
         DecryptMaterialsRequest.Builder request = DecryptMaterialsRequest
           .builder()
@@ -297,7 +301,11 @@ final class NativeSide implements Side {
         result = result.withPlaintextDataKey(SecretBytes.copyOf(material.plaintextDataKey));
       }
       for (TestVectors.Edk edk : material.encryptedDataKeys) {
-        result = result.withEncryptedDataKey(EncryptedDataKey.of(edk.keyProviderId, edk.keyProviderInfo, edk.ciphertext));
+        result = result.withEncryptedDataKey(EncryptedDataKey.builder()
+            .keyProviderId(edk.keyProviderId)
+            .keyProviderInfo(edk.keyProviderInfo)
+            .ciphertext(edk.ciphertext)
+            .build());
       }
       return OnEncryptResponse.builder().materials(result).build();
     }

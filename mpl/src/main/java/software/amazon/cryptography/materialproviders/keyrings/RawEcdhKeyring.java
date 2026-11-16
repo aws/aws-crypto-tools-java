@@ -126,7 +126,11 @@ public final class RawEcdhKeyring implements Keyring {
       //= spec/framework/raw-ecdh-keyring.md#data-key-wrapping
       //# If the keyring successfully wraps the plaintext data key it MUST set it on the [encryption materials](structures.md#encryption-materials).
       return OnEncryptResponse.builder()
-        .materials(result.addTo(materials, EncryptedDataKey.of(EcdhEdkWrapping.RAW_PROVIDER_ID, providerInfo, result.wrappedMaterial)))
+        .materials(result.addTo(materials, EncryptedDataKey.builder()
+            .keyProviderId(EcdhEdkWrapping.RAW_PROVIDER_ID)
+            .keyProviderInfo(providerInfo)
+            .ciphertext(result.wrappedMaterial)
+            .build()))
         .build();
     } finally {
       Bytes.zero(sharedSecret);

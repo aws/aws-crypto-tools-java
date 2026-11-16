@@ -15,7 +15,7 @@ import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-// EncryptionContext.fromUtf8 and EncryptedDataKey.ofUtf8 accept exactly the bytes the reference's UTF8.Decode accepts,
+// EncryptionContext.fromUtf8 and EncryptedDataKey.Builder.keyProviderIdUtf8 accept exactly the bytes the reference's UTF8.Decode accepts,
 // and decode them to the same string. The Dafny DB-ESDK decodes header contexts and provider ids with UTF8.Decode.
 class Utf8DecodeDifferentialTest {
 
@@ -71,7 +71,11 @@ class Utf8DecodeDifferentialTest {
     String expected = reference.decode(bytes);
     String context = ReferenceMpl.describe(java.nio.ByteBuffer.wrap(bytes));
     assertEquals(expected, nativeDecode(() -> EncryptionContext.fromUtf8(Collections.singletonMap("k", bytes)).get("k")), context);
-    assertEquals(expected, nativeDecode(() -> EncryptedDataKey.ofUtf8(bytes, new byte[0], new byte[0]).keyProviderId()), context);
+    assertEquals(expected, nativeDecode(() -> EncryptedDataKey.builder()
+        .keyProviderIdUtf8(bytes)
+        .keyProviderInfo(new byte[0])
+        .ciphertext(new byte[0])
+        .build().keyProviderId()), context);
   }
 
   // The decoded string, or null when the bytes are rejected.

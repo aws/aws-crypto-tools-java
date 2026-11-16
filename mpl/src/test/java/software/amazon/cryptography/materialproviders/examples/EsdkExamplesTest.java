@@ -363,7 +363,11 @@ class EsdkExamplesTest {
 
   @Test
   void keyBlobConversionKeepsEveryField() {
-    EncryptedDataKey edk = EncryptedDataKey.of("provider", new byte[] { 1, 2 }, new byte[] { 3 });
+    EncryptedDataKey edk = EncryptedDataKey.builder()
+        .keyProviderId("provider")
+        .keyProviderInfo(new byte[] { 1, 2 })
+        .ciphertext(new byte[] { 3 })
+        .build();
     KeyBlob blob = KeyBlob.from(edk);
     assertEquals("provider", blob.getProviderId());
     assertArrayEquals(new byte[] { 1, 2 }, blob.getProviderInformation());
