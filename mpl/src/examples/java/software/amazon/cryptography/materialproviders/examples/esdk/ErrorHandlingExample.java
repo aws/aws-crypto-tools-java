@@ -145,6 +145,7 @@ public final class ErrorHandlingExample {
 
   /** What to do about a failure of an ESDK call. */
   static String whatToDo(EsdkException e, Resources resources) {
+    // Bytes that are not a message. The sketch, built on ESDK 3.x, reports them as CRYPTOGRAPHIC instead.
     if (e.kind() == EsdkErrorKind.MALFORMED_MESSAGE) {
       return "the ciphertext is not an ESDK message";
     }
