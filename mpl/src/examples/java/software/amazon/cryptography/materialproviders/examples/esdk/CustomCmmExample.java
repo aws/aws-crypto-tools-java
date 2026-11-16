@@ -69,9 +69,9 @@ public final class CustomCmmExample {
       GetEncryptionMaterialsRequest.Builder stamped = request
         .toBuilder()
         .encryptionContext(request.encryptionContext().with(KEY, application));
-      if (!request.algorithmSuiteId().isPresent()) {
-        stamped.algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384);
-      } else if (!request.algorithmSuiteId().get().isSigning()) {
+      if (!request.algorithmSuite().isPresent()) {
+        stamped.algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384);
+      } else if (!request.algorithmSuite().get().isSigning()) {
         throw new ValidationException("Messages must be signed");
       }
       return underlying.getEncryptionMaterials(stamped.build());
@@ -82,7 +82,7 @@ public final class CustomCmmExample {
       if (!application.equals(request.encryptionContext().get(KEY))) {
         throw new ValidationException("Message is not from " + application);
       }
-      if (!request.algorithmSuiteId().isSigning()) {
+      if (!request.algorithmSuite().isSigning()) {
         throw new ValidationException("Messages must be signed");
       }
       // The caller need not repeat the stamp; it is added to what they reproduced.

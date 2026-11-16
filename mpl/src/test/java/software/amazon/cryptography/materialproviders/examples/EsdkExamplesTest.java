@@ -261,7 +261,7 @@ class EsdkExamplesTest {
         return defaultCmm.decryptMaterials(
           DecryptMaterialsRequest
             .builder()
-            .algorithmSuiteId(AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
+            .algorithmSuite(AlgorithmSuite.ALG_AES_128_GCM_IV12_TAG16_NO_KDF)
             .commitmentPolicy(request.commitmentPolicy())
             .encryptedDataKeys(request.encryptedDataKeys())
             .encryptionContext(request.encryptionContext())
@@ -358,7 +358,7 @@ class EsdkExamplesTest {
     assertEquals(OptionalLong.empty(), recording.encryptRequest.maxPlaintextLength());
     handler.getMaterialsForEncrypt(CONTEXT, CryptoAlgorithm.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, CommitmentPolicy.RequireEncryptRequireDecrypt, 0);
     assertEquals(OptionalLong.of(0), recording.encryptRequest.maxPlaintextLength());
-    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, recording.encryptRequest.algorithmSuiteId().get());
+    assertEquals(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY, recording.encryptRequest.algorithmSuite().get());
   }
 
   @Test

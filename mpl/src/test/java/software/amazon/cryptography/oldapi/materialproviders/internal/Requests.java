@@ -32,7 +32,7 @@ public final class Requests {
       .encryptionContext(EncryptionContext.copyOf(input.encryptionContext()))
       .commitmentPolicy(Convert.policy(input.commitmentPolicy()));
     if (input.algorithmSuiteId() != null) {
-      builder.algorithmSuiteId(Convert.suite(input.algorithmSuiteId()));
+      builder.algorithmSuite(Convert.suite(input.algorithmSuiteId()));
     }
     if (input.maxPlaintextLength() != null) {
       builder.maxPlaintextLength(input.maxPlaintextLength());
@@ -51,7 +51,7 @@ public final class Requests {
     }
     DecryptMaterialsRequest.Builder builder = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(Convert.suite(input.algorithmSuiteId()))
+      .algorithmSuite(Convert.suite(input.algorithmSuiteId()))
       .commitmentPolicy(Convert.policy(input.commitmentPolicy()))
       .encryptedDataKeys(edks)
       .encryptionContext(EncryptionContext.copyOf(input.encryptionContext()));
@@ -68,7 +68,7 @@ public final class Requests {
       .encryptionContext(new HashMap<>(request.encryptionContext()))
       .commitmentPolicy(policy(request.commitmentPolicy()))
       .requiredEncryptionContextKeys(new ArrayList<>(request.requiredEncryptionContextKeys()));
-    request.algorithmSuiteId().ifPresent(suite -> builder.algorithmSuiteId(Convert.id(suite)));
+    request.algorithmSuite().ifPresent(suite -> builder.algorithmSuiteId(Convert.id(suite)));
     if (request.maxPlaintextLength().isPresent()) {
       builder.maxPlaintextLength(request.maxPlaintextLength().getAsLong());
     }
@@ -82,7 +82,7 @@ public final class Requests {
     }
     return DecryptMaterialsInput
       .builder()
-      .algorithmSuiteId(Convert.id(request.algorithmSuiteId()))
+      .algorithmSuiteId(Convert.id(request.algorithmSuite()))
       .commitmentPolicy(policy(request.commitmentPolicy()))
       .encryptedDataKeys(edks)
       .encryptionContext(new HashMap<>(request.encryptionContext()))

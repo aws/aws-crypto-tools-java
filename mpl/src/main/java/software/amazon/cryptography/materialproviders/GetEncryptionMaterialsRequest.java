@@ -35,14 +35,14 @@ public final class GetEncryptionMaterialsRequest {
 
   private final EncryptionContext encryptionContext;
   private final CommitmentPolicy commitmentPolicy;
-  private final AlgorithmSuite algorithmSuiteId;
+  private final AlgorithmSuite algorithmSuite;
   private final Long maxPlaintextLength;
   private final List<String> requiredEncryptionContextKeys;
 
   private GetEncryptionMaterialsRequest(Builder builder) {
     this.encryptionContext = builder.encryptionContext;
     this.commitmentPolicy = builder.commitmentPolicy;
-    this.algorithmSuiteId = builder.algorithmSuiteId;
+    this.algorithmSuite = builder.algorithmSuite;
     this.maxPlaintextLength = builder.maxPlaintextLength;
     this.requiredEncryptionContextKeys = Collections.unmodifiableList(new ArrayList<>(builder.requiredEncryptionContextKeys));
   }
@@ -57,7 +57,7 @@ public final class GetEncryptionMaterialsRequest {
       .encryptionContext(encryptionContext)
       .commitmentPolicy(commitmentPolicy)
       .requiredEncryptionContextKeys(requiredEncryptionContextKeys);
-    builder.algorithmSuiteId = algorithmSuiteId;
+    builder.algorithmSuite = algorithmSuite;
     builder.maxPlaintextLength = maxPlaintextLength;
     return builder;
   }
@@ -71,8 +71,8 @@ public final class GetEncryptionMaterialsRequest {
   }
 
   /** The suite the caller requires; absent means the policy's default. */
-  public Optional<AlgorithmSuite> algorithmSuiteId() {
-    return Optional.ofNullable(algorithmSuiteId);
+  public Optional<AlgorithmSuite> algorithmSuite() {
+    return Optional.ofNullable(algorithmSuite);
   }
 
   /**
@@ -90,7 +90,7 @@ public final class GetEncryptionMaterialsRequest {
   @Override
   public String toString() {
     return (
-      "GetEncryptionMaterialsRequest[" + commitmentPolicy + ", " + algorithmSuiteId + ", context keys " +
+      "GetEncryptionMaterialsRequest[" + commitmentPolicy + ", " + algorithmSuite + ", context keys " +
       encryptionContext.keySet() + ", required " + requiredEncryptionContextKeys + "]"
     );
   }
@@ -100,7 +100,7 @@ public final class GetEncryptionMaterialsRequest {
 
     private EncryptionContext encryptionContext;
     private CommitmentPolicy commitmentPolicy;
-    private AlgorithmSuite algorithmSuiteId;
+    private AlgorithmSuite algorithmSuite;
     private Long maxPlaintextLength;
     private List<String> requiredEncryptionContextKeys = new ArrayList<>();
 
@@ -117,8 +117,8 @@ public final class GetEncryptionMaterialsRequest {
       return this;
     }
 
-    public Builder algorithmSuiteId(AlgorithmSuite algorithmSuiteId) {
-      this.algorithmSuiteId = algorithmSuiteId;
+    public Builder algorithmSuite(AlgorithmSuite algorithmSuite) {
+      this.algorithmSuite = algorithmSuite;
       return this;
     }
 

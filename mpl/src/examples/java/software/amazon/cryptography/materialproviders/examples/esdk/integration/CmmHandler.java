@@ -38,7 +38,7 @@ public final class CmmHandler {
       .encryptionContext(context)
       .commitmentPolicy(commitmentPolicy.getMplCommitmentPolicy());
     if (requestedAlgorithm != null) {
-      request.algorithmSuiteId(requestedAlgorithm.algorithmSuite());
+      request.algorithmSuite(requestedAlgorithm.algorithmSuite());
     }
     // ESDK 3.x sent -1 as a length; the native request models "unknown" as absent.
     if (plaintextSize >= 0) {
@@ -64,7 +64,7 @@ public final class CmmHandler {
     }
     DecryptMaterialsRequest.Builder request = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(algorithm.algorithmSuite())
+      .algorithmSuite(algorithm.algorithmSuite())
       .commitmentPolicy(commitmentPolicy.getMplCommitmentPolicy())
       .encryptedDataKeys(edks)
       .encryptionContext(storedContext);

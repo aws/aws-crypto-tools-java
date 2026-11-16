@@ -77,7 +77,7 @@ public final class NativeMplMaterialResolver {
       .builder()
       .encryptionContext(EncryptionContext.fromUtf8(union(baseContext, v2Context)))
       .commitmentPolicy(POLICY)
-      .algorithmSuiteId(configuredSuite != null ? configuredSuite : POLICY.defaultSuite())
+      .algorithmSuite(configuredSuite != null ? configuredSuite : POLICY.defaultSuite())
       .maxPlaintextLength(maxPlaintextLength)
       .build();
     return cmmRequiring(baseContext, v2Context).getEncryptionMaterials(request).encryptionMaterials();
@@ -98,7 +98,7 @@ public final class NativeMplMaterialResolver {
   ) {
     DecryptMaterialsRequest request = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(headerSuite)
+      .algorithmSuite(headerSuite)
       .commitmentPolicy(POLICY)
       .encryptedDataKeys(encryptedDataKeys)
       .encryptionContext(EncryptionContext.fromUtf8(storedContext))

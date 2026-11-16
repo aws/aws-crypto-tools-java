@@ -84,12 +84,12 @@ class NativeApiTest {
     EncryptionContext context = EncryptionContext.of("d", "4", "b", "2", "c", "3", "\u00e9", "5");
     EncryptionMaterials encrypted = cmm.getEncryptionMaterials(
       GetEncryptionMaterialsRequest.builder().encryptionContext(context).commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
-        .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
+        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
     ).encryptionMaterials();
     DecryptionMaterials decrypted = cmm.decryptMaterials(
       DecryptMaterialsRequest
         .builder()
-        .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
         .commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
         .encryptedDataKeys(encrypted.encryptedDataKeys())
         .encryptionContext(EncryptionContext.empty())
@@ -111,11 +111,11 @@ class NativeApiTest {
       .build();
     EncryptionMaterials encrypted = cmm.getEncryptionMaterials(
       GetEncryptionMaterialsRequest.builder().encryptionContext(EncryptionContext.of("a", "1")).commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
-        .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
+        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF).build()
     ).encryptionMaterials();
     DecryptMaterialsRequest request = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+      .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
       .commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
       .encryptedDataKeys(encrypted.encryptedDataKeys())
       .encryptionContext(EncryptionContext.of("a", "1"))

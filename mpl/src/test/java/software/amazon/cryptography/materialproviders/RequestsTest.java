@@ -101,14 +101,14 @@ class RequestsTest {
   void decryptRequestToBuilderKeepsEveryField() {
     DecryptMaterialsRequest request = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(SUITE)
+      .algorithmSuite(SUITE)
       .commitmentPolicy(EsdkCommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT)
       .encryptedDataKeys(EDKS)
       .encryptionContext(EncryptionContext.of("stored", "1"))
       .reproducedEncryptionContext(EncryptionContext.of("reproduced", "2"))
       .build();
     DecryptMaterialsRequest copy = request.toBuilder().build();
-    assertSame(SUITE, copy.algorithmSuiteId());
+    assertSame(SUITE, copy.algorithmSuite());
     assertSame(EsdkCommitmentPolicy.REQUIRE_ENCRYPT_ALLOW_DECRYPT, copy.commitmentPolicy());
     assertEquals(EDKS, copy.encryptedDataKeys());
     assertEquals(EncryptionContext.of("stored", "1"), copy.encryptionContext());
@@ -136,7 +136,7 @@ class RequestsTest {
       .build();
     DecryptMaterialsRequest decrypt = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(SUITE)
+      .algorithmSuite(SUITE)
       .commitmentPolicy(EsdkCommitmentPolicy.REQUIRE_ENCRYPT_REQUIRE_DECRYPT)
       .encryptedDataKeys(EDKS)
       .encryptionContext(plain)

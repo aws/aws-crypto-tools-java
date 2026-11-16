@@ -64,7 +64,7 @@ final class NativeSide implements Side {
           .builder()
           .encryptionContext(EncryptionContext.copyOf(vector.encryptionContext))
           .commitmentPolicy(vector.commitmentPolicy())
-          .algorithmSuiteId(vector.algorithmSuite);
+          .algorithmSuite(vector.algorithmSuite);
         vector.maxPlaintextLength.ifPresent(request::maxPlaintextLength);
         if (vector.requiredEncryptionContextKeys != null) {
           request.requiredEncryptionContextKeys(vector.requiredEncryptionContextKeys);
@@ -96,7 +96,7 @@ final class NativeSide implements Side {
         }
         DecryptMaterialsRequest.Builder request = DecryptMaterialsRequest
           .builder()
-          .algorithmSuiteId(vector.algorithmSuite)
+          .algorithmSuite(vector.algorithmSuite)
           .commitmentPolicy(vector.commitmentPolicy())
           .encryptedDataKeys(edks)
           .encryptionContext(EncryptionContext.copyOf(vector.encryptionContext));

@@ -289,7 +289,7 @@ final class Operations {
       .encryptionContext(Wire.encryptionContext(request, "encryptionContext"))
       .commitmentPolicy(Wire.commitmentPolicy(Cbor.string(request, "commitmentPolicy")));
     if (Cbor.present(request, "algorithmSuiteId")) {
-      input.algorithmSuiteId(Wire.suite(Cbor.string(request, "algorithmSuiteId")));
+      input.algorithmSuite(Wire.suite(Cbor.string(request, "algorithmSuiteId")));
     }
     if (Cbor.present(request, "maxPlaintextLength")) {
       input.maxPlaintextLength(Cbor.longValue(request, "maxPlaintextLength"));
@@ -320,7 +320,7 @@ final class Operations {
     CryptographicMaterialsManager cmm = lookup(cmms, Cbor.string(request, "cmmId"), "cmmId");
     DecryptMaterialsRequest.Builder input = DecryptMaterialsRequest
       .builder()
-      .algorithmSuiteId(Wire.suite(Cbor.string(request, "algorithmSuiteId")))
+      .algorithmSuite(Wire.suite(Cbor.string(request, "algorithmSuiteId")))
       .commitmentPolicy(Wire.commitmentPolicy(Cbor.string(request, "commitmentPolicy")))
       .encryptedDataKeys(Wire.edks(request, "encryptedDataKeys"))
       .encryptionContext(Wire.encryptionContext(request, "encryptionContext"));

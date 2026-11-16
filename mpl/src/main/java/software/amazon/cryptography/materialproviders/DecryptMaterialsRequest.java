@@ -29,14 +29,14 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 /** Input to {@link CryptographicMaterialsManager#decryptMaterials}. Immutable. */
 public final class DecryptMaterialsRequest {
 
-  private final AlgorithmSuite algorithmSuiteId;
+  private final AlgorithmSuite algorithmSuite;
   private final CommitmentPolicy commitmentPolicy;
   private final List<EncryptedDataKey> encryptedDataKeys;
   private final EncryptionContext encryptionContext;
   private final EncryptionContext reproducedEncryptionContext;
 
   private DecryptMaterialsRequest(Builder builder) {
-    this.algorithmSuiteId = builder.algorithmSuiteId;
+    this.algorithmSuite = builder.algorithmSuite;
     this.commitmentPolicy = builder.commitmentPolicy;
     this.encryptedDataKeys = Collections.unmodifiableList(new ArrayList<>(builder.encryptedDataKeys));
     this.encryptionContext = builder.encryptionContext;
@@ -50,15 +50,15 @@ public final class DecryptMaterialsRequest {
   /** A builder holding this request's values. */
   public Builder toBuilder() {
     return new Builder()
-      .algorithmSuiteId(algorithmSuiteId)
+      .algorithmSuite(algorithmSuite)
       .commitmentPolicy(commitmentPolicy)
       .encryptedDataKeys(encryptedDataKeys)
       .encryptionContext(encryptionContext)
       .reproducedEncryptionContext(reproducedEncryptionContext);
   }
 
-  public AlgorithmSuite algorithmSuiteId() {
-    return algorithmSuiteId;
+  public AlgorithmSuite algorithmSuite() {
+    return algorithmSuite;
   }
 
   public CommitmentPolicy commitmentPolicy() {
@@ -87,7 +87,7 @@ public final class DecryptMaterialsRequest {
   @Override
   public String toString() {
     return (
-      "DecryptMaterialsRequest[" + algorithmSuiteId + ", " + commitmentPolicy + ", " + encryptedDataKeys.size() +
+      "DecryptMaterialsRequest[" + algorithmSuite + ", " + commitmentPolicy + ", " + encryptedDataKeys.size() +
       " encrypted data keys, context keys " + encryptionContext.keySet() + "]"
     );
   }
@@ -95,7 +95,7 @@ public final class DecryptMaterialsRequest {
   /** Not thread-safe. Requires a suite, a policy, encrypted data keys, and the stored encryption context. */
   public static final class Builder {
 
-    private AlgorithmSuite algorithmSuiteId;
+    private AlgorithmSuite algorithmSuite;
     private CommitmentPolicy commitmentPolicy;
     private List<EncryptedDataKey> encryptedDataKeys;
     private EncryptionContext encryptionContext;
@@ -103,8 +103,8 @@ public final class DecryptMaterialsRequest {
 
     private Builder() {}
 
-    public Builder algorithmSuiteId(AlgorithmSuite algorithmSuiteId) {
-      this.algorithmSuiteId = algorithmSuiteId;
+    public Builder algorithmSuite(AlgorithmSuite algorithmSuite) {
+      this.algorithmSuite = algorithmSuite;
       return this;
     }
 
@@ -136,8 +136,8 @@ public final class DecryptMaterialsRequest {
     }
 
     public DecryptMaterialsRequest build() {
-      if (algorithmSuiteId == null) {
-        throw new ValidationException("Missing value for required field `algorithmSuiteId`");
+      if (algorithmSuite == null) {
+        throw new ValidationException("Missing value for required field `algorithmSuite`");
       }
       if (commitmentPolicy == null) {
         throw new ValidationException("Missing value for required field `commitmentPolicy`");

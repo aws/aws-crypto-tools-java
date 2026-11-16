@@ -134,7 +134,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //= spec/framework/cmm-interface.md#get-encryption-materials
     //# - If the encryption materials request contains an algorithm suite, the encryption materials returned
     //# SHOULD contain the same algorithm suite.
-    AlgorithmSuite suite = request.algorithmSuiteId().orElse(request.commitmentPolicy().defaultSuite());
+    AlgorithmSuite suite = request.algorithmSuite().orElse(request.commitmentPolicy().defaultSuite());
     //= spec/framework/default-cmm.md#get-encryption-materials
     //# - If the [encryption materials request](cmm-interface.md#encryption-
     //# materials-request) does contain an algorithm suite, the request
@@ -249,7 +249,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# The request MUST fail if the algorithm suite on the request is not
     //# supported by the [commitment policy](./commitment-policy.md#supported-commitment-policy-enum)
     //# on the request.
-    CommitmentChecks.requireDecrypt(request.commitmentPolicy(), request.algorithmSuiteId());
+    CommitmentChecks.requireDecrypt(request.commitmentPolicy(), request.algorithmSuite());
     EncryptionContext stored = request.encryptionContext();
     EncryptionContext merged = stored;
     List<String> requiredKeys = new ArrayList<>();
@@ -291,7 +291,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     //# If the algorithm suite obtained from the decryption request contains a [signing algorithm](algorithm-suites.md#signature-algorithm),
     //# the decryption materials MUST include the [signature verification key](structures.md#verification-key).
     DecryptionMaterials materials = DecryptionMaterials
-      .builder(request.algorithmSuiteId())
+      .builder(request.algorithmSuite())
       .encryptionContext(merged)
       .requiredEncryptionContextKeys(requiredKeys)
       .build();

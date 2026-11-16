@@ -380,7 +380,7 @@ class VarargsSettersTest {
 
   private static DecryptMaterialsRequest.Builder decryptMaterials() {
     return DecryptMaterialsRequest.builder()
-      .algorithmSuiteId(SUITE)
+      .algorithmSuite(SUITE)
       .commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
       .encryptionContext(EncryptionContext.empty());
   }
