@@ -186,7 +186,7 @@ jobs:
         if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
-          ref: lucmcdon/test-server-branch-coverage
+          ref: lucmcdon/testing-infra-java
           path: commons
       - name: Check every branch on a changed line was taken
         if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
@@ -307,7 +307,7 @@ jobs:
         if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
-          ref: lucmcdon/test-server-mutation-all
+          ref: lucmcdon/testing-infra-java
           path: commons
       - name: Find the source roots
         if: env.HAS_CODE == 'true'
