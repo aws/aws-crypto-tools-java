@@ -88,7 +88,7 @@ public final class DefaultCryptographicMaterialsManager implements Cryptographic
     this.keyring = keyring;
   }
 
-  public static DefaultCryptographicMaterialsManager of(Keyring keyring) {
+  public static DefaultCryptographicMaterialsManager create(Keyring keyring) {
     //= spec/framework/default-cmm.md#initialization
     //= type=implication
     //# On default CMM initialization,

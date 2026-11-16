@@ -53,7 +53,7 @@ public final class NativeMplMaterialResolver {
 
   /** For a table configured with a keyring: the DB-ESDK wraps it in the default materials manager once. */
   public static NativeMplMaterialResolver forKeyring(Keyring keyring) {
-    return new NativeMplMaterialResolver(DefaultCryptographicMaterialsManager.of(keyring));
+    return new NativeMplMaterialResolver(DefaultCryptographicMaterialsManager.create(keyring));
   }
 
   /** For a table configured with a materials manager. */

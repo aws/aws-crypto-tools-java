@@ -122,7 +122,7 @@ final class NativeSide implements Side {
         .requiredEncryptionContextKeys(required.requiredEncryptionContextKeys)
         .build();
     }
-    return DefaultCryptographicMaterialsManager.of(toKeyring(description));
+    return DefaultCryptographicMaterialsManager.create(toKeyring(description));
   }
 
   private Keyring toKeyring(KeyDescription description) {

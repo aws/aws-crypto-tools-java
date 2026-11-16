@@ -28,7 +28,7 @@ public final class RequiredEncryptionContextCmmExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     CryptographicMaterialsManager cmm = RequiredEncryptionContextCryptographicMaterialsManager
       .builder()
-      .underlyingCmm(DefaultCryptographicMaterialsManager.of(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build()))
+      .underlyingCmm(DefaultCryptographicMaterialsManager.create(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build()))
       .requiredEncryptionContextKeys("requiredKey1", "requiredKey2")
       .build();
 
@@ -47,7 +47,7 @@ public final class RequiredEncryptionContextCmmExample {
 
     // A reader with only the plain default manager can decrypt too, given the full context:
     // reproduced pairs the message does not store become required keys of its materials.
-    CryptographicMaterialsManager plain = DefaultCryptographicMaterialsManager.of(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build());
+    CryptographicMaterialsManager plain = DefaultCryptographicMaterialsManager.create(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build());
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(plain, ciphertext, encryptionContext).getResult());
 
     // Leaving out a required pair fails: with the required-context manager at once,

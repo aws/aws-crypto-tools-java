@@ -112,7 +112,7 @@ final class Operations {
   private ObjectNode createDefaultCmm(JsonNode request) {
     Keyring keyring = lookup(keyrings, Cbor.string(request, "keyringId"), "keyringId");
     ObjectNode response = Cbor.object();
-    response.put("cmmId", register(cmms, DefaultCryptographicMaterialsManager.of(keyring)));
+    response.put("cmmId", register(cmms, DefaultCryptographicMaterialsManager.create(keyring)));
     return response;
   }
 

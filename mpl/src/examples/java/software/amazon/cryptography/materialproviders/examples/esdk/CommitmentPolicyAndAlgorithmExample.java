@@ -26,7 +26,7 @@ public final class CommitmentPolicyAndAlgorithmExample {
   /** @param kmsClient real AWS: {@code KmsClient.create()} */
   public static void encryptAndDecrypt(String keyArn, KmsClient kmsClient) {
     // AwsCrypto wraps a keyring in a new default manager on every call; building one up front is the same.
-    CryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.of(
+    CryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.create(
       AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build()
     );
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");

@@ -249,7 +249,7 @@ class EsdkExamplesTest {
       .withCommitmentPolicy(CommitmentPolicy.ForbidEncryptAllowDecrypt)
       .build();
     byte[] message = crypto.encryptData(keyring, DATA, CONTEXT);
-    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.of(keyring);
+    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.create(keyring);
     CryptographicMaterialsManager wrongSuite = new CryptographicMaterialsManager() {
       @Override
       public GetEncryptionMaterialsResponse getEncryptionMaterials(GetEncryptionMaterialsRequest request) {
@@ -328,7 +328,7 @@ class EsdkExamplesTest {
   // ESDK 3.x decoded the signing key with new BigInteger(1, bytes); the MPL's JCA key must hold the same scalar.
   @Test
   void trailingSignatureKeyIsTheScalarEsdk3Decoded() {
-    Recording recording = new Recording(DefaultCryptographicMaterialsManager.of(newKmsKeyring()));
+    Recording recording = new Recording(DefaultCryptographicMaterialsManager.create(newKmsKeyring()));
     EncryptionMaterialsHandler materials = new CmmHandler(recording)
       .getMaterialsForEncrypt(CONTEXT, null, CommitmentPolicy.RequireEncryptRequireDecrypt, 4);
     BigInteger scalar = new BigInteger(1, recording.encryption.signingKey().get().toByteArray());
@@ -337,7 +337,7 @@ class EsdkExamplesTest {
 
   @Test
   void p256TrailingSignatureKeyIsTheScalarEsdk3Decoded() {
-    Recording recording = new Recording(DefaultCryptographicMaterialsManager.of(rawAesKeyring()));
+    Recording recording = new Recording(DefaultCryptographicMaterialsManager.create(rawAesKeyring()));
     EncryptionMaterialsHandler materials = new CmmHandler(recording).getMaterialsForEncrypt(
       CONTEXT,
       CryptoAlgorithm.ALG_AES_128_GCM_IV12_TAG16_HKDF_SHA256_ECDSA_P256,
@@ -352,7 +352,7 @@ class EsdkExamplesTest {
 
   @Test
   void cmmHandlerMapsUnknownPlaintextSizeToAbsent() {
-    Recording recording = new Recording(DefaultCryptographicMaterialsManager.of(newKmsKeyring()));
+    Recording recording = new Recording(DefaultCryptographicMaterialsManager.create(newKmsKeyring()));
     CmmHandler handler = new CmmHandler(recording);
     handler.getMaterialsForEncrypt(CONTEXT, null, CommitmentPolicy.RequireEncryptRequireDecrypt, -1);
     assertEquals(OptionalLong.empty(), recording.encryptRequest.maxPlaintextLength());

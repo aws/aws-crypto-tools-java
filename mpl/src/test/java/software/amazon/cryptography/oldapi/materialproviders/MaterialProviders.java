@@ -315,7 +315,7 @@ public class MaterialProviders {
   public ICryptographicMaterialsManager CreateDefaultCryptographicMaterialsManager(
     CreateDefaultCryptographicMaterialsManagerInput input
   ) {
-    return new NativeCmm(DefaultCryptographicMaterialsManager.of(CustomKeyring.of(input.keyring())));
+    return new NativeCmm(DefaultCryptographicMaterialsManager.create(CustomKeyring.of(input.keyring())));
   }
 
   public ICryptographicMaterialsManager CreateRequiredEncryptionContextCMM(CreateRequiredEncryptionContextCMMInput input) {

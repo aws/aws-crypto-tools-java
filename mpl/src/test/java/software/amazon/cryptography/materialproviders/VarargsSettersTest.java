@@ -212,7 +212,7 @@ class VarargsSettersTest {
 
   @Test
   void requiredEncryptionContextKeys() {
-    CryptographicMaterialsManager underlying = DefaultCryptographicMaterialsManager.of(aes("a"));
+    CryptographicMaterialsManager underlying = DefaultCryptographicMaterialsManager.create(aes("a"));
     matches(
       CONTEXT_KEYS,
       k -> RequiredEncryptionContextCryptographicMaterialsManager.builder().underlyingCmm(underlying).requiredEncryptionContextKeys(k).build(),

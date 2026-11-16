@@ -80,7 +80,7 @@ class NativeApiTest {
   @Test
   void reproducedOnlyKeysAreRequiredInByteOrder() {
     RawRsaKeyring keyring = rsa(RSA[0].clone(), RSA[1].clone());
-    DefaultCryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.of(keyring);
+    DefaultCryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.create(keyring);
     EncryptionContext context = EncryptionContext.of("d", "4", "b", "2", "c", "3", "\u00e9", "5");
     EncryptionMaterials encrypted = cmm.getEncryptionMaterials(
       GetEncryptionMaterialsRequest.builder().encryptionContext(context).commitmentPolicy(EsdkCommitmentPolicy.FORBID_ENCRYPT_ALLOW_DECRYPT)
@@ -103,7 +103,7 @@ class NativeApiTest {
   // An edited or moved item (DB-ESDK) or a wrong context (ESDK) is its own kind, apart from configuration errors.
   @Test
   void aReproducedValueThatDiffersIsAContextMismatch() {
-    DefaultCryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.of(rsa(RSA[0].clone(), RSA[1].clone()));
+    DefaultCryptographicMaterialsManager cmm = DefaultCryptographicMaterialsManager.create(rsa(RSA[0].clone(), RSA[1].clone()));
     CryptographicMaterialsManager required = software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager
       .builder()
       .underlyingCmm(cmm)

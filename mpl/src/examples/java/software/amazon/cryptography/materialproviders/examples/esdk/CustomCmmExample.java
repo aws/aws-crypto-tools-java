@@ -34,7 +34,7 @@ public final class CustomCmmExample {
   public static void encryptAndDecrypt(String keyArn, KmsClient kmsClient) {
     CryptographicMaterialsManager cmm = new ApplicationCmm(
       "billing",
-      DefaultCryptographicMaterialsManager.of(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build())
+      DefaultCryptographicMaterialsManager.create(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build())
     );
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("order", "1234");
@@ -47,7 +47,7 @@ public final class CustomCmmExample {
     // Another application's manager rejects the message.
     CryptographicMaterialsManager other = new ApplicationCmm(
       "shipping",
-      DefaultCryptographicMaterialsManager.of(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build())
+      DefaultCryptographicMaterialsManager.create(AwsKmsKeyring.builder().kmsKeyId(keyArn).kmsClient(kmsClient).build())
     );
     Expect.failure(ValidationException.class, () -> crypto.decryptData(other, ciphertext, encryptionContext));
   }

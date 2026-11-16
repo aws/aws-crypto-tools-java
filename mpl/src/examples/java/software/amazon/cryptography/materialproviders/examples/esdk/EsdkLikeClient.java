@@ -62,7 +62,7 @@ public final class EsdkLikeClient {
 
   /** {@code AwsCrypto.encryptData(IKeyring, ...)}: wraps the keyring in a default materials manager per call, as ESDK 3.x does. */
   public byte[] encryptData(Keyring keyring, byte[] plaintext, Map<String, String> encryptionContext) {
-    return encryptData(DefaultCryptographicMaterialsManager.of(keyring), plaintext, encryptionContext);
+    return encryptData(DefaultCryptographicMaterialsManager.create(keyring), plaintext, encryptionContext);
   }
 
   public byte[] encryptData(CryptographicMaterialsManager cmm, byte[] plaintext, Map<String, String> encryptionContext) {
@@ -131,7 +131,7 @@ public final class EsdkLikeClient {
    *   every key the encrypting materials manager required
    */
   public Decrypted decryptData(Keyring keyring, byte[] message, Map<String, String> reproducedEncryptionContext) {
-    return decryptData(DefaultCryptographicMaterialsManager.of(keyring), message, reproducedEncryptionContext);
+    return decryptData(DefaultCryptographicMaterialsManager.create(keyring), message, reproducedEncryptionContext);
   }
 
   public Decrypted decryptData(Keyring keyring, byte[] message) {
