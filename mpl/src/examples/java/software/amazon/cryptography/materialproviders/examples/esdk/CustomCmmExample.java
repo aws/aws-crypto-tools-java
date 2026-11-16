@@ -3,20 +3,24 @@
 package software.amazon.cryptography.materialproviders.examples.esdk;
 
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import software.amazon.cryptography.esdk.DecryptResponse;
 import software.amazon.cryptography.esdk.EncryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkValidationException;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsRequest;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
@@ -37,27 +41,27 @@ public final class CustomCmmExample {
 
   private CustomCmmExample() {}
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws GeneralSecurityException {
     run();
   }
 
-  public static void run() {
+  public static void run() throws GeneralSecurityException {
     // 1. Instantiate the ESDK.
     EsdkClient esdk = EsdkClient.create();
 
     // 2. Create a keyring, and wrap its default materials manager in the custom one.
-    Keyring keyring;
-    try (SecretBytes wrappingKey = SecretBytes.random(32)) {
-      keyring =
-        RawAesKeyring
-          .builder()
-          .keyNamespace("example-namespace")
-          .keyName("example-key")
-          .wrappingKey(wrappingKey)
-          .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
-          .build();
-    }
-    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.of(keyring);
+    // wrappingKey takes SecretBytes, a byte[], or, as here, a JCA SecretKey; the keyring keeps its own copy.
+    KeyGenerator generator = KeyGenerator.getInstance("AES");
+    generator.init(256);
+    SecretKey wrappingKey = generator.generateKey();
+    Keyring keyring = RawAesKeyring
+      .builder()
+      .keyNamespace("example-namespace")
+      .keyName("example-key")
+      .wrappingKey(wrappingKey)
+      .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
+      .build();
+    CryptographicMaterialsManager defaultCmm = DefaultCryptographicMaterialsManager.create(keyring);
     CryptographicMaterialsManager billingCmm = new ApplicationCmm("billing", defaultCmm);
 
     // 3. Encrypt and decrypt; the manager adds its stamp to the message's encryption context.
@@ -80,8 +84,8 @@ public final class CustomCmmExample {
     try {
       esdk.decrypt(b -> b.ciphertext(encryptResponse.ciphertext()).materialsManager(shippingCmm));
       throw new IllegalStateException("The shipping manager accepted a billing message");
-    } catch (ValidationException expected) {
-      // Rejected by ApplicationCmm before any data key is decrypted.
+    } catch (EsdkValidationException expected) {
+      // Rejected by ApplicationCmm before any data key is decrypted; the ESDK wraps the manager's ValidationException.
     }
 
     // 5. The manager refuses a suite that does not sign.
@@ -91,10 +95,10 @@ public final class CustomCmmExample {
         b
           .plaintext(EXAMPLE_DATA)
           .materialsManager(billingCmm)
-          .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
+          .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
       );
       throw new IllegalStateException("The manager allowed a suite without a signature");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // Rejected by ApplicationCmm.
     }
   }
@@ -119,8 +123,8 @@ public final class CustomCmmExample {
         throw new ValidationException("The encryption context names another application: " + existing);
       }
       // Checked early, so a refused request costs no data key.
-      if (request.algorithmSuiteId().isPresent()) {
-        requireSigning(request.algorithmSuiteId().get());
+      if (request.algorithmSuite().isPresent()) {
+        requireSigning(request.algorithmSuite().get());
       }
       GetEncryptionMaterialsRequest stamped = request
         .toBuilder()
@@ -138,7 +142,7 @@ public final class CustomCmmExample {
       if (!application.equals(request.encryptionContext().get(KEY))) {
         throw new ValidationException("The message is not from " + application);
       }
-      requireSigning(request.algorithmSuiteId());
+      requireSigning(request.algorithmSuite());
       return underlying.decryptMaterials(request);
     }
 

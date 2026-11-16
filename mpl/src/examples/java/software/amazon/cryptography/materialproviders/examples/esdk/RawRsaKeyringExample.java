@@ -12,8 +12,8 @@ import java.util.Map;
 import software.amazon.cryptography.esdk.DecryptResponse;
 import software.amazon.cryptography.esdk.EncryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkValidationException;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.PaddingScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 
@@ -72,17 +72,17 @@ public final class RawRsaKeyringExample {
     }
 
     // 5. Each keyring refuses the other operation.
-    // A missing key half is a configuration error (ValidationException), not a missing data key.
+    // A missing key half is a configuration error (EsdkValidationException), not a missing data key.
     try {
       esdk.decrypt(b -> b.ciphertext(encryptResponse.ciphertext()).keyring(encryptingKeyring));
       throw new IllegalStateException("A public-key-only keyring decrypted the message");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // The keyring has no private key.
     }
     try {
       esdk.encrypt(b -> b.plaintext(EXAMPLE_DATA).keyring(decryptingKeyring));
       throw new IllegalStateException("A private-key-only keyring encrypted a message");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // The keyring has no public key.
     }
   }

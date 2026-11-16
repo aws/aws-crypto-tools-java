@@ -9,12 +9,12 @@ import java.util.Map;
 import software.amazon.cryptography.esdk.DecryptResponse;
 import software.amazon.cryptography.esdk.EncryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.esdk.EsdkValidationException;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.EsdkCommitmentPolicy;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 
@@ -43,7 +43,7 @@ public final class CommitmentPolicyAndAlgorithmExample {
     CryptographicMaterialsManager cmm;
     try (SecretBytes wrappingKey = SecretBytes.random(32)) {
       cmm =
-        DefaultCryptographicMaterialsManager.of(
+        DefaultCryptographicMaterialsManager.create(
           RawAesKeyring
             .builder()
             .keyNamespace("example-namespace")
@@ -63,7 +63,7 @@ public final class CommitmentPolicyAndAlgorithmExample {
         .plaintext(EXAMPLE_DATA)
         .materialsManager(cmm)
         .encryptionContext(encryptionContext)
-        .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
+        .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY)
     );
     DecryptResponse decrypted = esdk.decrypt(b ->
       b.ciphertext(committed.ciphertext()).materialsManager(cmm).encryptionContext(encryptionContext)
@@ -71,7 +71,7 @@ public final class CommitmentPolicyAndAlgorithmExample {
     if (!Arrays.equals(decrypted.plaintext(), EXAMPLE_DATA)) {
       throw new IllegalStateException("Decrypted plaintext does not match");
     }
-    if (decrypted.algorithmSuite() != AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY) {
+    if (decrypted.algorithmSuite() != EsdkAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY) {
       throw new IllegalStateException("The message uses " + decrypted.algorithmSuite());
     }
 
@@ -98,7 +98,7 @@ public final class CommitmentPolicyAndAlgorithmExample {
     try {
       esdk.decrypt(b -> b.ciphertext(uncommitted.ciphertext()).materialsManager(cmm));
       throw new IllegalStateException("The default policy decrypted a message without key commitment");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // A commitment policy conflict is a configuration error.
     }
 
@@ -108,10 +108,10 @@ public final class CommitmentPolicyAndAlgorithmExample {
         b
           .plaintext(EXAMPLE_DATA)
           .materialsManager(cmm)
-          .algorithmSuite(AlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384)
+          .algorithmSuite(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_HKDF_SHA384_ECDSA_P384)
       );
       throw new IllegalStateException("The default policy encrypted with a suite without key commitment");
-    } catch (ValidationException expected) {
+    } catch (EsdkValidationException expected) {
       // A commitment policy conflict is a configuration error.
     }
   }

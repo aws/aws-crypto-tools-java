@@ -16,6 +16,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import software.amazon.cryptography.esdk.DecryptResponse;
 import software.amazon.cryptography.esdk.EncryptResponse;
 import software.amazon.cryptography.esdk.EsdkClient;
+import software.amazon.cryptography.esdk.EsdkNoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
@@ -82,7 +83,7 @@ public final class CustomKeyringExample {
     try {
       esdk.decrypt(b -> b.ciphertext(encryptResponse.ciphertext()).keyring(otherName));
       throw new IllegalStateException("Another key name decrypted the message");
-    } catch (NoMatchingDataKeyException expected) {
+    } catch (EsdkNoMatchingDataKeyException expected) {
       if (!expected.failures().isEmpty()) {
         throw new IllegalStateException("A keyring tried an encrypted data key that was not its own");
       }
@@ -93,7 +94,7 @@ public final class CustomKeyringExample {
     try {
       esdk.decrypt(b -> b.ciphertext(encryptResponse.ciphertext()).keyring(wrongKey));
       throw new IllegalStateException("The wrong key decrypted the message");
-    } catch (NoMatchingDataKeyException expected) {
+    } catch (EsdkNoMatchingDataKeyException expected) {
       if (expected.failures().size() != 1) {
         throw new IllegalStateException("Expected one failed attempt, got " + expected.failures());
       }
@@ -148,7 +149,12 @@ public final class CustomKeyringExample {
         }
         byte[] ciphertext = Arrays.copyOf(iv, IV_LENGTH + wrapped.length);
         System.arraycopy(wrapped, 0, ciphertext, IV_LENGTH, wrapped.length);
-        EncryptedDataKey edk = EncryptedDataKey.of(PROVIDER_ID, keyName.getBytes(StandardCharsets.UTF_8), ciphertext);
+        EncryptedDataKey edk = EncryptedDataKey
+          .builder()
+          .keyProviderId(PROVIDER_ID)
+          .keyProviderInfo(keyName.getBytes(StandardCharsets.UTF_8))
+          .ciphertext(ciphertext)
+          .build();
         return OnEncryptResponse.builder().materials(withKey.withEncryptedDataKey(edk)).build();
       } finally {
         // Each with* call copies the data key, so the in-between materials hold a copy no caller will destroy.

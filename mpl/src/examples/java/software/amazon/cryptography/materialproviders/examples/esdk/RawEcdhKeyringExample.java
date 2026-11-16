@@ -15,7 +15,7 @@ import software.amazon.cryptography.esdk.EsdkClient;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 
 /**
  * Encrypts and decrypts messages with raw ECDH keyrings: each data key is wrapped under a key derived from an
@@ -49,15 +49,15 @@ public final class RawEcdhKeyringExample {
     // 3. Create the keyrings, one per key agreement scheme.
     // Static sender: the sender's private key and the recipient's public key; it can also decrypt what it wrote.
     Keyring staticSender = ecdhKeyring(
-      RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic())
+      RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic())
     );
     // Ephemeral sender: a new key pair per message, so the sender keeps no private key and cannot decrypt.
     Keyring ephemeralSender = ecdhKeyring(
-      RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic())
+      RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic())
     );
     // Recipient: its private key, with the sender's public key read from each message, so it accepts any sender.
     // To accept only one sender, use rawPrivateKeyToStaticPublicKey with that sender's public key instead.
-    Keyring recipientKeyring = ecdhKeyring(RawEcdhStaticConfigurations.publicKeyDiscovery(recipient.getPrivate()));
+    Keyring recipientKeyring = ecdhKeyring(RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()));
 
     // 4. Encrypt a message with each sender.
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
@@ -74,7 +74,7 @@ public final class RawEcdhKeyringExample {
     checkDecrypts(esdk, staticSender, fromStatic, encryptionContext);
   }
 
-  private static Keyring ecdhKeyring(RawEcdhStaticConfigurations keyAgreementScheme) {
+  private static Keyring ecdhKeyring(RawEcdhKeyAgreementScheme keyAgreementScheme) {
     return RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
