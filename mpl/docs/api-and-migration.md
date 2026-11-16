@@ -1,6 +1,6 @@
 # Native Java MPL: API summary and migration path
 
-Status: draft for planning, 2026-10-26 (final packages: same as today, new major version). Unreviewed: the API can still change after team review.
+Status: draft for planning, 2026-11-16 (API round with reviewer feedback: suite enums, builders, create). Unreviewed: the API can still change after team review.
 
 - **Current API:** the Dafny-based MPL for Java, 1.11.1, package `software.amazon.cryptography.materialproviders`, the `keystore` package, and `primitives`.
 - **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven; packages `software.amazon.cryptography.materialproviders` and `software.amazon.cryptography.keystore`, artifact `aws-cryptographic-material-providers` 2.0.0; Java 8, no Dafny runtime.
@@ -32,17 +32,17 @@ Status: draft for planning, 2026-10-26 (final packages: same as today, new major
 | `CreateAwsKmsDiscoveryMultiKeyring` | `AwsKmsDiscoveryMultiKeyring.builder()` (`AutoCloseable`) |
 | `CreateAwsKmsMrkDiscoveryMultiKeyring` | `AwsKmsMrkDiscoveryMultiKeyring.builder()` (`AutoCloseable`) |
 | `CreateAwsKmsRsaKeyring` | `AwsKmsRsaKeyring.builder()` |
-| `CreateAwsKmsEcdhKeyring` | `AwsKmsEcdhKeyring.builder()` + `KmsEcdhStaticConfigurations` |
+| `CreateAwsKmsEcdhKeyring` | `AwsKmsEcdhKeyring.builder()` + `KmsEcdhKeyAgreementScheme` |
 | `CreateAwsKmsHierarchicalKeyring` | `AwsKmsHierarchicalKeyring.builder()` |
 | `CreateRawAesKeyring` | `RawAesKeyring.builder()` |
 | `CreateRawRsaKeyring` | `RawRsaKeyring.builder()` |
-| `CreateRawEcdhKeyring` | `RawEcdhKeyring.builder()` + `RawEcdhStaticConfigurations` |
+| `CreateRawEcdhKeyring` | `RawEcdhKeyring.builder()` + `RawEcdhKeyAgreementScheme` |
 | `CreateMultiKeyring` | `MultiKeyring.builder()` |
-| `CreateDefaultCryptographicMaterialsManager` | `DefaultCryptographicMaterialsManager.of(keyring)` |
+| `CreateDefaultCryptographicMaterialsManager` | `DefaultCryptographicMaterialsManager.create(keyring)` |
 | `CreateRequiredEncryptionContextCMM` | `RequiredEncryptionContextCryptographicMaterialsManager.builder()` |
 | `CreateCryptographicMaterialsCache` | `CryptographicMaterialsCache.create(CacheType)` |
 | `CreateDefaultClientSupplier` | `ClientSupplier.defaultSupplier()` |
-| `GetAlgorithmSuiteInfo` | `AlgorithmSuite.fromBinaryId(...)` |
+| `GetAlgorithmSuiteInfo` | `EsdkAlgorithmSuite.fromBinaryId(...)` or `DbeAlgorithmSuite.fromBinaryId(...)`; each finds only its own format |
 | `ValidateCommitmentPolicyOnEncrypt` / `OnDecrypt` | `CommitmentPolicy.allowsEncrypt(suite)` / `allowsDecrypt(suite)` |
 | `InitializeEncryptionMaterials` / `InitializeDecryptionMaterials` | `EncryptionMaterials.builder(suite)` / `DecryptionMaterials.builder(suite)` |
 | `Valid*MaterialsTransition` | `materials.isValidTransitionFrom(start)` |
@@ -72,10 +72,12 @@ Status: draft for planning, 2026-10-26 (final packages: same as today, new major
 
 | Current | Native |
 |---|---|
-| `AlgorithmSuiteId` / `ESDKAlgorithmSuiteId` / `DBEAlgorithmSuiteId` / `AlgorithmSuiteInfo` | One enum, `AlgorithmSuite`, same constant names; `isSigning()`, `isCommitting()`, `binaryId()`, `format()` |
+| `AlgorithmSuiteId` / `ESDKAlgorithmSuiteId` / `DBEAlgorithmSuiteId` / `AlgorithmSuiteInfo` | `EsdkAlgorithmSuite` and `DbeAlgorithmSuite` enums, same constant names, both implementing the `AlgorithmSuite` interface that materials and CMM requests take; `isSigning()`, `isCommitting()`, `binaryId()`, `format()` |
 | `CommitmentPolicy` union, `ESDKCommitmentPolicy`, `DBECommitmentPolicy` | `CommitmentPolicy` interface, `EsdkCommitmentPolicy`, `DbeCommitmentPolicy` |
 | `Map<String,String>` encryption context | `EncryptionContext` (immutable `Map<String,String>`) |
-| `ByteBuffer` keys and secrets | `byte[]` (copied) and `SecretBytes` |
+| `ByteBuffer` keys and secrets | `byte[]` (copied) and `SecretBytes`; builders that take a `SecretBytes` secret also take a `byte[]`, and the raw AES keyring a JCA `SecretKey` |
+| `EncryptedDataKey.builder()` (`ByteBuffer` members) | `EncryptedDataKey.builder().keyProviderId(..).keyProviderInfo(..).ciphertext(..).build()`; `keyProviderIdUtf8(byte[])` for the id as a message stores it |
+| `GetEncryptionMaterialsInput.algorithmSuiteId`, `DecryptMaterialsInput.algorithmSuiteId` | `algorithmSuite()` on `GetEncryptionMaterialsRequest` (`Optional`) and `DecryptMaterialsRequest` |
 | `CacheType` union (`Default`, `No`, `SingleThreaded`, `MultiThreaded`, `StormTracking`, `Shared`) | `CacheType.defaultCache(n)`, `noCache()`, `singleThreaded(..)`, `multiThreaded(..)`, `stormTracking(..)`, `shared(cache)` |
 | `ttlSeconds(long)`, storm-tracking `int` times + `TimeUnits` | `java.time.Duration`: `ttl(Duration)`; `gracePeriod`, `graceInterval`, `inFlightTtl`, `sleep`; `TimeUnits` removed |
 
@@ -147,6 +149,8 @@ Data does not migrate. Messages and items written with either MPL decrypt with t
 | Stay on ESDK 3.x | ESDK 3.x on MPL 1.x, unchanged | Nothing |
 | Move to ESDK 4.0 | A new major version on MPL 2.0.0 only (the two MPLs share packages, so they cannot be combined) | Upgrade both together; replace each keyring, CMM, key store and cache construction (one statement per site), rewrite custom keyrings and CMMs against the new interfaces, and update catch blocks |
 
+In the proposed ESDK 4.0 API, ESDK calls throw the ESDK's own `EsdkException` subclasses; an MPL failure is the cause and keeps its kind, so catch blocks switch on `EsdkErrorKind` and use `findCause(...)` for the MPL or AWS SDK exception.
+
 Effort for the ESDK team: about 4–6 weeks for ESDK 4.0, estimated from a prototype that added native overloads to 3.x (5 files).
 
 The prototype's results:
@@ -176,7 +180,8 @@ The prototype's results:
    - catch `MaterialProvidersException`, or a specific subclass;
    - for SDK errors, use `findCause(KmsException.class)` instead of `catch (KmsException e)`;
    - use `isRetryable()` for retry decisions.
-7. Pass secrets as `SecretBytes`, not `ByteBuffer`.
+7. Pass secrets as `SecretBytes` or `byte[]` (copied; zero your own array), not `ByteBuffer`. A raw AES key can also be a JCA `SecretKey`.
+8. Replace `AlgorithmSuiteId` values with `EsdkAlgorithmSuite` or `DbeAlgorithmSuite` constants, and `GetAlgorithmSuiteInfo` with the matching enum's `fromBinaryId`.
 
 ## 4. Behavior differences to know before migrating
 
