@@ -186,7 +186,7 @@ jobs:
         if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
-          ref: lucmcdon/testing-infra-java
+          ref: lucmcdon/test-server-infra
           path: commons
       - name: Check every branch on a changed line was taken
         if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
@@ -230,7 +230,7 @@ jobs:
         if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
-          ref: lucmcdon/testing-infra-java
+          ref: lucmcdon/test-server-infra
           path: commons
       - name: Run the tests, one coverage file per test
         if: env.HAS_CODE == 'true'
@@ -307,7 +307,7 @@ jobs:
         if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
-          ref: lucmcdon/testing-infra-java
+          ref: lucmcdon/test-server-infra
           path: commons
       - name: Find the source roots
         if: env.HAS_CODE == 'true'
@@ -405,14 +405,14 @@ jobs:
       contents: read
       actions: read
       pull-requests: read
-    uses: aws/aws-crypto-tools-commons/.github/workflows/duvet-test-reach-reusable.yml@lucmcdon/testing-infra-java
+    uses: aws/aws-crypto-tools-commons/.github/workflows/duvet-test-reach-reusable.yml@lucmcdon/test-server-infra
     with:
       library: ${{ matrix.module }}
       language: java
       source: ${{ matrix.module }}/src/main/java
       local-java-tests: ${{ matrix.module }}/src/test/java
       artifacts: per-test-coverage-${{ matrix.module }}
-      commons-ref: lucmcdon/testing-infra-java
+      commons-ref: lucmcdon/test-server-infra
       runner: ubuntu-latest
     secrets:
       repo-pat: ${{ secrets.COMMONS_REPO_PAT }}
