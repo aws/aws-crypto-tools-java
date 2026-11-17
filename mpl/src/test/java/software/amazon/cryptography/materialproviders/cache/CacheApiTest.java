@@ -317,29 +317,34 @@ class CacheApiTest {
   void cacheEntry() {
     Instant created = Instant.ofEpochSecond(100);
     Instant expires = Instant.ofEpochSecond(200);
-    CacheEntry branch = CacheEntry.of(branchKey("a"), created, expires);
+    CacheEntry branch = CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(created).expiryTime(expires).build();
     assertTrue(branch.branchKeyMaterials().isPresent());
     assertFalse(branch.beaconKeyMaterials().isPresent());
     assertEquals(created, branch.creationTime());
     assertEquals(expires, branch.expiryTime());
     assertEquals("CacheEntry[branch key, created 1970-01-01T00:01:40Z, expires 1970-01-01T00:03:20Z]", branch.toString());
-    CacheEntry beacon = CacheEntry.of(beaconKey(), created, expires);
+    CacheEntry beacon = CacheEntry.builder().beaconKeyMaterials(beaconKey()).creationTime(created).expiryTime(expires).build();
     assertTrue(beacon.beaconKeyMaterials().isPresent());
     assertFalse(beacon.branchKeyMaterials().isPresent());
     assertTrue(beacon.toString().startsWith("CacheEntry[beacon key"));
-    assertEquals(CacheEntry.of(branchKey("a"), created, expires), branch);
-    assertEquals(CacheEntry.of(branchKey("a"), created, expires).hashCode(), branch.hashCode());
-    assertNotEquals(CacheEntry.of(branchKey("b"), created, expires), branch);
-    assertNotEquals(CacheEntry.of(branchKey("a"), expires, expires), branch);
-    assertNotEquals(CacheEntry.of(branchKey("a"), created, created), branch);
+    assertEquals(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(created).expiryTime(expires).build(), branch);
+    assertEquals(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(created).expiryTime(expires).build().hashCode(), branch.hashCode());
+    assertNotEquals(CacheEntry.builder().branchKeyMaterials(branchKey("b")).creationTime(created).expiryTime(expires).build(), branch);
+    assertNotEquals(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(expires).expiryTime(expires).build(), branch);
+    assertNotEquals(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(created).expiryTime(created).build(), branch);
     assertNotEquals(beacon, branch);
     BeaconKeyMaterials otherBeacon = KeyMaterialsAccess.beaconKey("other", EncryptionContext.empty(), null, Collections.emptyMap());
-    assertNotEquals(CacheEntry.of(otherBeacon, created, expires), beacon);
+    assertNotEquals(CacheEntry.builder().beaconKeyMaterials(otherBeacon).creationTime(created).expiryTime(expires).build(), beacon);
     assertNotEquals(branch, "entry");
-    assertThrows(NullPointerException.class, () -> CacheEntry.of((BranchKeyMaterials) null, created, expires));
-    assertThrows(NullPointerException.class, () -> CacheEntry.of((BeaconKeyMaterials) null, created, expires));
-    assertThrows(NullPointerException.class, () -> CacheEntry.of(branchKey("a"), null, expires));
-    assertThrows(NullPointerException.class, () -> CacheEntry.of(branchKey("a"), created, null));
+    assertThrows(ValidationException.class, () -> CacheEntry.builder().creationTime(created).expiryTime(expires).build());
+    assertThrows(
+      ValidationException.class,
+      () -> CacheEntry.builder().branchKeyMaterials(branchKey("a")).beaconKeyMaterials(beaconKey()).creationTime(created).expiryTime(expires).build()
+    );
+    assertThrows(ValidationException.class, () -> CacheEntry.builder().branchKeyMaterials(branchKey("a")).expiryTime(expires).build());
+    assertThrows(ValidationException.class, () -> CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(created).build());
+    assertEquals(branch, branch.toBuilder().build());
+    assertEquals(Instant.ofEpochSecond(300), branch.toBuilder().expiryTime(Instant.ofEpochSecond(300)).build().expiryTime());
   }
 
   // A consumer that takes a CacheType, such as a DB-ESDK beacon key source, gets the instance back from a shared one.
@@ -364,8 +369,8 @@ class CacheApiTest {
       CacheType.stormTracking(StormTrackingCache.builder().entryCapacity(5).build())
     )) {
       CryptographicMaterialsCache cache = CryptographicMaterialsCache.create(type);
-      CacheEntry branch = CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000));
-      CacheEntry beacon = CacheEntry.of(beaconKey(), now, now.plusSeconds(1000));
+      CacheEntry branch = CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now.plusSeconds(1000)).build();
+      CacheEntry beacon = CacheEntry.builder().beaconKeyMaterials(beaconKey()).creationTime(now).expiryTime(now.plusSeconds(1000)).build();
       put(cache, key("a"), branch);
       put(cache, key("b"), beacon);
       assertSame(branch, get(cache, key("a")).get());
@@ -374,18 +379,18 @@ class CacheApiTest {
       assertFalse(get(cache, key("a")).isPresent(), type.kind().toString());
       cache.deleteCacheEntry(DeleteCacheEntryRequest.builder().key(key("a")).build());
       // Expired: before this second.
-      put(cache, key("c"), CacheEntry.of(branchKey("c"), now, now.minusSeconds(2)));
+      put(cache, key("c"), CacheEntry.builder().branchKeyMaterials(branchKey("c")).creationTime(now).expiryTime(now.minusSeconds(2)).build());
       assertFalse(get(cache, key("c")).isPresent(), type.kind().toString());
       assertThrows(NullPointerException.class, () -> cache.getCacheEntry(null));
       assertThrows(NullPointerException.class, () -> cache.putCacheEntry(null));
       assertThrows(NullPointerException.class, () -> cache.deleteCacheEntry(null));
     }
     assertThrows(ValidationException.class, () -> GetCacheEntryRequest.builder().key(null).build());
-    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(null).entry(CacheEntry.of(branchKey("a"), now, now)).build());
+    assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(null).entry(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now).build()).build());
     assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(key("a")).entry(null).build());
     assertThrows(ValidationException.class, () -> DeleteCacheEntryRequest.builder().key(null).build());
     CryptographicMaterialsCache none = CryptographicMaterialsCache.create(CacheType.noCache());
-    put(none, key("a"), CacheEntry.of(branchKey("a"), now, now.plusSeconds(1000)));
+    put(none, key("a"), CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now.plusSeconds(1000)).build());
     assertFalse(get(none, key("a")).isPresent());
   }
 
@@ -405,7 +410,7 @@ class CacheApiTest {
       }
     };
     BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.singleThreaded(5), clock));
-    put(cache, key("a"), CacheEntry.of(branchKey("a"), Instant.EPOCH, Instant.ofEpochMilli(10_001)));
+    put(cache, key("a"), CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(Instant.EPOCH).expiryTime(Instant.ofEpochMilli(10_001)).build());
     assertTrue(get(cache, key("a")).isPresent());
     wall[0] = 11_000;
     assertFalse(get(cache, key("a")).isPresent());

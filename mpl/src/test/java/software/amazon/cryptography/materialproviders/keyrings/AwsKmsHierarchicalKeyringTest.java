@@ -218,7 +218,7 @@ class AwsKmsHierarchicalKeyringTest {
     CacheKey key = cache.entries.keySet().iterator().next();
     cache.entries.put(
       key,
-      CacheEntry.of(KeyMaterialsAccess.beaconKey(branchKey, EncryptionContext.empty(), null, new HashMap<>()), Instant.now(), Instant.now())
+      CacheEntry.builder().beaconKeyMaterials(KeyMaterialsAccess.beaconKey(branchKey, EncryptionContext.empty(), null, new HashMap<>())).creationTime(Instant.now()).expiryTime(Instant.now()).build()
     );
     assertEquals("Invalid Material Type.", assertThrows(InvalidMaterialsException.class, () -> keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage());
   }

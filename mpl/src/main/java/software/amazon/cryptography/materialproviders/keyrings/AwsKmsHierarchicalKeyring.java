@@ -339,7 +339,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     if (ttlSeconds >= Long.MAX_VALUE - now) {
       throw new ValidationException("INT64 Overflow when putting cache entry.");
     }
-    CacheEntry fresh = CacheEntry.of(materials, Instant.ofEpochSecond(now), expiry(now + ttlSeconds));
+    CacheEntry fresh = CacheEntry.builder().branchKeyMaterials(materials).creationTime(Instant.ofEpochSecond(now)).expiryTime(expiry(now + ttlSeconds)).build();
     cache.putCacheEntry(PutCacheEntryRequest.builder().key(key).entry(fresh).build());
     return materials;
   }

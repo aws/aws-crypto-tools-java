@@ -120,7 +120,7 @@ public final class BeaconKeySource {
       cache.putCacheEntry(
         PutCacheEntryRequest.builder()
           .key(key)
-          .entry(CacheEntry.of(materials.toHmacKeysOnly(keys), Instant.ofEpochSecond(now), Instant.ofEpochSecond(now + cacheTtlSeconds)))
+          .entry(CacheEntry.builder().beaconKeyMaterials(materials.toHmacKeysOnly(keys)).creationTime(Instant.ofEpochSecond(now)).expiryTime(Instant.ofEpochSecond(now + cacheTtlSeconds)).build())
           .build()
       );
     } catch (RuntimeException e) {

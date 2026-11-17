@@ -95,17 +95,17 @@ public final class SharedCaches {
       Instant creation = CacheAdapter.instant(output.creationTime());
       Instant expiry = CacheAdapter.instant(output.expiryTime());
       if (materials.BranchKey() != null) {
-        return CacheEntry.of(CacheAdapter.toNative(materials.BranchKey()), creation, expiry);
+        return CacheEntry.builder().branchKeyMaterials(CacheAdapter.toNative(materials.BranchKey())).creationTime(creation).expiryTime(expiry).build();
       }
       if (materials.BeaconKey() != null) {
-        return CacheEntry.of(CacheAdapter.toNative(materials.BeaconKey()), creation, expiry);
+        return CacheEntry.builder().beaconKeyMaterials(CacheAdapter.toNative(materials.BeaconKey())).creationTime(creation).expiryTime(expiry).build();
       }
       if (materials.Encryption() != null) {
         Boundary.encryptionMaterials(materials.Encryption());
       } else {
         Boundary.decryptionMaterials(materials.Decryption());
       }
-      return CacheEntry.of(CacheAdapter.NOT_A_KEY, creation, expiry);
+      return CacheEntry.builder().beaconKeyMaterials(CacheAdapter.NOT_A_KEY).creationTime(creation).expiryTime(expiry).build();
     }
 
     private static ByteBuffer identifier(CacheKey key) {

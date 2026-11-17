@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Optional;
 import software.amazon.cryptography.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.keystore.BranchKeyMaterials;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
 /**
  * Cached materials with their lifetime: a branch key (hierarchical keyring)
@@ -34,24 +35,23 @@ public final class CacheEntry {
   private final Instant creationTime;
   private final Instant expiryTime;
 
-  private CacheEntry(
-    BranchKeyMaterials branchKeyMaterials,
-    BeaconKeyMaterials beaconKeyMaterials,
-    Instant creationTime,
-    Instant expiryTime
-  ) {
-    this.branchKeyMaterials = branchKeyMaterials;
-    this.beaconKeyMaterials = beaconKeyMaterials;
-    this.creationTime = Objects.requireNonNull(creationTime, "creationTime");
-    this.expiryTime = Objects.requireNonNull(expiryTime, "expiryTime");
+  private CacheEntry(Builder builder) {
+    this.branchKeyMaterials = builder.branchKeyMaterials;
+    this.beaconKeyMaterials = builder.beaconKeyMaterials;
+    this.creationTime = builder.creationTime;
+    this.expiryTime = builder.expiryTime;
   }
 
-  public static CacheEntry of(BranchKeyMaterials materials, Instant creationTime, Instant expiryTime) {
-    return new CacheEntry(Objects.requireNonNull(materials, "materials"), null, creationTime, expiryTime);
+  public static Builder builder() {
+    return new Builder();
   }
 
-  public static CacheEntry of(BeaconKeyMaterials materials, Instant creationTime, Instant expiryTime) {
-    return new CacheEntry(null, Objects.requireNonNull(materials, "materials"), creationTime, expiryTime);
+  public Builder toBuilder() {
+    return new Builder()
+      .branchKeyMaterials(branchKeyMaterials)
+      .beaconKeyMaterials(beaconKeyMaterials)
+      .creationTime(creationTime)
+      .expiryTime(expiryTime);
   }
 
   /** Present exactly when {@link #beaconKeyMaterials()} is absent. */
@@ -106,5 +106,49 @@ public final class CacheEntry {
       "CacheEntry[" + (branchKeyMaterials != null ? "branch key" : "beacon key") +
       ", created " + creationTime + ", expires " + expiryTime + "]"
     );
+  }
+
+  /** Exactly one of branchKeyMaterials and beaconKeyMaterials, plus both times, is required. */
+  public static final class Builder {
+
+    private BranchKeyMaterials branchKeyMaterials;
+    private BeaconKeyMaterials beaconKeyMaterials;
+    private Instant creationTime;
+    private Instant expiryTime;
+
+    private Builder() {}
+
+    public Builder branchKeyMaterials(BranchKeyMaterials branchKeyMaterials) {
+      this.branchKeyMaterials = branchKeyMaterials;
+      return this;
+    }
+
+    public Builder beaconKeyMaterials(BeaconKeyMaterials beaconKeyMaterials) {
+      this.beaconKeyMaterials = beaconKeyMaterials;
+      return this;
+    }
+
+    public Builder creationTime(Instant creationTime) {
+      this.creationTime = creationTime;
+      return this;
+    }
+
+    public Builder expiryTime(Instant expiryTime) {
+      this.expiryTime = expiryTime;
+      return this;
+    }
+
+    public CacheEntry build() {
+      if ((branchKeyMaterials == null) == (beaconKeyMaterials == null)) {
+        throw new ValidationException("A cache entry holds exactly one of branchKeyMaterials and beaconKeyMaterials");
+      }
+      if (creationTime == null) {
+        throw new ValidationException("Missing value for required field `creationTime`");
+      }
+      if (expiryTime == null) {
+        throw new ValidationException("Missing value for required field `expiryTime`");
+      }
+      return new CacheEntry(this);
+    }
   }
 }
