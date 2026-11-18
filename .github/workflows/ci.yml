@@ -1,6 +1,8 @@
 # pr-ci-all-required is the one check that branch protection requires.
 # Coverage, mutation and duvet reach check only the lines that a pull request changes.
 # A push to main checks the whole module.
+# Gradle 8.14 does not run on the runner's default Java 25, so each job sets up Java 17 for it.
+# The build finds its Java 8 and 21 toolchains among the JDKs on the runner image.
 
 name: CI
 
@@ -27,6 +29,10 @@ jobs:
       has-test-server: ${{ steps.test-server.outputs.found }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and test
         run: ./gradlew -p mpl build
@@ -51,6 +57,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Spotless (google-java-format)
         run: ./gradlew -p mpl spotlessCheck
@@ -128,6 +138,10 @@ jobs:
       RAW: ${{ github.workspace }}/per-test-raw
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - uses: actions/checkout@v4
         with:
@@ -176,6 +190,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - uses: actions/checkout@v4
         with:
@@ -202,6 +220,7 @@ jobs:
           { echo "PIT_SECONDS=$SECONDS"; echo "SCOPE=full"; } >> "$GITHUB_ENV"
       - name: Write results.json
         run: |
+          mkdir -p mutation
           python3 commons/test-server-common/tools/mutation/pit.py convert mpl/build/reports/pitest/mutations.xml \
             --source-root mpl/src/main/java --out mutation/results.json --repository "$GITHUB_REPOSITORY" \
             --commit "$GITHUB_SHA" --language java --library mpl --scope "$SCOPE" $LINES --seconds "${PIT_SECONDS:-0}"
@@ -283,6 +302,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - name: Compare with the newest release of the same major version (japicmp)
         run: ./gradlew -p mpl apiCompatibility
@@ -306,6 +329,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - name: Submit the Gradle dependencies to the dependency graph
         uses: gradle/actions/dependency-submission@v4
       - name: Review the dependencies this pull request adds
@@ -324,6 +351,10 @@ jobs:
         java: [11, 17, 21]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew -p mpl test -PtestJavaVersion=${{ matrix.java }}
 
