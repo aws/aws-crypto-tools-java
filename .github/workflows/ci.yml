@@ -36,11 +36,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and test
         run: ./gradlew -p mpl build
-      - name: Convert the JaCoCo report to lcov
+      # The test task writes the lcov report through build-logic's jacocoLcov task.
+      - name: Collect the lcov report
         run: |
           mkdir -p coverage
-          python3 mpl/scripts/jacoco_lcov.py mpl coverage/mpl.lcov $(find mpl/build/reports/jacoco -name '*.xml') \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+          cp mpl/build/reports/jacoco/test/lcov.info coverage/mpl.lcov
       - uses: actions/upload-artifact@v4
         with:
           name: local-coverage-mpl
@@ -154,7 +154,7 @@ jobs:
         run: ./gradlew -p mpl test
       - name: Turn the files into per-test-coverage/java.jsonl
         run: |
-          version=$(sed -n 's/^jacocoVersion=//p' mpl/gradle.properties)
+          version=$(sed -n 's/^jacoco = "\(.*\)"$/\1/p' gradle/libs.versions.toml)
           curl -sSfLo jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/$version/org.jacoco.cli-$version-nodeps.jar"
           export TESTSERVER_JACOCO_CLI=$PWD/jacococli.jar
           mkdir -p "$RAW/java/classes" out
@@ -163,7 +163,7 @@ jobs:
             '{language: "java", tool: "jacoco", repository: $repository, commit: $commit, root: $root, sources: [$root + "/mpl/src/main/java"]}' \
             > "$RAW/java/meta.json"
           python3 commons/test-server-common/tools/per_test_coverage.py build "$RAW" out/per-test-coverage
-          python3 mpl/scripts/jacoco_lcov.py mpl out/mpl.lcov $(find mpl/build/reports/jacoco -name '*.xml')
+          cp mpl/build/reports/jacoco/test/lcov.info out/mpl.lcov
       - name: Check that every test was recorded
         run: |
           tests=$(find mpl -path '*/build/test-results/test/*.xml' -exec cat {} + | awk '/<testcase /{n++} END {print n+0}')

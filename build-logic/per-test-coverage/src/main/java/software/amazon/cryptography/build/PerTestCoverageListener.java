@@ -1,4 +1,4 @@
-package software.amazon.cryptography.materialproviders.testing;
+package software.amazon.cryptography.build;
 
 import java.io.IOException;
 import java.io.OutputStream;
