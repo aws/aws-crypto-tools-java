@@ -7,9 +7,9 @@ plugins {
 
 group = "software.amazon.cryptography.build"
 
-java {
+tasks.compileJava {
     // It runs inside the library's tests, which run on Java 8.
-    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    options.release = 8
 }
 
 dependencies {
