@@ -1,11 +1,6 @@
-# Every merge gate, for every Gradle module that the root settings.gradle.kts
-# includes (.github/ci/modules.py). Each gate runs once per module, so a new
-# module is gated with no change here. pr-ci-all-required is the one check
-# that branch protection requires.
-#
-# The Gradle checks come from .github/ci/ci.init.gradle, passed with -I.
-# Coverage, mutation and duvet reach check only the lines a pull request
-# changes; a push to main checks the whole module.
+# pr-ci-all-required is the one check that branch protection requires.
+# Coverage, mutation and duvet reach check only the lines that a pull request changes.
+# A push to main checks the whole module.
 
 name: CI
 
@@ -13,7 +8,7 @@ on:
   pull_request:
   push:
     branches: [main]
-  # Runs the push-to-main checks (whole modules) on any branch.
+  # Runs the push-to-main checks on any branch.
   workflow_dispatch:
 
 permissions:
@@ -24,407 +19,251 @@ defaults:
   run:
     shell: bash
 
-env:
-  INIT: -I ${{ github.workspace }}/.github/ci/ci.init.gradle
-  JACOCO_VERSION: 0.8.16
-
 jobs:
-  modules:
-    name: Find Gradle modules
+  build:
+    name: Build and test (mpl)
     runs-on: ubuntu-latest
     outputs:
-      modules: ${{ steps.find.outputs.modules }}
-      code_modules: ${{ steps.find.outputs.code_modules }}
-      duvet_modules: ${{ steps.find.outputs.duvet_modules }}
-      test_servers: ${{ steps.find.outputs.test_servers }}
+      has-test-server: ${{ steps.test-server.outputs.found }}
     steps:
       - uses: actions/checkout@v4
-      - id: find
-        run: python3 .github/ci/modules.py
-
-  build:
-    name: Build and test (${{ matrix.module }}, Java 17)
-    needs: modules
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: No module
-        if: matrix.module == '(none)'
-        run: echo "The root settings.gradle.kts includes no module, so there is nothing to build." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-java@v4
-        if: matrix.module != '(none)'
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-        if: matrix.module != '(none)'
       - name: Build and test
-        if: matrix.module != '(none)'
-        run: ./gradlew $INIT -PciJavaVersion=17 -p "$MODULE" build
-      - name: Convert the JaCoCo reports to lcov
-        if: matrix.module != '(none)'
+        run: ./gradlew -p mpl build
+      - name: Convert the JaCoCo report to lcov
         run: |
           mkdir -p coverage
-          reports=$(find "$MODULE" -path '*/build/reports/jacoco/test/jacocoTestReport.xml' | sort)
-          if [ -z "$reports" ]; then
-            echo "$MODULE ran no tests with coverage, so the coverage report is empty."
-            : > "coverage/$MODULE.lcov"
-          else
-            python3 .github/ci/jacoco_lcov.py "$MODULE" "coverage/$MODULE.lcov" $reports | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+          python3 mpl/scripts/jacoco_lcov.py mpl coverage/mpl.lcov $(find mpl/build/reports/jacoco -name '*.xml') \
+            | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
-        if: matrix.module != '(none)'
         with:
-          name: local-coverage-${{ matrix.module }}
+          name: local-coverage-mpl
           path: coverage/
           if-no-files-found: error
+      # The Java MPL test server does not exist yet.
+      # The test-server job starts running once mpl/test-server/ does.
+      - id: test-server
+        run: |
+          if [ -d mpl/test-server ]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
 
   format-lint:
-    name: Format and lint (${{ matrix.module }})
-    needs: modules
+    name: Format and lint (mpl)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
     steps:
       - uses: actions/checkout@v4
-      - name: No module
-        if: matrix.module == '(none)'
-        run: echo "The root settings.gradle.kts includes no module, so there is nothing to check." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-java@v4
-        if: matrix.module != '(none)'
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-        if: matrix.module != '(none)'
       - name: Spotless (google-java-format)
-        if: matrix.module != '(none)'
-        run: ./gradlew $INIT -PciLint -p "$MODULE" spotlessCheck
+        run: ./gradlew -p mpl spotlessCheck
       # Runs after a Spotless failure too, so one push shows both.
       - name: Error Prone
-        if: ${{ !cancelled() && matrix.module != '(none)' }}
-        run: ./gradlew $INIT -PciLint -p "$MODULE" compileJava compileTestJava
+        if: ${{ !cancelled() }}
+        run: ./gradlew -p mpl compileJava compileTestJava
 
-  # Every changed line has to run in a test (diff-cover over the lcov report).
+  # Every changed line has to run in a test.
   patch-coverage:
-    name: Patch coverage (${{ matrix.module }})
-    needs: [modules, build]
+    name: Patch coverage (mpl)
+    needs: build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-      HAS_CODE: ${{ contains(fromJSON(needs.modules.outputs.code_modules), matrix.module) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Nothing to cover
-        if: env.HAS_CODE != 'true'
-        run: echo "$MODULE has no Java source under src/main/java, so no line needs coverage." | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v4
-        if: env.HAS_CODE == 'true'
         with:
-          name: local-coverage-${{ matrix.module }}
+          name: local-coverage-mpl
           path: coverage
       - name: Check every changed line ran
-        if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: |
           pip install --quiet diff-cover==9.2.4
-          diff-cover "coverage/$MODULE.lcov" --compare-branch "origin/$GITHUB_BASE_REF" \
-            --include "$MODULE/**" --fail-under 100 --markdown-report patch-coverage.md
+          diff-cover coverage/mpl.lcov --compare-branch "origin/$GITHUB_BASE_REF" \
+            --include 'mpl/**' --fail-under 100 --markdown-report patch-coverage.md
           cat patch-coverage.md >> "$GITHUB_STEP_SUMMARY"
       - name: Line coverage of the whole module
-        if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         run: |
-          awk -F'[:,]' '/^DA:/ { n++; if ($3 > 0) hit++ } END { printf "%s line coverage: %d of %d lines\n", ENVIRON["MODULE"], hit, n }' \
-            "coverage/$MODULE.lcov" | tee -a "$GITHUB_STEP_SUMMARY"
+          awk -F'[:,]' '/^DA:/ { n++; if ($3 > 0) hit++ } END { printf "mpl line coverage: %d of %d lines\n", hit, n }' \
+            coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Every branch on a changed line has to be taken by a test.
   branch-coverage:
-    name: Branch coverage (${{ matrix.module }})
-    needs: [modules, build]
+    name: Branch coverage (mpl)
+    needs: build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-      HAS_CODE: ${{ contains(fromJSON(needs.modules.outputs.code_modules), matrix.module) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Nothing to cover
-        if: env.HAS_CODE != 'true'
-        run: echo "$MODULE has no Java source under src/main/java, so no branch needs coverage." | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/download-artifact@v4
-        if: env.HAS_CODE == 'true'
         with:
-          name: local-coverage-${{ matrix.module }}
+          name: local-coverage-mpl
           path: coverage
       - uses: actions/checkout@v4
-        if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
           ref: lucmcdon/test-server-infra
           path: commons
       - name: Check every branch on a changed line was taken
-        if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
+        # branch_gate.py fails on a report with no branches.
+        # The report is empty while mpl has no code.
         run: |
+          if [ ! -s coverage/mpl.lcov ]; then
+            echo "mpl has no code under src/main/java yet." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           python3 commons/test-server-common/tools/branch_gate.py --base "origin/$GITHUB_BASE_REF" \
-            --exclude 'commons/*' "coverage/$MODULE.lcov" | tee -a "$GITHUB_STEP_SUMMARY"
+            --exclude 'commons/*' coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Branch coverage of the whole module
-        if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         run: |
-          awk -F'[:,]' '/^BRDA:/ { n++; if ($5 != "-" && $5 > 0) hit++ } END { printf "%s branch coverage: %d of %d branches\n", ENVIRON["MODULE"], hit, n }' \
-            "coverage/$MODULE.lcov" | tee -a "$GITHUB_STEP_SUMMARY"
+          awk -F'[:,]' '/^BRDA:/ { n++; if ($5 != "-" && $5 > 0) hit++ } END { printf "mpl branch coverage: %d of %d branches\n", hit, n }' \
+            coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # The lines each test runs (commons per_test_coverage.py's format), for duvet test reach.
+  # The lines that each test runs, for duvet test reach.
   per-test-coverage:
-    name: Per-test coverage (${{ matrix.module }})
-    needs: modules
+    name: Per-test coverage (mpl)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
     env:
-      MODULE: ${{ matrix.module }}
-      HAS_CODE: ${{ contains(fromJSON(needs.modules.outputs.code_modules), matrix.module) }}
+      RAW: ${{ github.workspace }}/per-test-raw
     steps:
       - uses: actions/checkout@v4
-      - name: Nothing to record
-        if: env.HAS_CODE != 'true'
-        run: echo "$MODULE has no Java source under src/main/java, so no test runs library code." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-java@v4
-        if: env.HAS_CODE == 'true'
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-        if: env.HAS_CODE == 'true'
       - uses: actions/checkout@v4
-        if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
           ref: lucmcdon/test-server-infra
           path: commons
       - name: Run the tests, one coverage file per test
-        if: env.HAS_CODE == 'true'
         env:
-          PER_TEST_COVERAGE_DIR: ${{ runner.temp }}/per-test-raw
-        run: ./gradlew $INIT -PciJavaVersion=17 -PciPerTest -p "$MODULE" test --rerun-tasks
+          PER_TEST_COVERAGE_DIR: ${{ env.RAW }}
+        run: ./gradlew -p mpl test
       - name: Turn the files into per-test-coverage/java.jsonl
-        if: env.HAS_CODE == 'true'
-        env:
-          RAW: ${{ runner.temp }}/per-test-raw
         run: |
-          curl -sSfLo jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/$JACOCO_VERSION/org.jacoco.cli-$JACOCO_VERSION-nodeps.jar"
+          version=$(sed -n 's/^jacocoVersion=//p' mpl/gradle.properties)
+          curl -sSfLo jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/$version/org.jacoco.cli-$version-nodeps.jar"
           export TESTSERVER_JACOCO_CLI=$PWD/jacococli.jar
           mkdir -p "$RAW/java/classes" out
-          find "$MODULE" -path '*/build/classes/java/main' -type d -exec cp -r {}/. "$RAW/java/classes/" \;
-          python3 - "$RAW/java/meta.json" <<'EOF'
-          import glob, json, os, sys
-          module = os.environ["MODULE"]
-          sources = [os.path.abspath(d) for d in glob.glob(module + "/**/src/main/java", recursive=True) if "/build/" not in d]
-          json.dump({"language": "java", "tool": "jacoco", "repository": os.environ["GITHUB_REPOSITORY"],
-                     "commit": os.environ["GITHUB_SHA"], "root": os.getcwd(), "sources": sources}, open(sys.argv[1], "w"))
-          EOF
+          if [ -d mpl/build/classes/java/main ]; then cp -r mpl/build/classes/java/main/. "$RAW/java/classes/"; fi
+          jq -n --arg root "$PWD" --arg repository "$GITHUB_REPOSITORY" --arg commit "$GITHUB_SHA" \
+            '{language: "java", tool: "jacoco", repository: $repository, commit: $commit, root: $root, sources: [$root + "/mpl/src/main/java"]}' \
+            > "$RAW/java/meta.json"
           python3 commons/test-server-common/tools/per_test_coverage.py build "$RAW" out/per-test-coverage
-          find "$MODULE" -path '*/build/reports/jacoco/test/jacocoTestReport.xml' -exec python3 .github/ci/jacoco_lcov.py "$MODULE" "out/$MODULE.lcov" {} +
+          python3 mpl/scripts/jacoco_lcov.py mpl out/mpl.lcov $(find mpl/build/reports/jacoco -name '*.xml')
       - name: Check that every test was recorded
-        if: env.HAS_CODE == 'true'
         run: |
-          tests=$(find "$MODULE" -path '*/build/test-results/test/*.xml' -exec grep -ho '<testcase ' {} + | wc -l)
-          rows=$(wc -l < out/per-test-coverage/java.jsonl)
-          echo "$MODULE: $tests tests ran, $rows have per-test coverage." | tee -a "$GITHUB_STEP_SUMMARY"
+          tests=$(find mpl -path '*/build/test-results/test/*.xml' -exec cat {} + | awk '/<testcase /{n++} END {print n+0}')
+          rows=0
+          if [ -f out/per-test-coverage/java.jsonl ]; then rows=$(wc -l < out/per-test-coverage/java.jsonl); fi
+          echo "mpl: $tests tests ran, $rows have per-test coverage." | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$rows" -ne "$tests" ]; then
-            echo "::error::$MODULE ran $tests tests but per-test coverage recorded $rows"
+            echo "::error::mpl ran $tests tests but per-test coverage recorded $rows"
             exit 1
           fi
       - uses: actions/upload-artifact@v4
-        if: env.HAS_CODE == 'true'
         with:
-          name: per-test-coverage-${{ matrix.module }}
+          name: per-test-coverage-mpl
           path: out/
           if-no-files-found: error
 
-  # PIT. A pull request mutates the classes it changes and keeps the mutants on
-  # its changed lines; each must make a test fail. A push to main mutates the
-  # whole module and reports.
+  # A pull request mutates the classes that it changes and keeps the mutants on its changed lines.
+  # Each of those mutants must make a test fail.
+  # A push to main mutates the whole module and reports.
   mutation:
-    name: ${{ matrix.module }} Java mutation testing
-    needs: modules
+    name: Mutation testing (mpl)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-      HAS_CODE: ${{ contains(fromJSON(needs.modules.outputs.code_modules), matrix.module) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Nothing to mutate
-        if: env.HAS_CODE != 'true'
-        run: echo "$MODULE has no Java source under src/main/java, so there is nothing to mutate." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-java@v4
-        if: env.HAS_CODE == 'true'
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-        if: env.HAS_CODE == 'true'
       - uses: actions/checkout@v4
-        if: env.HAS_CODE == 'true'
         with:
           repository: aws/aws-crypto-tools-commons
           ref: lucmcdon/test-server-infra
           path: commons
-      - name: Find the source roots
-        if: env.HAS_CODE == 'true'
-        run: |
-          roots=$(find "$MODULE" -path '*/src/main/java' -type d -not -path '*/build/*' | sort | sed 's/^/--source-root /' | tr '\n' ' ')
-          echo "ROOTS=$roots" >> "$GITHUB_ENV"
-      - name: Choose the classes a pull request changes
-        if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
+      - name: Choose the classes that the pull request changes
+        if: github.event_name == 'pull_request'
         run: |
           python3 commons/test-server-common/tools/mutation/results.py changed-lines --repo . \
-            --base "origin/$GITHUB_BASE_REF" --out lines.json --glob "$MODULE/*.java"
-          classes=$(python3 commons/test-server-common/tools/mutation/pit.py target-classes lines.json $ROOTS)
-          echo "CLASSES=$classes" >> "$GITHUB_ENV"
-          echo "SCOPE=changed" >> "$GITHUB_ENV"
-          echo "LINES=--lines lines.json" >> "$GITHUB_ENV"
-          if [ -z "$classes" ]; then echo "This pull request changes no Java source line in $MODULE, so no mutant is on a changed line." | tee -a "$GITHUB_STEP_SUMMARY"; fi
-      - name: Mutate the whole module
-        if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
+            --base "origin/$GITHUB_BASE_REF" --out lines.json --glob 'mpl/src/main/java/*.java'
+          classes=$(python3 commons/test-server-common/tools/mutation/pit.py target-classes lines.json --source-root mpl/src/main/java)
+          { echo "PITEST_CLASSES=$classes"; echo "SCOPE=changed"; echo "LINES=--lines lines.json"; } >> "$GITHUB_ENV"
+          if [ -z "$classes" ]; then echo "This pull request changes no line under mpl/src/main/java." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+      - name: PIT on the changed classes
+        if: github.event_name == 'pull_request' && env.PITEST_CLASSES != ''
         run: |
-          find "$MODULE" -path '*/src/main/java/*.java' -not -path '*/build/*' \
-            | python3 -c 'import json, sys; json.dump({f.strip(): [] for f in sys.stdin}, open("all.json", "w"))'
-          echo "CLASSES=$(python3 commons/test-server-common/tools/mutation/pit.py target-classes all.json $ROOTS)" >> "$GITHUB_ENV"
-          echo "SCOPE=full" >> "$GITHUB_ENV"
-          echo "LINES=" >> "$GITHUB_ENV"
-      - name: PIT
-        if: env.HAS_CODE == 'true' && env.CLASSES != ''
+          ./gradlew -p mpl pitest "-PpitestClasses=$PITEST_CLASSES"
+          echo "PIT_SECONDS=$SECONDS" >> "$GITHUB_ENV"
+      - name: PIT on the whole module
+        if: github.event_name != 'pull_request'
         run: |
-          start=$(date +%s)
-          ./gradlew $INIT -PciMutation "-PpitestClasses=$CLASSES" -p "$MODULE" pitest
-          echo "SECONDS_TAKEN=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+          ./gradlew -p mpl pitest
+          { echo "PIT_SECONDS=$SECONDS"; echo "SCOPE=full"; } >> "$GITHUB_ENV"
       - name: Write results.json
-        if: env.HAS_CODE == 'true'
         run: |
-          reports=$(find "$MODULE" -path '*/build/reports/pitest/mutations.xml' | sort)
-          set -- $reports
-          if [ "$#" -gt 1 ]; then echo "::error::more than one PIT report; results.json takes one"; exit 1; fi
-          mkdir -p mutation
-          python3 commons/test-server-common/tools/mutation/pit.py convert "${1:-none.xml}" $ROOTS \
-            --out mutation/results.json --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" \
-            --language java --library "$MODULE" --scope "$SCOPE" $LINES --seconds "${SECONDS_TAKEN:-0}"
+          python3 commons/test-server-common/tools/mutation/pit.py convert mpl/build/reports/pitest/mutations.xml \
+            --source-root mpl/src/main/java --out mutation/results.json --repository "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" --language java --library mpl --scope "$SCOPE" $LINES --seconds "${PIT_SECONDS:-0}"
       - name: Check that every mutant on a changed line was killed
-        if: env.HAS_CODE == 'true' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: python3 commons/test-server-common/tools/mutation/results.py check mutation/results.json --fail
       - name: Report the mutants
-        if: env.HAS_CODE == 'true' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         run: python3 commons/test-server-common/tools/mutation/results.py check mutation/results.json
       - uses: actions/upload-artifact@v4
-        if: always() && env.HAS_CODE == 'true'
+        if: always()
         with:
-          name: mutation-results-${{ matrix.module }}
+          name: mutation-results-mpl
           path: mutation/results.json
           if-no-files-found: error
 
   duvet:
-    name: Duvet report (${{ matrix.module }})
-    needs: modules
+    name: Duvet report (mpl)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-      HAS_DUVET: ${{ contains(fromJSON(needs.modules.outputs.duvet_modules), matrix.module) }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: No duvet
-        if: env.HAS_DUVET != 'true'
-        run: echo "$MODULE has no .duvet/config.toml, so there is no duvet report." | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/cache@v4
-        if: env.HAS_DUVET == 'true'
         with:
           path: ~/.cargo/bin/duvet
           key: duvet-${{ runner.os }}-0.4
       - name: Install duvet
-        if: env.HAS_DUVET == 'true'
         run: command -v duvet || cargo +stable install duvet --version '^0.4'
       # duvet fails on an annotation whose section or quote the specification does not have.
       - name: Duvet report
-        if: env.HAS_DUVET == 'true'
-        working-directory: ${{ matrix.module }}
-        run: duvet report
+        run: mpl/scripts/duvet.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mpl-duvet-report
+          include-hidden-files: true
+          path: mpl/.duvet/reports/report.html
 
   duvet-test-reach:
-    name: duvet test reach (${{ matrix.module }})
-    needs: [modules, per-test-coverage]
-    if: needs.modules.outputs.duvet_modules != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.duvet_modules) }}
+    name: duvet test reach (mpl)
+    needs: per-test-coverage
     permissions:
       contents: read
       actions: read
       pull-requests: read
     uses: aws/aws-crypto-tools-commons/.github/workflows/duvet-test-reach-reusable.yml@lucmcdon/test-server-infra
     with:
-      library: ${{ matrix.module }}
+      library: mpl
       language: java
-      source: ${{ matrix.module }}/src/main/java
-      local-java-tests: ${{ matrix.module }}/src/test/java
-      artifacts: per-test-coverage-${{ matrix.module }}
+      source: mpl/src/main/java
+      local-java-tests: mpl/src/test/java
+      artifacts: per-test-coverage-mpl
       commons-ref: lucmcdon/test-server-infra
       runner: ubuntu-latest
     secrets:
       repo-pat: ${{ secrets.COMMONS_REPO_PAT }}
 
   test-server:
-    name: MPL TestServer (${{ matrix.module }}, java)
-    needs: modules
-    if: needs.modules.outputs.test_servers != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.test_servers) }}
+    name: MPL TestServer (java)
+    needs: build
+    if: needs.build.outputs.has-test-server == 'true'
     permissions:
       contents: read
       actions: read
@@ -438,66 +277,35 @@ jobs:
     secrets:
       repo-pat: ${{ secrets.COMMONS_REPO_PAT }}
 
-  no-test-server:
-    name: TestServer (none in this repository)
-    needs: modules
-    if: needs.modules.outputs.test_servers == '[]'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "No module has a test-server directory, so there is no TestServer run." | tee -a "$GITHUB_STEP_SUMMARY"
-
   # Report only until the module's first release.
   api-compatibility:
-    name: API compatibility (${{ matrix.module }})
-    needs: modules
+    name: API compatibility (mpl)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        module: ${{ fromJSON(needs.modules.outputs.modules) }}
-    env:
-      MODULE: ${{ matrix.module }}
-      HAS_CODE: ${{ contains(fromJSON(needs.modules.outputs.code_modules), matrix.module) }}
     steps:
       - uses: actions/checkout@v4
-      - name: Nothing to compare
-        if: env.HAS_CODE != 'true'
-        run: echo "$MODULE has no Java source under src/main/java, so it has no API." | tee -a "$GITHUB_STEP_SUMMARY"
-      - uses: actions/setup-java@v4
-        if: env.HAS_CODE == 'true'
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-        if: env.HAS_CODE == 'true'
       - name: Compare with the newest release of the same major version (japicmp)
-        if: env.HAS_CODE == 'true'
-        run: .github/ci/api_compatibility.sh "$MODULE"
+        run: ./gradlew -p mpl apiCompatibility
+      - name: Write the API changes to the summary
+        run: |
+          if [ -f mpl/build/reports/api-compatibility.txt ]; then
+            { echo '```'; cat mpl/build/reports/api-compatibility.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mpl has no release with its major version yet, so there is no API to compare." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@v4
-        if: env.HAS_CODE == 'true'
         with:
-          name: api-compatibility-${{ matrix.module }}
-          path: api-compatibility/
+          name: api-compatibility-mpl
+          path: mpl/build/reports/api-compatibility.*
           if-no-files-found: ignore
 
   dependency-review:
     name: Dependency review
-    needs: modules
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            21
-            17
       - name: Submit the Gradle dependencies to the dependency graph
         uses: gradle/actions/dependency-submission@v4
       - name: Review the dependencies this pull request adds
@@ -506,35 +314,23 @@ jobs:
         with:
           retry-on-snapshot-warnings: true
 
-  # Not required: the supported Java versions other than the one the gates use.
+  # Not required. The other jobs test on Java 8.
   java-versions:
-    name: Java ${{ matrix.java }} (${{ matrix.module }})
-    needs: modules
-    if: needs.modules.outputs.code_modules != '[]'
+    name: Java ${{ matrix.java }} (mpl)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        module: ${{ fromJSON(needs.modules.outputs.code_modules) }}
-        java: [8, 11, 21]
+        java: [11, 17, 21]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: corretto
-          java-version: |
-            8
-            11
-            21
-            17
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew $INIT -PciJavaVersion=${{ matrix.java }} -p "${{ matrix.module }}" test
+      - run: ./gradlew -p mpl test -PtestJavaVersion=${{ matrix.java }}
 
   pr-ci-all-required:
     name: pr-ci-all-required
     if: always()
     needs:
-      - modules
       - build
       - format-lint
       - patch-coverage
@@ -544,34 +340,9 @@ jobs:
       - duvet
       - duvet-test-reach
       - test-server
-      - no-test-server
       - api-compatibility
       - dependency-review
     runs-on: ubuntu-latest
     steps:
-      - name: Check every gate passed
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-          DUVET_MODULES: ${{ needs.modules.outputs.duvet_modules }}
-          TEST_SERVERS: ${{ needs.modules.outputs.test_servers }}
-        run: |
-          python3 - <<'EOF'
-          import json, os, sys
-          needs = json.loads(os.environ["NEEDS"])
-          # These run only when their list is not empty, and the other one only when it is.
-          may_skip = {
-              "duvet-test-reach": os.environ["DUVET_MODULES"] in ("", "[]"),
-              "test-server": os.environ["TEST_SERVERS"] in ("", "[]"),
-              "no-test-server": os.environ["TEST_SERVERS"] not in ("", "[]"),
-          }
-          failed = []
-          for job, value in needs.items():
-              result = value["result"]
-              ok = result == "success" or (result == "skipped" and may_skip.get(job, False))
-              print("%-20s %s%s" % (job, result, "" if ok else "  <- FAILED"))
-              if not ok:
-                  failed.append(job)
-          if failed:
-              print("::error::gates that did not pass: " + ", ".join(failed))
-              sys.exit(1)
-          EOF
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
