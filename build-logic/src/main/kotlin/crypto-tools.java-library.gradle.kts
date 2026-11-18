@@ -110,11 +110,11 @@ val apiBaseline =
     }
 
 // Empty, not an error, before the first release with this major version.
-val apiBaselineJars = provider { apiBaseline.resolvedConfiguration.lenientConfiguration.files }
+val apiBaselineJars = apiBaseline.incoming.artifactView { isLenient = true }.files
 
 // Report only: lists the API changes since apiBaseline and never fails on them.
 tasks.register<JapicmpTask>("apiCompatibility") {
-    onlyIf("a release with this major version exists") { apiBaselineJars.get().isNotEmpty() }
+    onlyIf("a release with this major version exists") { !apiBaselineJars.isEmpty }
     oldClasspath.from(apiBaselineJars)
     newClasspath.from(tasks.jar)
     onlyModified = true

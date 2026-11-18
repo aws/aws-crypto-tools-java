@@ -340,6 +340,9 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           retry-on-snapshot-warnings: true
+          # build-logic's kotlin-dsl brings in kotlin-gradle-plugin, which no released version fixes yet.
+          # The bug is in Kotlin's build cache, and this repository uses no shared build cache.
+          allow-ghsas: GHSA-r937-wjx7-w2jp
 
   # Not required. The other jobs test on Java 8.
   java-versions:
