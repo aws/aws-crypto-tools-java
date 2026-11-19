@@ -170,7 +170,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //# the hierarchical keyring MUST attempt to obtain the branch key materials
     //# by querying the backing branch keystore specified in
     //# the [retrieve OnEncrypt branch key materials](#query-branch-keystore-onencrypt) section.
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
+    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(b -> b.branchKeyId(id)).branchKeyMaterials());
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.Wrap<Void> wrap = (plaintext, suite, encryptionContext) ->
       new EdkWrapping.Wrapped<>(wrap(branchKey, idBytes, versionBytes, plaintext, encryptionContext), null);
@@ -259,7 +259,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     byte[] cacheId = cacheId(SCOPE_DECRYPT, idBytes, version);
     BranchKeyMaterials branchKey = branchKey(
       cacheId,
-      () -> keyStore.getBranchKeyVersion(b -> b.branchKeyIdentifier(id).branchKeyVersion(version)).branchKeyMaterials()
+      () -> keyStore.getBranchKeyVersion(b -> b.branchKeyId(id).branchKeyVersion(version)).branchKeyMaterials()
     );
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(

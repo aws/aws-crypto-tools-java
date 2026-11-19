@@ -9,11 +9,11 @@ import software.amazon.cryptography.materialproviders.EncryptionContext;
 /** Input to {@link DynamoDbKeyStore#createKey}. Immutable. */
 public final class CreateKeyRequest {
 
-  private final String branchKeyIdentifier;
+  private final String branchKeyId;
   private final EncryptionContext encryptionContext;
 
   private CreateKeyRequest(Builder builder) {
-    this.branchKeyIdentifier = builder.branchKeyIdentifier;
+    this.branchKeyId = builder.branchKeyId;
     this.encryptionContext = builder.encryptionContext;
   }
 
@@ -24,14 +24,14 @@ public final class CreateKeyRequest {
   /** A builder holding this request's values. */
   public Builder toBuilder() {
     Builder builder = new Builder();
-    builder.branchKeyIdentifier = branchKeyIdentifier;
+    builder.branchKeyId = branchKeyId;
     builder.encryptionContext = encryptionContext;
     return builder;
   }
 
   /** Absent means a random version 4 UUID. */
-  public Optional<String> branchKeyIdentifier() {
-    return Optional.ofNullable(branchKeyIdentifier);
+  public Optional<String> branchKeyId() {
+    return Optional.ofNullable(branchKeyId);
   }
 
   /** Bound into the branch key's KMS encryption context. */
@@ -41,20 +41,20 @@ public final class CreateKeyRequest {
 
   @Override
   public String toString() {
-    return "CreateKeyRequest[" + branchKeyIdentifier + ", " + encryptionContext + "]";
+    return "CreateKeyRequest[" + branchKeyId + ", " + encryptionContext + "]";
   }
 
   /** Not thread-safe. */
   public static final class Builder {
 
-    private String branchKeyIdentifier;
+    private String branchKeyId;
     private EncryptionContext encryptionContext;
 
     private Builder() {}
 
     /** Must not be empty. Requires a non-empty {@code encryptionContext}. */
-    public Builder branchKeyIdentifier(String branchKeyIdentifier) {
-      this.branchKeyIdentifier = branchKeyIdentifier;
+    public Builder branchKeyId(String branchKeyId) {
+      this.branchKeyId = branchKeyId;
       return this;
     }
 

@@ -45,7 +45,7 @@ public class KeyStore {
   public CreateKeyOutput CreateKey(CreateKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     EncryptionContext encryptionContext = KeyStoreConvert.encryptionContext(input.encryptionContext());
-    String created = call(() -> store.createKey(b -> b.branchKeyIdentifier(branchKeyIdentifier).encryptionContext(encryptionContext)).branchKeyIdentifier());
+    String created = call(() -> store.createKey(b -> b.branchKeyId(branchKeyIdentifier).encryptionContext(encryptionContext)).branchKeyId());
     return CreateKeyOutput.builder().branchKeyIdentifier(created).build();
   }
 
@@ -59,7 +59,7 @@ public class KeyStore {
   public GetActiveBranchKeyOutput GetActiveBranchKey(GetActiveBranchKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetActiveBranchKeyOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdentifier)).branchKeyMaterials())))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdentifier)).branchKeyMaterials())))
       .build();
   }
 
@@ -67,7 +67,7 @@ public class KeyStore {
   public GetBeaconKeyOutput GetBeaconKey(GetBeaconKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     return GetBeaconKeyOutput.builder()
-      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(b -> b.branchKeyIdentifier(branchKeyIdentifier)).beaconKeyMaterials())))
+      .beaconKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBeaconKey(b -> b.branchKeyId(branchKeyIdentifier)).beaconKeyMaterials())))
       .build();
   }
 
@@ -76,7 +76,7 @@ public class KeyStore {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     String branchKeyVersion = input.branchKeyVersion();
     return GetBranchKeyVersionOutput.builder()
-      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(b -> b.branchKeyIdentifier(branchKeyIdentifier).branchKeyVersion(branchKeyVersion)).branchKeyMaterials())))
+      .branchKeyMaterials(KeyStoreConvert.toOld(call(() -> store.getBranchKeyVersion(b -> b.branchKeyId(branchKeyIdentifier).branchKeyVersion(branchKeyVersion)).branchKeyMaterials())))
       .build();
   }
 
@@ -89,7 +89,7 @@ public class KeyStore {
   public VersionKeyOutput VersionKey(VersionKeyInput input) {
     String branchKeyIdentifier = input.branchKeyIdentifier();
     call(() -> {
-      store.versionKey(b -> b.branchKeyIdentifier(branchKeyIdentifier));
+      store.versionKey(b -> b.branchKeyId(branchKeyIdentifier));
       return null;
     });
     return VersionKeyOutput.builder().build();

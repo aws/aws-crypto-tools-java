@@ -7,10 +7,10 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 /** Input to {@link DynamoDbKeyStore#getBeaconKey}. Immutable. */
 public final class GetBeaconKeyRequest {
 
-  private final String branchKeyIdentifier;
+  private final String branchKeyId;
 
   private GetBeaconKeyRequest(Builder builder) {
-    this.branchKeyIdentifier = builder.branchKeyIdentifier;
+    this.branchKeyId = builder.branchKeyId;
   }
 
   public static Builder builder() {
@@ -19,33 +19,33 @@ public final class GetBeaconKeyRequest {
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {
-    return new Builder().branchKeyIdentifier(branchKeyIdentifier);
+    return new Builder().branchKeyId(branchKeyId);
   }
 
-  public String branchKeyIdentifier() {
-    return branchKeyIdentifier;
+  public String branchKeyId() {
+    return branchKeyId;
   }
 
   @Override
   public String toString() {
-    return "GetBeaconKeyRequest[" + branchKeyIdentifier + "]";
+    return "GetBeaconKeyRequest[" + branchKeyId + "]";
   }
 
-  /** Not thread-safe. Requires {@code branchKeyIdentifier}. */
+  /** Not thread-safe. Requires {@code branchKeyId}. */
   public static final class Builder {
 
-    private String branchKeyIdentifier;
+    private String branchKeyId;
 
     private Builder() {}
 
-    public Builder branchKeyIdentifier(String branchKeyIdentifier) {
-      this.branchKeyIdentifier = branchKeyIdentifier;
+    public Builder branchKeyId(String branchKeyId) {
+      this.branchKeyId = branchKeyId;
       return this;
     }
 
     public GetBeaconKeyRequest build() {
-      if (branchKeyIdentifier == null) {
-        throw new ValidationException("Missing value for required field `branchKeyIdentifier`");
+      if (branchKeyId == null) {
+        throw new ValidationException("Missing value for required field `branchKeyId`");
       }
       return new GetBeaconKeyRequest(this);
     }

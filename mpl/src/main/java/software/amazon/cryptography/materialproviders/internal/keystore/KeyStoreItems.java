@@ -56,7 +56,7 @@ public final class KeyStoreItems {
 
   /** The DECRYPT_ONLY context of a new branch key version. */
   static Map<String, String> decryptOnlyContext(
-    String branchKeyIdentifier,
+    String branchKeyId,
     String branchKeyVersion,
     String timestamp,
     String logicalKeyStoreName,
@@ -99,7 +99,7 @@ public final class KeyStoreItems {
     //= spec/framework/branch-key-store.md#decrypt-only-encryption-context
     //= type=implication
     //# The `type` attribute MUST stores the branch key version formatted like `"branch:version:"` + `version`.
-    context.put(BRANCH_KEY_IDENTIFIER_FIELD, branchKeyIdentifier);
+    context.put(BRANCH_KEY_IDENTIFIER_FIELD, branchKeyId);
     context.put(TYPE_FIELD, BRANCH_KEY_TYPE_PREFIX + branchKeyVersion);
     context.put(KEY_CREATE_TIME, timestamp);
     //= spec/framework/branch-key-store.md#logical-keystore-name
@@ -252,13 +252,13 @@ public final class KeyStoreItems {
   }
 
   /**
-   * Whether {@code item} is a valid key store item stored under {@code branchKeyIdentifier} and {@code type}
+   * Whether {@code item} is a valid key store item stored under {@code branchKeyId} and {@code type}
    * (ActiveBranchKeyItem?, VersionBranchKeyItem?, or BeaconKeyItem?, plus the key the read asked for).
    */
-  static boolean isValid(Map<String, AttributeValue> item, String branchKeyIdentifier, String type) {
+  static boolean isValid(Map<String, AttributeValue> item, String branchKeyId, String type) {
     return (
       isBranchKeyItem(item) &&
-      item.get(BRANCH_KEY_IDENTIFIER_FIELD).s().equals(branchKeyIdentifier) &&
+      item.get(BRANCH_KEY_IDENTIFIER_FIELD).s().equals(branchKeyId) &&
       item.get(TYPE_FIELD).s().equals(type)
     );
   }

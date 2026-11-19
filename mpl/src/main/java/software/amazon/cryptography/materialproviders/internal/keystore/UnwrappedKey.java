@@ -17,7 +17,7 @@ public final class UnwrappedKey {
     this.key = key;
   }
 
-  public String branchKeyIdentifier() {
+  public String branchKeyId() {
     return context.get(KeyStoreItems.BRANCH_KEY_IDENTIFIER_FIELD);
   }
 

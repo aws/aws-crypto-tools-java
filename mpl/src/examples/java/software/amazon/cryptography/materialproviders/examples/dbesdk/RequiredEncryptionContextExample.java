@@ -55,8 +55,8 @@ public final class RequiredEncryptionContextExample {
 
   private static DbEsdkLikeItemEncryptor tenantTable(DynamoDbKeyStore keyStore) {
     Map<String, String> branchKeyIds = new LinkedHashMap<>();
-    branchKeyIds.put("tenantA", keyStore.createKey().branchKeyIdentifier());
-    branchKeyIds.put("tenantB", keyStore.createKey().branchKeyIdentifier());
+    branchKeyIds.put("tenantA", keyStore.createKey().branchKeyId());
+    branchKeyIds.put("tenantB", keyStore.createKey().branchKeyId());
     // The MPL supplier sees the whole encryption context, including the SIGN_AND_INCLUDE entries.
     BranchKeyIdSupplier byTenant = request -> {
       String tenant = request.encryptionContext().get(DbEsdkLikeItemEncryptor.ATTR_PREFIX + TENANT);

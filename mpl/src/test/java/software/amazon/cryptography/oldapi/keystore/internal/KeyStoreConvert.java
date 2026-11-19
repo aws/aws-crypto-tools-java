@@ -126,7 +126,7 @@ public final class KeyStoreConvert {
 
   public static BranchKeyMaterials toOld(software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials materials) {
     return BranchKeyMaterials.builder()
-      .branchKeyIdentifier(materials.branchKeyIdentifier())
+      .branchKeyIdentifier(materials.branchKeyId())
       .branchKeyVersion(materials.branchKeyVersion())
       .encryptionContext(new HashMap<>(materials.encryptionContext()))
       .branchKey(ByteBuffer.wrap(materials.branchKey().toByteArray()))

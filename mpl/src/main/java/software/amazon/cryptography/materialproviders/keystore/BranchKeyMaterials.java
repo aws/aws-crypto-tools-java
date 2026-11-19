@@ -22,25 +22,25 @@ public final class BranchKeyMaterials {
     KeyMaterialsAccess.registerBranchKey(BranchKeyMaterials::new);
   }
 
-  private final String branchKeyIdentifier;
+  private final String branchKeyId;
   private final String branchKeyVersion;
   private final EncryptionContext encryptionContext;
   private final SecretBytes branchKey;
 
   private BranchKeyMaterials(
-    String branchKeyIdentifier,
+    String branchKeyId,
     String branchKeyVersion,
     EncryptionContext encryptionContext,
     SecretBytes branchKey
   ) {
-    this.branchKeyIdentifier = Objects.requireNonNull(branchKeyIdentifier, "branchKeyIdentifier");
+    this.branchKeyId = Objects.requireNonNull(branchKeyId, "branchKeyId");
     this.branchKeyVersion = Objects.requireNonNull(branchKeyVersion, "branchKeyVersion");
     this.encryptionContext = Objects.requireNonNull(encryptionContext, "encryptionContext");
     this.branchKey = Objects.requireNonNull(branchKey, "branchKey");
   }
 
-  public String branchKeyIdentifier() {
-    return branchKeyIdentifier;
+  public String branchKeyId() {
+    return branchKeyId;
   }
 
   /** A UUID string. */
@@ -66,7 +66,7 @@ public final class BranchKeyMaterials {
     }
     BranchKeyMaterials that = (BranchKeyMaterials) other;
     return (
-      branchKeyIdentifier.equals(that.branchKeyIdentifier) &&
+      branchKeyId.equals(that.branchKeyId) &&
       branchKeyVersion.equals(that.branchKeyVersion) &&
       encryptionContext.equals(that.encryptionContext) &&
       branchKey.contentEquals(that.branchKey)
@@ -75,14 +75,14 @@ public final class BranchKeyMaterials {
 
   @Override
   public int hashCode() {
-    return Objects.hash(branchKeyIdentifier, branchKeyVersion, encryptionContext);
+    return Objects.hash(branchKeyId, branchKeyVersion, encryptionContext);
   }
 
   /** Id, version, and context keys; never the key. */
   @Override
   public String toString() {
     return (
-      "BranchKeyMaterials[" + branchKeyIdentifier + ", version " + branchKeyVersion +
+      "BranchKeyMaterials[" + branchKeyId + ", version " + branchKeyVersion +
       ", context keys " + encryptionContext.keySet() + "]"
     );
   }

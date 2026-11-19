@@ -129,9 +129,9 @@ final class KeyStoreTable {
   }
 
   /** The item stored under the key; fails if there is none, and with {@code invalidItem} if it is not a valid one. */
-  Map<String, AttributeValue> get(String branchKeyIdentifier, String type, String invalidItem) {
+  Map<String, AttributeValue> get(String branchKeyId, String type, String invalidItem) {
     Map<String, AttributeValue> key = new HashMap<>();
-    key.put(KeyStoreItems.BRANCH_KEY_IDENTIFIER_FIELD, AttributeValue.builder().s(branchKeyIdentifier).build());
+    key.put(KeyStoreItems.BRANCH_KEY_IDENTIFIER_FIELD, AttributeValue.builder().s(branchKeyId).build());
     key.put(KeyStoreItems.TYPE_FIELD, AttributeValue.builder().s(type).build());
     GetItemResponse response;
     try {
@@ -165,7 +165,7 @@ final class KeyStoreTable {
     //= spec/framework/branch-key-store.md#getbeaconkey
     //= type=implication
     //# The AWS DDB response MUST contain the fields defined in the [branch keystore record format](#record-format).
-    if (!KeyStoreItems.isValid(item, branchKeyIdentifier, type)) {
+    if (!KeyStoreItems.isValid(item, branchKeyId, type)) {
       throw new InvalidMaterialsException(invalidItem);
     }
     return item;

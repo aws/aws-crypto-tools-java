@@ -17,7 +17,7 @@ public final class KeyMaterialsAccess {
 
   /** Constructor of {@link BranchKeyMaterials}. */
   public interface BranchKeyFactory {
-    BranchKeyMaterials create(String branchKeyIdentifier, String branchKeyVersion, EncryptionContext encryptionContext, SecretBytes branchKey);
+    BranchKeyMaterials create(String branchKeyId, String branchKeyVersion, EncryptionContext encryptionContext, SecretBytes branchKey);
   }
 
   /** Constructor of {@link BeaconKeyMaterials}; {@code beaconKey} may be null. */
@@ -44,13 +44,13 @@ public final class KeyMaterialsAccess {
   }
 
   public static BranchKeyMaterials branchKey(
-    String branchKeyIdentifier,
+    String branchKeyId,
     String branchKeyVersion,
     EncryptionContext encryptionContext,
     SecretBytes key
   ) {
     load(BranchKeyMaterials.class);
-    return branchKey.create(branchKeyIdentifier, branchKeyVersion, encryptionContext, key);
+    return branchKey.create(branchKeyId, branchKeyVersion, encryptionContext, key);
   }
 
   /** {@code key} may be null; an empty {@code hmacKeys} means none were derived. */

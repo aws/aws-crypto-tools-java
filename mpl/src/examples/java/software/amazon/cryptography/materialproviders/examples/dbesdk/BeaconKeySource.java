@@ -110,7 +110,7 @@ public final class BeaconKeySource {
         .orElseThrow(() -> new IllegalStateException("Invalid Material Type."));
       return copies(cached.hmacKeys());
     }
-    BeaconKeyMaterials materials = keyStore.getBeaconKey(b -> b.branchKeyIdentifier(beaconKeyId)).beaconKeyMaterials();
+    BeaconKeyMaterials materials = keyStore.getBeaconKey(b -> b.branchKeyId(beaconKeyId)).beaconKeyMaterials();
     SecretBytes beaconKey = materials.beaconKey().orElseThrow(() -> new IllegalStateException("beacon key unexpectedly empty"));
     Map<String, SecretBytes> keys = new LinkedHashMap<>();
     try {

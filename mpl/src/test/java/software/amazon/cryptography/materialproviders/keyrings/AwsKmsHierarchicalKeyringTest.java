@@ -77,7 +77,7 @@ class AwsKmsHierarchicalKeyringTest {
 
   AwsKmsHierarchicalKeyringTest() {
     store.createKeyStore();
-    branchKey = store.createKey().branchKeyIdentifier();
+    branchKey = store.createKey().branchKeyId();
     aws.clearRequests();
   }
 

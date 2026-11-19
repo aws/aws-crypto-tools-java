@@ -27,7 +27,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
  *
  * <p>Each operation takes a request object and returns a response object.
  * Every operation also accepts a {@code Consumer} of the request's builder, as the AWS SDK for Java 2.x does:
- * {@code store.createKey(b -> b.branchKeyIdentifier(id).encryptionContext(context))}.
+ * {@code store.createKey(b -> b.branchKeyId(id).encryptionContext(context))}.
  *
  * <p>Reads are eventually consistent, and {@link #versionKey} does not detect a concurrent {@code versionKey}:
  * the last write of the ACTIVE item wins.
@@ -101,9 +101,9 @@ public final class DynamoDbKeyStore implements AutoCloseable {
   //# - An optional branch key id
   //# - An optional encryption context
   public CreateKeyResponse createKey(CreateKeyRequest request) {
-    String id = request.branchKeyIdentifier().orElse(null);
+    String id = request.branchKeyId().orElse(null);
     EncryptionContext encryptionContext = request.encryptionContext().orElse(null);
-    return CreateKeyResponse.builder().branchKeyIdentifier(operations.createKey(id, encryptionContext)).build();
+    return CreateKeyResponse.builder().branchKeyId(operations.createKey(id, encryptionContext)).build();
   }
 
   /** Creates a branch key with a random id and no encryption context of the caller's. */
@@ -123,7 +123,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
   //= type=implication
   //# - MUST supply a `branch-key-id`
   public VersionKeyResponse versionKey(VersionKeyRequest request) {
-    operations.versionKey(request.branchKeyIdentifier());
+    operations.versionKey(request.branchKeyId());
     return VersionKeyResponse.builder().build();
   }
 
@@ -147,7 +147,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
     return GetActiveBranchKeyResponse.builder()
-      .branchKeyMaterials(branchKeyMaterials(operations.getActiveBranchKey(request.branchKeyIdentifier())))
+      .branchKeyMaterials(branchKeyMaterials(operations.getActiveBranchKey(request.branchKeyId())))
       .build();
   }
 
@@ -175,7 +175,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
     //= type=implication
     //# This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
     return GetBranchKeyVersionResponse.builder()
-      .branchKeyMaterials(branchKeyMaterials(operations.getBranchKeyVersion(request.branchKeyIdentifier(), request.branchKeyVersion())))
+      .branchKeyMaterials(branchKeyMaterials(operations.getBranchKeyVersion(request.branchKeyId(), request.branchKeyVersion())))
       .build();
   }
 
@@ -190,7 +190,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
   //= type=implication
   //# - MUST supply a `branch-key-id`
   public GetBeaconKeyResponse getBeaconKey(GetBeaconKeyRequest request) {
-    UnwrappedKey unwrapped = operations.getBeaconKey(request.branchKeyIdentifier());
+    UnwrappedKey unwrapped = operations.getBeaconKey(request.branchKeyId());
     try {
       EncryptionContext context = EncryptionContext.copyOf(unwrapped.encryptionContext());
       //= spec/framework/branch-key-store.md#getbeaconkey
@@ -202,7 +202,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
       //= type=implication
       //# This operation MUST return the constructed [beacon key materials](./structures.md#beacon-key-materials).
       return GetBeaconKeyResponse.builder()
-        .beaconKeyMaterials(KeyMaterialsAccess.beaconKey(unwrapped.branchKeyIdentifier(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap()))
+        .beaconKeyMaterials(KeyMaterialsAccess.beaconKey(unwrapped.branchKeyId(), context, SecretBytes.copyOf(unwrapped.key()), Collections.emptyMap()))
         .build();
     } finally {
       Bytes.zero(unwrapped.key());
@@ -252,7 +252,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
       //= spec/framework/branch-key-store.md#branch-key-materials-from-authenticated-encryption-context
       //= type=implication
       //# - [Branch Key Id](./structures.md#branch-key-id) MUST be the `branch-key-id`
-      return KeyMaterialsAccess.branchKey(unwrapped.branchKeyIdentifier(), version, context, SecretBytes.copyOf(unwrapped.key()));
+      return KeyMaterialsAccess.branchKey(unwrapped.branchKeyId(), version, context, SecretBytes.copyOf(unwrapped.key()));
     } finally {
       Bytes.zero(unwrapped.key());
     }

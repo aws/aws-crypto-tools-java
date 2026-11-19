@@ -159,10 +159,10 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .build();
     owning.createKeyStore();
-    String id = owning.createKey().branchKeyIdentifier();
-    assertNotNull(owning.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
+    String id = owning.createKey().branchKeyId();
+    assertNotNull(owning.getActiveBranchKey(b -> b.branchKeyId(id)).branchKeyMaterials());
     owning.close();
-    assertThrows(IllegalStateException.class, () -> owning.getActiveBranchKey(b -> b.branchKeyIdentifier(id)));
+    assertThrows(IllegalStateException.class, () -> owning.getActiveBranchKey(b -> b.branchKeyId(id)));
     assertThrows(IllegalStateException.class, () -> owning.createKey());
 
     KmsClient kms = harness.nativeAws.kmsClient(ReferenceAws.NATIVE, KEY_REGION);
@@ -175,7 +175,7 @@ class KeyStoreDefaultClientsTest {
       .ddbClient(ddb)
       .build();
     borrowing.close();
-    assertNotNull(borrowing.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
+    assertNotNull(borrowing.getActiveBranchKey(b -> b.branchKeyId(id)).branchKeyMaterials());
     // A store with only one client passed in closes the other.
     DynamoDbKeyStore half = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
@@ -184,7 +184,7 @@ class KeyStoreDefaultClientsTest {
       .kmsClient(kms)
       .build();
     half.close();
-    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(b -> b.branchKeyIdentifier(id)));
+    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(b -> b.branchKeyId(id)));
   }
 
   // Builds each side's store without clients, aimed at its own endpoint, and runs the same operations on both.
@@ -237,7 +237,7 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .build();
     setup.createKeyStore();
-    String id = setup.createKey().branchKeyIdentifier();
+    String id = setup.createKey().branchKeyId();
     setup.close();
     DynamoDbKeyStore half = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
@@ -245,9 +245,9 @@ class KeyStoreDefaultClientsTest {
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
       .ddbClient(harness.nativeAws.dynamoDbClient(ReferenceAws.NATIVE, KEY_REGION))
       .build();
-    assertNotNull(half.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
+    assertNotNull(half.getActiveBranchKey(b -> b.branchKeyId(id)).branchKeyMaterials());
     half.close();
-    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(b -> b.branchKeyIdentifier(id)));
+    assertThrows(IllegalStateException.class, () -> half.getActiveBranchKey(b -> b.branchKeyId(id)));
   }
 
   private static void same(KeyStore nativeStore, Object referenceStore, String operation, Object input) {

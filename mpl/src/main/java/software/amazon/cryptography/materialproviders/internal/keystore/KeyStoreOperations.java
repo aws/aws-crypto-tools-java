@@ -176,7 +176,7 @@ public final class KeyStoreOperations implements AutoCloseable {
   /**
    * Creates a branch key: its first version, DECRYPT_ONLY and ACTIVE, and its beacon key.
    *
-   * @param branchKeyIdentifier the caller's id, or null for a random one
+   * @param branchKeyId the caller's id, or null for a random one
    * @param encryptionContext the caller's encryption context, or null for none; an id without a non-empty one fails
    */
   //= spec/framework/branch-key-store.md#branch-key-and-beacon-key-creation
@@ -185,12 +185,12 @@ public final class KeyStoreOperations implements AutoCloseable {
   //#
   //# - `branchKeyId`: The identifier
   //# - `encryptionContext`: Additional encryption context to bind to the created keys
-  public String createKey(String branchKeyIdentifier, Map<String, String> encryptionContext) {
+  public String createKey(String branchKeyId, Map<String, String> encryptionContext) {
     //= spec/framework/branch-key-store.md#createkey
     //= type=implication
     //# If an optional branch key id is provided
     //# and no encryption context is provided this operation MUST fail.
-    if (branchKeyIdentifier != null && (encryptionContext == null || encryptionContext.isEmpty())) {
+    if (branchKeyId != null && (encryptionContext == null || encryptionContext.isEmpty())) {
       throw new ValidationException(KeyStoreMessages.CUSTOM_BRANCH_KEY_ID_NEED_EC);
     }
     if (!kmsConfiguration.arn().isPresent()) {
@@ -200,7 +200,7 @@ public final class KeyStoreOperations implements AutoCloseable {
       //# this operation MUST fail.
       throw new ValidationException(KeyStoreMessages.DISCOVERY_CREATE_KEY_NOT_SUPPORTED);
     }
-    String id = branchKeyIdentifier;
+    String id = branchKeyId;
     if (id == null) {
       //= spec/framework/branch-key-store.md#createkey
       //# If no branch key id is provided,
@@ -308,7 +308,7 @@ public final class KeyStoreOperations implements AutoCloseable {
    * Makes a new ACTIVE version, after KMS authenticates the current ACTIVE item.
    * The new version keeps every other attribute of that item, including the caller's encryption context.
    */
-  public void versionKey(String branchKeyIdentifier) {
+  public void versionKey(String branchKeyId) {
     //= spec/framework/branch-key-store.md#versionkey
     //= type=implication
     //# If the Keystore's KMS Configuration is `Discovery` or `MRDiscovery`,
@@ -316,7 +316,7 @@ public final class KeyStoreOperations implements AutoCloseable {
     if (!kmsConfiguration.arn().isPresent()) {
       throw new ValidationException(KeyStoreMessages.DISCOVERY_VERSION_KEY_NOT_SUPPORTED);
     }
-    if (branchKeyIdentifier.isEmpty()) {
+    if (branchKeyId.isEmpty()) {
       throw new ValidationException(KeyStoreMessages.BRANCH_KEY_ID_NEEDED);
     }
     String timestamp = timestamp();
@@ -328,7 +328,7 @@ public final class KeyStoreOperations implements AutoCloseable {
     //# by calling AWS DDB `GetItem`
     //# using the `branch-key-id` as the Partition Key and `"branch:ACTIVE"` value as the Sort Key.
     Map<String, AttributeValue> oldActiveItem = table.get(
-      branchKeyIdentifier,
+      branchKeyId,
       KeyStoreItems.BRANCH_KEY_ACTIVE_TYPE,
       KeyStoreMessages.INVALID_ACTIVE_ITEM
     );
@@ -414,9 +414,9 @@ public final class KeyStoreOperations implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getactivebranchkey
   //= type=implication
   //# If the branch key fails to decrypt, GetActiveBranchKey MUST fail.
-  public UnwrappedKey getActiveBranchKey(String branchKeyIdentifier) {
+  public UnwrappedKey getActiveBranchKey(String branchKeyId) {
     return unwrap(
-      branchKeyIdentifier,
+      branchKeyId,
       KeyStoreItems.BRANCH_KEY_ACTIVE_TYPE,
       KeyStoreMessages.INVALID_ACTIVE_ITEM,
       KeyStoreMessages.GET_KEY_ARN_DISAGREEMENT
@@ -435,9 +435,9 @@ public final class KeyStoreOperations implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getbranchkeyversion
   //= type=implication
   //# If the branch key fails to decrypt, this operation MUST fail.
-  public UnwrappedKey getBranchKeyVersion(String branchKeyIdentifier, String branchKeyVersion) {
+  public UnwrappedKey getBranchKeyVersion(String branchKeyId, String branchKeyVersion) {
     return unwrap(
-      branchKeyIdentifier,
+      branchKeyId,
       KeyStoreItems.BRANCH_KEY_TYPE_PREFIX + branchKeyVersion,
       KeyStoreMessages.INVALID_VERSION_ITEM,
       KeyStoreMessages.GET_KEY_VERSION_ARN_DISAGREEMENT
@@ -456,17 +456,17 @@ public final class KeyStoreOperations implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getbeaconkey
   //= type=implication
   //# If the beacon key fails to decrypt, this operation MUST fail.
-  public UnwrappedKey getBeaconKey(String branchKeyIdentifier) {
+  public UnwrappedKey getBeaconKey(String branchKeyId) {
     return unwrap(
-      branchKeyIdentifier,
+      branchKeyId,
       KeyStoreItems.BEACON_KEY_TYPE_VALUE,
       KeyStoreMessages.INVALID_BEACON_ITEM,
       KeyStoreMessages.GET_KEY_VERSION_ARN_DISAGREEMENT
     );
   }
 
-  private UnwrappedKey unwrap(String branchKeyIdentifier, String type, String invalidItem, String disagreement) {
-    Map<String, AttributeValue> item = table.get(branchKeyIdentifier, type, invalidItem);
+  private UnwrappedKey unwrap(String branchKeyId, String type, String invalidItem, String disagreement) {
+    Map<String, AttributeValue> item = table.get(branchKeyId, type, invalidItem);
     Map<String, String> context = KeyStoreItems.toContext(item, logicalKeyStoreName);
     //= spec/framework/branch-key-store.md#aws-kms-branch-key-decryption
     //= type=implication

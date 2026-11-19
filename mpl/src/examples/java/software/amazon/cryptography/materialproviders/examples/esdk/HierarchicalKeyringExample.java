@@ -54,8 +54,8 @@ public final class HierarchicalKeyringExample {
       keyStore.createKeyStore();
       // createKeyStore does not wait for a new table to become active; writes to it fail until then.
       ddbClient.waiter().waitUntilTableExists(table -> table.tableName(keyStoreTableName));
-      String branchKeyIdA = keyStore.createKey().branchKeyIdentifier();
-      String branchKeyIdB = keyStore.createKey().branchKeyIdentifier();
+      String branchKeyIdA = keyStore.createKey().branchKeyId();
+      String branchKeyIdB = keyStore.createKey().branchKeyId();
 
       BranchKeyIdSupplier byTenant = request -> {
         String tenant = request.encryptionContext().get("tenant");
@@ -89,9 +89,9 @@ public final class HierarchicalKeyringExample {
 
       // Rotation: a new active version for tenant A. Earlier messages still decrypt;
       // keyrings pick up the new version when their cached copy expires (here: a keyring that caches nothing).
-      String versionBefore = keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
-      keyStore.versionKey(b -> b.branchKeyIdentifier(branchKeyIdA));
-      String versionAfter = keyStore.getActiveBranchKey(b -> b.branchKeyIdentifier(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      String versionBefore = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+      keyStore.versionKey(b -> b.branchKeyId(branchKeyIdA));
+      String versionAfter = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
       Expect.isTrue(!versionBefore.equals(versionAfter), "a new active version");
       Keyring uncached = AwsKmsHierarchicalKeyring
         .builder()

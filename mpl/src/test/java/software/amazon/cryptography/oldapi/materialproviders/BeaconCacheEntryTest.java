@@ -48,7 +48,7 @@ class BeaconCacheEntryTest {
       derivedBuffers.put("beacon" + i, ByteBuffer.wrap(key));
     }
 
-    BeaconKeyMaterials nativeEntry = stores.nativeStore.impl().getBeaconKey(b -> b.branchKeyIdentifier(id)).beaconKeyMaterials().toHmacKeysOnly(derived);
+    BeaconKeyMaterials nativeEntry = stores.nativeStore.impl().getBeaconKey(b -> b.branchKeyId(id)).beaconKeyMaterials().toHmacKeysOnly(derived);
     Object referenceOutput = ReferenceMpl.call(stores.referenceStore, "GetBeaconKey", GetBeaconKeyInput.builder().branchKeyIdentifier(id).build());
     Object referenceEntry = with(with(get(referenceOutput, "beaconKeyMaterials"), "beaconKey", null), "hmacKeys", derivedBuffers);
     assertEquals(ReferenceMpl.describe(referenceEntry), ReferenceMpl.describe(CacheAdapter.toOld(nativeEntry)));

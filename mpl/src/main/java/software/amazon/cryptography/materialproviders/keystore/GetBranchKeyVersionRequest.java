@@ -7,11 +7,11 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 /** Input to {@link DynamoDbKeyStore#getBranchKeyVersion}. Immutable. */
 public final class GetBranchKeyVersionRequest {
 
-  private final String branchKeyIdentifier;
+  private final String branchKeyId;
   private final String branchKeyVersion;
 
   private GetBranchKeyVersionRequest(Builder builder) {
-    this.branchKeyIdentifier = builder.branchKeyIdentifier;
+    this.branchKeyId = builder.branchKeyId;
     this.branchKeyVersion = builder.branchKeyVersion;
   }
 
@@ -21,11 +21,11 @@ public final class GetBranchKeyVersionRequest {
 
   /** A builder holding this request's values. */
   public Builder toBuilder() {
-    return new Builder().branchKeyIdentifier(branchKeyIdentifier).branchKeyVersion(branchKeyVersion);
+    return new Builder().branchKeyId(branchKeyId).branchKeyVersion(branchKeyVersion);
   }
 
-  public String branchKeyIdentifier() {
-    return branchKeyIdentifier;
+  public String branchKeyId() {
+    return branchKeyId;
   }
 
   public String branchKeyVersion() {
@@ -34,19 +34,19 @@ public final class GetBranchKeyVersionRequest {
 
   @Override
   public String toString() {
-    return "GetBranchKeyVersionRequest[" + branchKeyIdentifier + ", " + branchKeyVersion + "]";
+    return "GetBranchKeyVersionRequest[" + branchKeyId + ", " + branchKeyVersion + "]";
   }
 
-  /** Not thread-safe. Requires {@code branchKeyIdentifier} and {@code branchKeyVersion}. */
+  /** Not thread-safe. Requires {@code branchKeyId} and {@code branchKeyVersion}. */
   public static final class Builder {
 
-    private String branchKeyIdentifier;
+    private String branchKeyId;
     private String branchKeyVersion;
 
     private Builder() {}
 
-    public Builder branchKeyIdentifier(String branchKeyIdentifier) {
-      this.branchKeyIdentifier = branchKeyIdentifier;
+    public Builder branchKeyId(String branchKeyId) {
+      this.branchKeyId = branchKeyId;
       return this;
     }
 
@@ -56,8 +56,8 @@ public final class GetBranchKeyVersionRequest {
     }
 
     public GetBranchKeyVersionRequest build() {
-      if (branchKeyIdentifier == null) {
-        throw new ValidationException("Missing value for required field `branchKeyIdentifier`");
+      if (branchKeyId == null) {
+        throw new ValidationException("Missing value for required field `branchKeyId`");
       }
       if (branchKeyVersion == null) {
         throw new ValidationException("Missing value for required field `branchKeyVersion`");

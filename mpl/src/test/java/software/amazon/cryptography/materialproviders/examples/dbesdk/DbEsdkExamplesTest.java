@@ -101,8 +101,8 @@ class DbEsdkExamplesTest {
   @Test
   void singleKeyStoreBeaconIsStableAndPerKey() {
     DynamoDbKeyStore store = keyStore();
-    String first = store.createKey().branchKeyIdentifier();
-    String second = store.createKey().branchKeyIdentifier();
+    String first = store.createKey().branchKeyId();
+    String second = store.createKey().branchKeyId();
     String beacon = SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321");
     assertEquals(beacon, SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321"));
     Map<String, String> perTenant = SearchableEncryptionExample.multiKeyStoreBeacons(store, first, second, "4321");
@@ -231,7 +231,7 @@ class DbEsdkExamplesTest {
   @Test
   void oneCacheServesTwoKeyringsAndTheBeaconKeySource() {
     DynamoDbKeyStore store = keyStore();
-    String branchKey = store.createKey().branchKeyIdentifier();
+    String branchKey = store.createKey().branchKeyId();
     aws.clearRequests();
     String beacon = SharedCacheExample.shareOneCache(store, branchKey);
     // Active branch key, the version on the writer's decrypt, the beacon key; the reader's decrypt hits the cache.
@@ -326,7 +326,7 @@ class DbEsdkExamplesTest {
   @Test
   void beaconKeySourceCachesWithinItsTtlAndPartition() {
     DynamoDbKeyStore store = keyStore();
-    String key = store.createKey().branchKeyIdentifier();
+    String key = store.createKey().branchKeyId();
     CryptographicMaterialsCache backing = MultiThreadedCache.builder().entryCapacity(10).build();
     List<CacheEntry> puts = new ArrayList<>();
     CryptographicMaterialsCache cache = new CryptographicMaterialsCache() {

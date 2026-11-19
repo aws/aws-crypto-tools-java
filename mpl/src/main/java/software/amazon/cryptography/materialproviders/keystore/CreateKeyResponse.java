@@ -7,10 +7,10 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 /** Output of {@link DynamoDbKeyStore#createKey}. Immutable. */
 public final class CreateKeyResponse {
 
-  private final String branchKeyIdentifier;
+  private final String branchKeyId;
 
   private CreateKeyResponse(Builder builder) {
-    this.branchKeyIdentifier = builder.branchKeyIdentifier;
+    this.branchKeyId = builder.branchKeyId;
   }
 
   public static Builder builder() {
@@ -19,34 +19,34 @@ public final class CreateKeyResponse {
 
   /** A builder holding this response's values. */
   public Builder toBuilder() {
-    return new Builder().branchKeyIdentifier(branchKeyIdentifier);
+    return new Builder().branchKeyId(branchKeyId);
   }
 
   /** The id of the created branch key. */
-  public String branchKeyIdentifier() {
-    return branchKeyIdentifier;
+  public String branchKeyId() {
+    return branchKeyId;
   }
 
   @Override
   public String toString() {
-    return "CreateKeyResponse[" + branchKeyIdentifier + "]";
+    return "CreateKeyResponse[" + branchKeyId + "]";
   }
 
-  /** Not thread-safe. Requires {@code branchKeyIdentifier}. */
+  /** Not thread-safe. Requires {@code branchKeyId}. */
   public static final class Builder {
 
-    private String branchKeyIdentifier;
+    private String branchKeyId;
 
     private Builder() {}
 
-    public Builder branchKeyIdentifier(String branchKeyIdentifier) {
-      this.branchKeyIdentifier = branchKeyIdentifier;
+    public Builder branchKeyId(String branchKeyId) {
+      this.branchKeyId = branchKeyId;
       return this;
     }
 
     public CreateKeyResponse build() {
-      if (branchKeyIdentifier == null) {
-        throw new ValidationException("Missing value for required field `branchKeyIdentifier`");
+      if (branchKeyId == null) {
+        throw new ValidationException("Missing value for required field `branchKeyId`");
       }
       return new CreateKeyResponse(this);
     }

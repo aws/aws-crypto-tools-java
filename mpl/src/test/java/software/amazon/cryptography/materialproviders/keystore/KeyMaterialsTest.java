@@ -29,7 +29,7 @@ class KeyMaterialsTest {
   void branchKeyMaterials() {
     SecretBytes key = secret(1);
     BranchKeyMaterials materials = KeyMaterialsAccess.branchKey("id", "version", CONTEXT, key);
-    assertEquals("id", materials.branchKeyIdentifier());
+    assertEquals("id", materials.branchKeyId());
     assertEquals("version", materials.branchKeyVersion());
     assertSame(CONTEXT, materials.encryptionContext());
     assertSame(key, materials.branchKey());
