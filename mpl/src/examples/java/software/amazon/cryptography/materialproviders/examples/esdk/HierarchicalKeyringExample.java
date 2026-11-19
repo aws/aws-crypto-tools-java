@@ -40,70 +40,67 @@ public final class HierarchicalKeyringExample {
     KmsClient kmsClient,
     DynamoDbClient ddbClient
   ) {
-    try (
-      DynamoDbKeyStore keyStore = DynamoDbKeyStore
-        .builder()
-        .ddbTableName(keyStoreTableName)
-        .logicalKeyStoreName(logicalKeyStoreName)
-        .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
-        .kmsClient(kmsClient)
-        .ddbClient(ddbClient)
-        .build()
-    ) {
-      // Admin, usually done once by an operator: the table, then one branch key per tenant.
-      keyStore.createKeyStore();
-      // createKeyStore does not wait for a new table to become active; writes to it fail until then.
-      ddbClient.waiter().waitUntilTableExists(table -> table.tableName(keyStoreTableName));
-      String branchKeyIdA = keyStore.createKey().branchKeyId();
-      String branchKeyIdB = keyStore.createKey().branchKeyId();
+    DynamoDbKeyStore keyStore = DynamoDbKeyStore
+      .builder()
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(logicalKeyStoreName)
+      .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
+      .kmsClient(kmsClient)
+      .ddbClient(ddbClient)
+      .build();
+    // Admin, usually done once by an operator: the table, then one branch key per tenant.
+    keyStore.createKeyStore();
+    // createKeyStore does not wait for a new table to become active; writes to it fail until then.
+    ddbClient.waiter().waitUntilTableExists(table -> table.tableName(keyStoreTableName));
+    String branchKeyIdA = keyStore.createKey().branchKeyId();
+    String branchKeyIdB = keyStore.createKey().branchKeyId();
 
-      BranchKeyIdSupplier byTenant = request -> {
-        String tenant = request.encryptionContext().get("tenant");
-        if ("TenantA".equals(tenant)) {
-          return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdA).build();
-        }
-        if ("TenantB".equals(tenant)) {
-          return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdB).build();
-        }
-        throw new IllegalArgumentException("Encryption context has no known tenant");
-      };
-      Keyring keyring = AwsKmsHierarchicalKeyring
-        .builder()
-        .keyStore(keyStore)
-        .branchKeyIdSupplier(byTenant)
-        .ttl(Duration.ofMinutes(10))
-        .cache(DefaultCache.builder().entryCapacity(100).build())
-        .build();
+    BranchKeyIdSupplier byTenant = request -> {
+      String tenant = request.encryptionContext().get("tenant");
+      if ("TenantA".equals(tenant)) {
+        return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdA).build();
+      }
+      if ("TenantB".equals(tenant)) {
+        return GetBranchKeyIdResponse.builder().branchKeyId(branchKeyIdB).build();
+      }
+      throw new IllegalArgumentException("Encryption context has no known tenant");
+    };
+    Keyring keyring = AwsKmsHierarchicalKeyring
+      .builder()
+      .keyStore(keyStore)
+      .branchKeyIdSupplier(byTenant)
+      .ttl(Duration.ofMinutes(10))
+      .cache(DefaultCache.builder().entryCapacity(100).build())
+      .build();
 
-      EsdkLikeClient crypto = EsdkLikeClient.builder().build();
-      Map<String, String> contextA = context("TenantA");
-      Map<String, String> contextB = context("TenantB");
-      byte[] ciphertextA = crypto.encryptData(keyring, EXAMPLE_DATA, contextA);
-      byte[] ciphertextB = crypto.encryptData(keyring, EXAMPLE_DATA, contextB);
+    EsdkLikeClient crypto = EsdkLikeClient.builder().build();
+    Map<String, String> contextA = context("TenantA");
+    Map<String, String> contextB = context("TenantB");
+    byte[] ciphertextA = crypto.encryptData(keyring, EXAMPLE_DATA, contextA);
+    byte[] ciphertextB = crypto.encryptData(keyring, EXAMPLE_DATA, contextB);
 
-      // A keyring fixed to tenant A's branch key cannot read tenant B's message.
-      Keyring onlyA = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyId(branchKeyIdA).ttl(Duration.ofMinutes(10)).build();
-      Expect.failure(NoMatchingDataKeyException.class, () -> crypto.decryptData(onlyA, ciphertextB));
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(onlyA, ciphertextA).getResult());
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertextB).getResult());
+    // A keyring fixed to tenant A's branch key cannot read tenant B's message.
+    Keyring onlyA = AwsKmsHierarchicalKeyring.builder().keyStore(keyStore).branchKeyId(branchKeyIdA).ttl(Duration.ofMinutes(10)).build();
+    Expect.failure(NoMatchingDataKeyException.class, () -> crypto.decryptData(onlyA, ciphertextB));
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(onlyA, ciphertextA).getResult());
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertextB).getResult());
 
-      // Rotation: a new active version for tenant A. Earlier messages still decrypt;
-      // keyrings pick up the new version when their cached copy expires (here: a keyring that caches nothing).
-      String versionBefore = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
-      keyStore.versionKey(b -> b.branchKeyId(branchKeyIdA));
-      String versionAfter = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
-      Expect.isTrue(!versionBefore.equals(versionAfter), "a new active version");
-      Keyring uncached = AwsKmsHierarchicalKeyring
-        .builder()
-        .keyStore(keyStore)
-        .branchKeyIdSupplier(byTenant)
-        .ttl(Duration.ofMinutes(10))
-        .cache(NoCache.create())
-        .build();
-      byte[] afterRotation = crypto.encryptData(uncached, EXAMPLE_DATA, contextA);
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(uncached, ciphertextA).getResult());
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, afterRotation).getResult());
-    }
+    // Rotation: a new active version for tenant A. Earlier messages still decrypt;
+    // keyrings pick up the new version when their cached copy expires (here: a keyring that caches nothing).
+    String versionBefore = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+    keyStore.versionKey(b -> b.branchKeyId(branchKeyIdA));
+    String versionAfter = keyStore.getActiveBranchKey(b -> b.branchKeyId(branchKeyIdA)).branchKeyMaterials().branchKeyVersion();
+    Expect.isTrue(!versionBefore.equals(versionAfter), "a new active version");
+    Keyring uncached = AwsKmsHierarchicalKeyring
+      .builder()
+      .keyStore(keyStore)
+      .branchKeyIdSupplier(byTenant)
+      .ttl(Duration.ofMinutes(10))
+      .cache(NoCache.create())
+      .build();
+    byte[] afterRotation = crypto.encryptData(uncached, EXAMPLE_DATA, contextA);
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(uncached, ciphertextA).getResult());
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, afterRotation).getResult());
   }
 
   private static Map<String, String> context(String tenant) {

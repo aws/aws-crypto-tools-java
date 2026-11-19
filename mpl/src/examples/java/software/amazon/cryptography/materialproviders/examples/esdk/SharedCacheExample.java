@@ -43,19 +43,16 @@ public final class SharedCacheExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("encryption", "context");
 
-    try (
-      DynamoDbKeyStore keyStore1 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient);
-      DynamoDbKeyStore keyStore2 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient)
-    ) {
-      Keyring keyring1 = keyring(keyStore1, branchKeyId, sharedCache, partitionId);
-      Keyring keyring2 = keyring(keyStore2, branchKeyId, sharedCache, partitionId);
+    DynamoDbKeyStore keyStore1 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient);
+    DynamoDbKeyStore keyStore2 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient);
+    Keyring keyring1 = keyring(keyStore1, branchKeyId, sharedCache, partitionId);
+    Keyring keyring2 = keyring(keyStore2, branchKeyId, sharedCache, partitionId);
 
-      byte[] ciphertext1 = crypto.encryptData(keyring1, EXAMPLE_DATA, encryptionContext);
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring1, ciphertext1).getResult());
-      // keyring2 finds both branch key entries keyring1 cached.
-      byte[] ciphertext2 = crypto.encryptData(keyring2, EXAMPLE_DATA, encryptionContext);
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring2, ciphertext2).getResult());
-    }
+    byte[] ciphertext1 = crypto.encryptData(keyring1, EXAMPLE_DATA, encryptionContext);
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring1, ciphertext1).getResult());
+    // keyring2 finds both branch key entries keyring1 cached.
+    byte[] ciphertext2 = crypto.encryptData(keyring2, EXAMPLE_DATA, encryptionContext);
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring2, ciphertext2).getResult());
   }
 
   private static DynamoDbKeyStore keyStore(String table, String logicalName, String kmsKeyArn, KmsClient kms, DynamoDbClient ddb) {

@@ -31,16 +31,13 @@ public final class MrkDiscoveryMultiKeyringExample {
     ClientSupplier clientSupplier
   ) {
     // With real AWS: AwsKmsMrkDiscoveryMultiKeyring.builder().regions(...).discoveryFilter(...).build()
-    try (
-      AwsKmsMrkDiscoveryMultiKeyring keyring = AwsKmsMrkDiscoveryMultiKeyring
-        .builder()
-        .regions(readerRegion)
-        .discoveryFilter(DiscoveryFilter.of(allowedAccountIds, "aws"))
-        .clientSupplier(clientSupplier)
-        .build()
-    ) {
-      return ExampleItems.encryptor(keyring).decryptItem(encryptedItem);
-    }
+    AwsKmsMrkDiscoveryMultiKeyring keyring = AwsKmsMrkDiscoveryMultiKeyring
+      .builder()
+      .regions(readerRegion)
+      .discoveryFilter(DiscoveryFilter.of(allowedAccountIds, "aws"))
+      .clientSupplier(clientSupplier)
+      .build();
+    return ExampleItems.encryptor(keyring).decryptItem(encryptedItem);
   }
 
   /**

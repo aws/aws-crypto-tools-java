@@ -50,16 +50,13 @@ public final class DiscoveryKeyringExample {
     Expect.equal(EXAMPLE_DATA, crypto.decryptData(discovery, ciphertext, encryptionContext).getResult());
 
     // Several Regions, a client each from the supplier.
-    try (
-      AwsKmsDiscoveryMultiKeyring multiRegion = AwsKmsDiscoveryMultiKeyring
-        .builder()
-        .regions(region)
-        .discoveryFilter(filter)
-        .clientSupplier(clientSupplier)
-        .build()
-    ) {
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(multiRegion, ciphertext, encryptionContext).getResult());
-    }
+    AwsKmsDiscoveryMultiKeyring multiRegion = AwsKmsDiscoveryMultiKeyring
+      .builder()
+      .regions(region)
+      .discoveryFilter(filter)
+      .clientSupplier(clientSupplier)
+      .build();
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(multiRegion, ciphertext, encryptionContext).getResult());
 
     // A filter for another account skips the key, so nothing decrypts.
     Keyring otherAccount = AwsKmsDiscoveryKeyring

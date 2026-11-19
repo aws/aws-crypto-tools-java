@@ -25,24 +25,21 @@ public final class MrkMultiKeyringExample {
   public static Map<String, String> encryptAndDecryptInAnotherRegion(String mrkArn, String replicaArn, ClientSupplier clientSupplier) {
     // With real AWS: AwsKmsMrkMultiKeyring.builder().generator(mrkArn).build()
     // The keyring then makes and owns one default KMS client per Region; close it to close them.
-    try (
-      AwsKmsMrkMultiKeyring writerKeyring = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(clientSupplier).build();
-      AwsKmsMrkMultiKeyring readerKeyring = AwsKmsMrkMultiKeyring.builder().generator(replicaArn).clientSupplier(clientSupplier).build()
-    ) {
-      DbEsdkLikeItemEncryptor writer = DbEsdkLikeItemEncryptor
-        .builder()
-        .logicalTableName(ExampleItems.TABLE)
-        .partitionKeyName(ExampleItems.PARTITION_KEY)
-        .sortKeyName(ExampleItems.SORT_KEY)
-        .attributeActionsOnEncrypt(ExampleItems.actions())
-        .keyring(writerKeyring)
-        .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
-        .build();
-      Map<String, String> item = ExampleItems.item("mrkMultiKeyringItem");
-      Map<String, String> encrypted = writer.encryptItem(item);
+    AwsKmsMrkMultiKeyring writerKeyring = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(clientSupplier).build();
+    AwsKmsMrkMultiKeyring readerKeyring = AwsKmsMrkMultiKeyring.builder().generator(replicaArn).clientSupplier(clientSupplier).build();
+    DbEsdkLikeItemEncryptor writer = DbEsdkLikeItemEncryptor
+      .builder()
+      .logicalTableName(ExampleItems.TABLE)
+      .partitionKeyName(ExampleItems.PARTITION_KEY)
+      .sortKeyName(ExampleItems.SORT_KEY)
+      .attributeActionsOnEncrypt(ExampleItems.actions())
+      .keyring(writerKeyring)
+      .algorithmSuite(DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384)
+      .build();
+    Map<String, String> item = ExampleItems.item("mrkMultiKeyringItem");
+    Map<String, String> encrypted = writer.encryptItem(item);
 
-      ExampleItems.requireEqual(item, ExampleItems.encryptor(readerKeyring).decryptItem(encrypted));
-      return encrypted;
-    }
+    ExampleItems.requireEqual(item, ExampleItems.encryptor(readerKeyring).decryptItem(encrypted));
+    return encrypted;
   }
 }

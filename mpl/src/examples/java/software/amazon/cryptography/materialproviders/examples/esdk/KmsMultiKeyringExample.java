@@ -27,29 +27,22 @@ public final class KmsMultiKeyringExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().withCommitmentPolicy(CommitmentPolicy.RequireEncryptRequireDecrypt).build();
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
 
-    byte[] ciphertext;
     // Real AWS: AwsKmsMultiKeyring.builder().generator(generatorKeyArn).kmsKeyIds(...).build()
-    try (
-      AwsKmsMultiKeyring keyring = AwsKmsMultiKeyring
-        .builder()
-        .generator(generatorKeyArn)
-        .kmsKeyIds(additionalKeyArn)
-        .clientSupplier(clientSupplier)
-        .build()
-    ) {
-      ciphertext = crypto.encryptData(keyring, EXAMPLE_DATA, encryptionContext);
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertext, encryptionContext).getResult());
-    }
+    AwsKmsMultiKeyring keyring = AwsKmsMultiKeyring
+      .builder()
+      .generator(generatorKeyArn)
+      .kmsKeyIds(additionalKeyArn)
+      .clientSupplier(clientSupplier)
+      .build();
+    byte[] ciphertext = crypto.encryptData(keyring, EXAMPLE_DATA, encryptionContext);
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertext, encryptionContext).getResult());
 
     // The second key alone also decrypts: a multi keyring without a generator.
-    try (
-      AwsKmsMultiKeyring additionalKeyOnly = AwsKmsMultiKeyring
-        .builder()
-        .kmsKeyIds(additionalKeyArn)
-        .clientSupplier(clientSupplier)
-        .build()
-    ) {
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(additionalKeyOnly, ciphertext, encryptionContext).getResult());
-    }
+    AwsKmsMultiKeyring additionalKeyOnly = AwsKmsMultiKeyring
+      .builder()
+      .kmsKeyIds(additionalKeyArn)
+      .clientSupplier(clientSupplier)
+      .build();
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(additionalKeyOnly, ciphertext, encryptionContext).getResult());
   }
 }

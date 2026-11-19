@@ -31,20 +31,15 @@ public final class MrkDiscoveryKeyringExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
 
-    byte[] ciphertext;
-    try (AwsKmsMrkMultiKeyring encrypting = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(clientSupplier).build()) {
-      ciphertext = crypto.encryptData(encrypting, EXAMPLE_DATA, encryptionContext);
-    }
+    AwsKmsMrkMultiKeyring encrypting = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(clientSupplier).build();
+    byte[] ciphertext = crypto.encryptData(encrypting, EXAMPLE_DATA, encryptionContext);
 
-    try (
-      AwsKmsMrkDiscoveryMultiKeyring decrypting = AwsKmsMrkDiscoveryMultiKeyring
-        .builder()
-        .regions(decryptRegion)
-        .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), partition))
-        .clientSupplier(clientSupplier)
-        .build()
-    ) {
-      Expect.equal(EXAMPLE_DATA, crypto.decryptData(decrypting, ciphertext, encryptionContext).getResult());
-    }
+    AwsKmsMrkDiscoveryMultiKeyring decrypting = AwsKmsMrkDiscoveryMultiKeyring
+      .builder()
+      .regions(decryptRegion)
+      .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), partition))
+      .clientSupplier(clientSupplier)
+      .build();
+    Expect.equal(EXAMPLE_DATA, crypto.decryptData(decrypting, ciphertext, encryptionContext).getResult());
   }
 }

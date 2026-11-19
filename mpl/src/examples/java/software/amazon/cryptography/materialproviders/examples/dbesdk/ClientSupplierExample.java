@@ -56,19 +56,16 @@ public final class ClientSupplierExample {
    * @return the encrypted item
    */
   public static Map<String, String> encryptAndDecrypt(String mrkArn, String readerRegion, String accountId, ClientSupplier supplier) {
-    try (
-      AwsKmsMrkMultiKeyring writer = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(supplier).build();
-      AwsKmsMrkDiscoveryMultiKeyring reader = AwsKmsMrkDiscoveryMultiKeyring
-        .builder()
-        .regions(readerRegion)
-        .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), "aws"))
-        .clientSupplier(supplier)
-        .build()
-    ) {
-      Map<String, String> item = ExampleItems.item("clientSupplierItem");
-      Map<String, String> encrypted = ExampleItems.encryptor(writer).encryptItem(item);
-      ExampleItems.requireEqual(item, ExampleItems.encryptor(reader).decryptItem(encrypted));
-      return encrypted;
-    }
+    AwsKmsMrkMultiKeyring writer = AwsKmsMrkMultiKeyring.builder().generator(mrkArn).clientSupplier(supplier).build();
+    AwsKmsMrkDiscoveryMultiKeyring reader = AwsKmsMrkDiscoveryMultiKeyring
+      .builder()
+      .regions(readerRegion)
+      .discoveryFilter(DiscoveryFilter.of(Collections.singletonList(accountId), "aws"))
+      .clientSupplier(supplier)
+      .build();
+    Map<String, String> item = ExampleItems.item("clientSupplierItem");
+    Map<String, String> encrypted = ExampleItems.encryptor(writer).encryptItem(item);
+    ExampleItems.requireEqual(item, ExampleItems.encryptor(reader).decryptItem(encrypted));
+    return encrypted;
   }
 }

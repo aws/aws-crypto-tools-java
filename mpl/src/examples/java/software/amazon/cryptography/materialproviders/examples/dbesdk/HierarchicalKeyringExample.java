@@ -36,46 +36,43 @@ public final class HierarchicalKeyringExample {
   ) {
     // With real AWS: DynamoDbKeyStore.builder().ddbTableName(...).logicalKeyStoreName(...)
     //   .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn)).build()
-    try (
-      DynamoDbKeyStore keyStore = DynamoDbKeyStore
-        .builder()
-        .ddbTableName(keyStoreTableName)
-        .logicalKeyStoreName(logicalKeyStoreName)
-        .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
-        .ddbClient(ddb)
-        .kmsClient(kms)
-        .build()
-    ) {
-      // Key store administration, usually done once outside the application.
-      keyStore.createKeyStore();
-      String tenant1BranchKeyId = keyStore.createKey().branchKeyId();
-      String tenant2BranchKeyId = keyStore.createKey().branchKeyId();
+    DynamoDbKeyStore keyStore = DynamoDbKeyStore
+      .builder()
+      .ddbTableName(keyStoreTableName)
+      .logicalKeyStoreName(logicalKeyStoreName)
+      .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn))
+      .ddbClient(ddb)
+      .kmsClient(kms)
+      .build();
+    // Key store administration, usually done once outside the application.
+    keyStore.createKeyStore();
+    String tenant1BranchKeyId = keyStore.createKey().branchKeyId();
+    String tenant2BranchKeyId = keyStore.createKey().branchKeyId();
 
-      DdbKeyBranchKeyIdSupplier byTenant = ddbKey -> {
-        String tenant = ddbKey.get(ExampleItems.PARTITION_KEY);
-        if ("tenant1Id".equals(tenant)) {
-          return tenant1BranchKeyId;
-        }
-        if ("tenant2Id".equals(tenant)) {
-          return tenant2BranchKeyId;
-        }
-        throw new IllegalArgumentException("Item does not contain valid tenant ID");
-      };
-      AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring
-        .builder()
-        .keyStore(keyStore)
-        .branchKeyIdSupplier(DdbKeyBranchKeyIdSupplier.asBranchKeyIdSupplier(byTenant))
-        // How long a branch key is used before the keyring asks KMS again.
-        .ttl(Duration.ofMinutes(10))
-        // How many branch keys the keyring holds.
-        .cache(DefaultCache.builder().entryCapacity(100).build())
-        .build();
+    DdbKeyBranchKeyIdSupplier byTenant = ddbKey -> {
+      String tenant = ddbKey.get(ExampleItems.PARTITION_KEY);
+      if ("tenant1Id".equals(tenant)) {
+        return tenant1BranchKeyId;
+      }
+      if ("tenant2Id".equals(tenant)) {
+        return tenant2BranchKeyId;
+      }
+      throw new IllegalArgumentException("Item does not contain valid tenant ID");
+    };
+    AwsKmsHierarchicalKeyring keyring = AwsKmsHierarchicalKeyring
+      .builder()
+      .keyStore(keyStore)
+      .branchKeyIdSupplier(DdbKeyBranchKeyIdSupplier.asBranchKeyIdSupplier(byTenant))
+      // How long a branch key is used before the keyring asks KMS again.
+      .ttl(Duration.ofMinutes(10))
+      // How many branch keys the keyring holds.
+      .cache(DefaultCache.builder().entryCapacity(100).build())
+      .build();
 
-      DbEsdkLikeItemEncryptor encryptor = ExampleItems.encryptor(keyring);
-      List<Map<String, String>> encrypted = new ArrayList<>();
-      encrypted.add(ExampleItems.roundTrip(encryptor, ExampleItems.item("tenant1Id")));
-      encrypted.add(ExampleItems.roundTrip(encryptor, ExampleItems.item("tenant2Id")));
-      return encrypted;
-    }
+    DbEsdkLikeItemEncryptor encryptor = ExampleItems.encryptor(keyring);
+    List<Map<String, String>> encrypted = new ArrayList<>();
+    encrypted.add(ExampleItems.roundTrip(encryptor, ExampleItems.item("tenant1Id")));
+    encrypted.add(ExampleItems.roundTrip(encryptor, ExampleItems.item("tenant2Id")));
+    return encrypted;
   }
 }

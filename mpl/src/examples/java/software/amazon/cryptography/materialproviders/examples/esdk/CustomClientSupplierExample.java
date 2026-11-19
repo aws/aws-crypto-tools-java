@@ -32,6 +32,7 @@ public final class CustomClientSupplierExample {
 
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
+    // Closing a keyring is optional; it closes only clients it created, so these stay open for the caller.
     try (AwsKmsMultiKeyring keyring = AwsKmsMultiKeyring.builder().generator(keyArn).clientSupplier(supplier).build()) {
       byte[] ciphertext = crypto.encryptData(keyring, EXAMPLE_DATA, encryptionContext);
       Expect.equal(EXAMPLE_DATA, crypto.decryptData(keyring, ciphertext, encryptionContext).getResult());
