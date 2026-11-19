@@ -28,17 +28,33 @@ public final class RawEcdhKeyringExample {
     RawEcdhKeyring staticSender = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()))
+      .keyAgreementScheme(
+        RawEcdhKeyAgreementScheme
+          .rawPrivateKeyToStaticPublicKey()
+          .senderStaticPrivateKey(sender.getPrivate())
+          .recipientPublicKey(recipient.getPublic())
+          .build()
+      )
       .build();
     RawEcdhKeyring ephemeralSender = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()))
+      .keyAgreementScheme(
+        RawEcdhKeyAgreementScheme
+          .ephemeralPrivateKeyToStaticPublicKey()
+          .recipientPublicKey(recipient.getPublic())
+          .build()
+      )
       .build();
     RawEcdhKeyring recipientDiscovery = RawEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()))
+      .keyAgreementScheme(
+        RawEcdhKeyAgreementScheme
+          .publicKeyDiscovery()
+          .recipientStaticPrivateKey(recipient.getPrivate())
+          .build()
+      )
       .build();
 
     Map<String, String> item = ExampleItems.item("rawEcdhItem");

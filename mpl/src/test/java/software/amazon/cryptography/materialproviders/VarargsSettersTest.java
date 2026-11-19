@@ -374,7 +374,7 @@ class VarargsSettersTest {
 
   private AwsKmsEcdhKeyring.Builder ecdh() {
     return AwsKmsEcdhKeyring.builder()
-      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(eccKey))
+      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier(eccKey).build())
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
       .kmsClient(kms);
   }

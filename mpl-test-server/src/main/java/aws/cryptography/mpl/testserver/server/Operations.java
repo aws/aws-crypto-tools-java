@@ -170,7 +170,11 @@ final class Operations {
         return rawEcdhKeyring(
           curve,
           Cbor.blob(config, "senderStaticPrivateKey"),
-          key -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(key, Cbor.blob(config, "recipientPublicKey"))
+          key -> RawEcdhKeyAgreementScheme
+            .rawPrivateKeyToStaticPublicKey()
+            .senderStaticPrivateKey(key)
+            .recipientPublicKey(Cbor.blob(config, "recipientPublicKey"))
+            .build()
         );
       case "EphemeralPrivateKeyToStaticPublicKey":
         return keyringResponse(
@@ -178,12 +182,19 @@ final class Operations {
             .builder()
             .curveSpec(curve)
             .keyAgreementScheme(
-              RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(Cbor.blob(config, "recipientPublicKey"))
+              RawEcdhKeyAgreementScheme
+                .ephemeralPrivateKeyToStaticPublicKey()
+                .recipientPublicKey(Cbor.blob(config, "recipientPublicKey"))
+                .build()
             )
             .build()
         );
       case "PublicKeyDiscovery":
-        return rawEcdhKeyring(curve, Cbor.blob(config, "recipientStaticPrivateKey"), RawEcdhKeyAgreementScheme::publicKeyDiscovery);
+        return rawEcdhKeyring(
+          curve,
+          Cbor.blob(config, "recipientStaticPrivateKey"),
+          key -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(key).build()
+        );
       default:
         throw ModeledError.generic("unknown key agreement scheme: " + scheme.getKey());
     }

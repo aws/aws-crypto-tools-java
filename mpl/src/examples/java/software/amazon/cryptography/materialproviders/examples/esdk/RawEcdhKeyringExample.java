@@ -32,9 +32,25 @@ public final class RawEcdhKeyringExample {
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("ExampleContextKey", "ExampleContextValue");
 
-    Keyring staticSender = ecdh(RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()));
-    Keyring ephemeralSender = ecdh(RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()));
-    Keyring recipientDiscovery = ecdh(RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()));
+    Keyring staticSender = ecdh(
+      RawEcdhKeyAgreementScheme
+        .rawPrivateKeyToStaticPublicKey()
+        .senderStaticPrivateKey(sender.getPrivate())
+        .recipientPublicKey(recipient.getPublic())
+        .build()
+    );
+    Keyring ephemeralSender = ecdh(
+      RawEcdhKeyAgreementScheme
+        .ephemeralPrivateKeyToStaticPublicKey()
+        .recipientPublicKey(recipient.getPublic())
+        .build()
+    );
+    Keyring recipientDiscovery = ecdh(
+      RawEcdhKeyAgreementScheme
+        .publicKeyDiscovery()
+        .recipientStaticPrivateKey(recipient.getPrivate())
+        .build()
+    );
 
     byte[] fromStatic = crypto.encryptData(staticSender, EXAMPLE_DATA, encryptionContext);
     byte[] fromEphemeral = crypto.encryptData(ephemeralSender, EXAMPLE_DATA, encryptionContext);

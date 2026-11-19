@@ -213,22 +213,19 @@ final class NativeSide implements Side {
       case "static":
         {
           KeyMaterial.PrivateEcdh key = need(material, KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(
-            SecretBytes.copyOf(utf8(key.senderPem)),
-            Base64.getDecoder().decode(key.recipientPublicKey)
-          );
+          scheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(SecretBytes.copyOf(utf8(key.senderPem))).recipientPublicKey(Base64.getDecoder().decode(key.recipientPublicKey)).build();
           break;
         }
       case "ephemeral":
         {
           KeyMaterial.PrivateEcdh key = need(env.keys.get(ecdh.recipientKeyId), KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(Base64.getDecoder().decode(key.recipientPublicKey));
+          scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(Base64.getDecoder().decode(key.recipientPublicKey)).build();
           break;
         }
       case "discovery":
         {
           KeyMaterial.PrivateEcdh key = need(env.keys.get(ecdh.recipientKeyId), KeyMaterial.PrivateEcdh.class, "Not type: PrivateECDH");
-          scheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery(SecretBytes.copyOf(utf8(key.recipientPem)));
+          scheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(SecretBytes.copyOf(utf8(key.recipientPem))).build();
           break;
         }
       default:

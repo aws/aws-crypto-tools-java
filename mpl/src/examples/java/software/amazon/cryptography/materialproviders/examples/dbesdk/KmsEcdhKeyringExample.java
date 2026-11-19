@@ -28,13 +28,24 @@ public final class KmsEcdhKeyringExample {
     AwsKmsEcdhKeyring sender = AwsKmsEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(senderKeyArn, recipientPublicKey))
+      .keyAgreementScheme(
+        KmsEcdhKeyAgreementScheme
+          .kmsPrivateKeyToStaticPublicKey()
+          .senderKmsIdentifier(senderKeyArn)
+          .recipientPublicKey(recipientPublicKey)
+          .build()
+      )
       .kmsClient(kms)
       .build();
     AwsKmsEcdhKeyring recipient = AwsKmsEcdhKeyring
       .builder()
       .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
-      .keyAgreementScheme(KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(recipientKeyArn))
+      .keyAgreementScheme(
+        KmsEcdhKeyAgreementScheme
+          .kmsPublicKeyDiscovery()
+          .recipientKmsIdentifier(recipientKeyArn)
+          .build()
+      )
       .kmsClient(kms)
       .build();
 

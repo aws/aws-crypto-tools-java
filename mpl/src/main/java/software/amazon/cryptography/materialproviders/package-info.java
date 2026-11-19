@@ -38,11 +38,10 @@
  *       {@link software.amazon.cryptography.materialproviders.exceptions.MaterialProvidersException}; message text is not a contract.
  *       Misuse is reported the standard Java way: a null argument throws {@link NullPointerException}, and using a
  *       destroyed {@link software.amazon.cryptography.materialproviders.SecretBytes} throws {@link IllegalStateException}.
- *       Exceptions: the static methods of {@link software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme}
- *       and {@link software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme} report a null argument with
- *       {@link software.amazon.cryptography.materialproviders.exceptions.ValidationException}, as a builder reports a missing field;
- *       and the {@code grantTokens}, {@code kmsKeyIds}, and {@code regions} setters of the AWS KMS keyring builders,
- *       which take a null collection as an empty one.</li>
+ *       Builders report a missing member with
+ *       {@link software.amazon.cryptography.materialproviders.exceptions.ValidationException} from {@code build()}.
+ *       Exception: the {@code grantTokens}, {@code kmsKeyIds}, and {@code regions} setters of the AWS KMS keyring builders
+ *       take a null collection as an empty one.</li>
  * </ul>
  */
 package software.amazon.cryptography.materialproviders;

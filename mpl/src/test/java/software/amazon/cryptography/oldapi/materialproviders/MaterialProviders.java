@@ -8,6 +8,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
+import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 import software.amazon.cryptography.oldapi.materialproviders.internal.AlgorithmSuite;
 import software.amazon.cryptography.oldapi.materialproviders.internal.Boundary;
 import software.amazon.cryptography.oldapi.materialproviders.internal.Buffers;
@@ -26,8 +48,8 @@ import software.amazon.cryptography.oldapi.materialproviders.internal.SharedCach
 import software.amazon.cryptography.oldapi.materialproviders.model.AlgorithmSuiteInfo;
 import software.amazon.cryptography.oldapi.materialproviders.model.AwsCryptographicMaterialProvidersException;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsDiscoveryKeyringInput;
-import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsEcdhKeyringInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsDiscoveryMultiKeyringInput;
+import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsEcdhKeyringInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsHierarchicalKeyringInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsKeyringInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.CreateAwsKmsMrkDiscoveryKeyringInput;
@@ -56,34 +78,13 @@ import software.amazon.cryptography.oldapi.materialproviders.model.InvalidDecryp
 import software.amazon.cryptography.oldapi.materialproviders.model.InvalidDecryptionMaterialsTransition;
 import software.amazon.cryptography.oldapi.materialproviders.model.InvalidEncryptionMaterialsTransition;
 import software.amazon.cryptography.oldapi.materialproviders.model.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.oldapi.materialproviders.model.KmsPrivateKeyToStaticPublicKeyInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.MaterialProvidersConfig;
 import software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidDecryptionMaterialsTransitionInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidEncryptionMaterialsTransitionInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidateCommitmentPolicyOnDecryptInput;
 import software.amazon.cryptography.oldapi.materialproviders.model.ValidateCommitmentPolicyOnEncryptInput;
-import software.amazon.cryptography.materialproviders.SecretBytes;
-import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
-import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryMultiKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkDiscoveryMultiKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.AwsKmsRsaKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawRsaKeyring;
 
 public class MaterialProviders {
 
@@ -256,19 +257,22 @@ public class MaterialProviders {
 
   private static software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme ecdhScheme(RawEcdhStaticConfigurations scheme) {
     if (scheme.RawPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(
-        SecretBytes.copyOf(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().senderStaticPrivateKey())),
-        Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().recipientPublicKey())
-      );
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme
+        .rawPrivateKeyToStaticPublicKey()
+        .senderStaticPrivateKey(SecretBytes.copyOf(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().senderStaticPrivateKey())))
+        .recipientPublicKey(Buffers.toArray(scheme.RawPrivateKeyToStaticPublicKey().recipientPublicKey()))
+        .build();
     }
     if (scheme.EphemeralPrivateKeyToStaticPublicKey() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(
-        Buffers.toArray(scheme.EphemeralPrivateKeyToStaticPublicKey().recipientPublicKey())
-      );
+      return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme
+        .ephemeralPrivateKeyToStaticPublicKey()
+        .recipientPublicKey(Buffers.toArray(scheme.EphemeralPrivateKeyToStaticPublicKey().recipientPublicKey()))
+        .build();
     }
-    return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme.publicKeyDiscovery(
-      SecretBytes.copyOf(Buffers.toArray(scheme.PublicKeyDiscovery().recipientStaticPrivateKey()))
-    );
+    return software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme
+      .publicKeyDiscovery()
+      .recipientStaticPrivateKey(SecretBytes.copyOf(Buffers.toArray(scheme.PublicKeyDiscovery().recipientStaticPrivateKey())))
+      .build();
   }
 
   /**
@@ -446,20 +450,18 @@ public class MaterialProviders {
 
   private static software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme kmsEcdhScheme(KmsEcdhStaticConfigurations scheme) {
     if (scheme.KmsPublicKeyDiscovery() != null) {
-      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(
-        scheme.KmsPublicKeyDiscovery().recipientKmsIdentifier()
-      );
+      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme
+        .kmsPublicKeyDiscovery()
+        .recipientKmsIdentifier(scheme.KmsPublicKeyDiscovery().recipientKmsIdentifier())
+        .build();
     }
-    String sender = scheme.KmsPrivateKeyToStaticPublicKey().senderKmsIdentifier();
-    byte[] recipientPublicKey = Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().recipientPublicKey());
-    if (scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey() == null) {
-      return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(sender, recipientPublicKey);
-    }
-    return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(
-      sender,
-      Buffers.toArray(scheme.KmsPrivateKeyToStaticPublicKey().senderPublicKey()),
-      recipientPublicKey
-    );
+    KmsPrivateKeyToStaticPublicKeyInput config = scheme.KmsPrivateKeyToStaticPublicKey();
+    return software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme
+      .kmsPrivateKeyToStaticPublicKey()
+      .senderKmsIdentifier(config.senderKmsIdentifier())
+      .senderPublicKey(config.senderPublicKey() == null ? null : Buffers.toArray(config.senderPublicKey()))
+      .recipientPublicKey(Buffers.toArray(config.recipientPublicKey()))
+      .build();
   }
 
   public IClientSupplier CreateDefaultClientSupplier(CreateDefaultClientSupplierInput input) {

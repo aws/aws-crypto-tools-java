@@ -60,13 +60,12 @@ class KmsAsymmetricKeyringsNativeApiTest {
     byte[] key = new byte[1];
     assertMessage(ValidationException.class, "Missing value for required field `kmsKeyId`", () -> AwsKmsRsaKeyring.builder().encryptionAlgorithm(EncryptionAlgorithmSpec.RSAES_OAEP_SHA_1).kmsClient(kms).build());
     assertMessage(ValidationException.class, "Missing value for required field `encryptionAlgorithm`", () -> AwsKmsRsaKeyring.builder().kmsKeyId("arn").kmsClient(kms).build());
-    assertMessage(ValidationException.class, "Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(null, key));
-    assertMessage(ValidationException.class, "Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey("id", (byte[]) null));
-    assertMessage(ValidationException.class, "Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(null, key, key));
-    assertMessage(ValidationException.class, "Missing value for required field `senderPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey("id", null, key));
-    assertMessage(ValidationException.class, "Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey("id", key, null));
-    assertMessage(ValidationException.class, "Missing value for required field `recipientKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(null));
-    KmsEcdhKeyAgreementScheme scheme = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery("id");
+    assertMessage(ValidationException.class, "Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(null).recipientPublicKey(key).build());
+    assertMessage(ValidationException.class, "Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier("id").recipientPublicKey((byte[]) null).build());
+    assertMessage(ValidationException.class, "Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(null).senderPublicKey(key).recipientPublicKey(key).build());
+    assertMessage(ValidationException.class, "Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier("id").senderPublicKey(key).recipientPublicKey((byte[]) null).build());
+    assertMessage(ValidationException.class, "Missing value for required field `recipientKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier(null).build());
+    KmsEcdhKeyAgreementScheme scheme = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier("id").build();
     assertMessage(ValidationException.class, "Missing value for required field `keyAgreementScheme`", () -> AwsKmsEcdhKeyring.builder().curveSpec(EcdhCurveSpec.ECC_NIST_P256).kmsClient(kms).build());
     assertMessage(ValidationException.class, "Missing value for required field `curveSpec`", () -> AwsKmsEcdhKeyring.builder().keyAgreementScheme(scheme).kmsClient(kms).build());
     assertMessage(ValidationException.class, "Missing value for required field `kmsClient`", () -> AwsKmsEcdhKeyring.builder().keyAgreementScheme(scheme).curveSpec(EcdhCurveSpec.ECC_NIST_P256).build());
@@ -135,13 +134,13 @@ class KmsAsymmetricKeyringsNativeApiTest {
     String recipient = aws.kms().createEccKeyAgreementKey(REGION, "ECC_NIST_P256");
     byte[] senderKey = publicKey(sender);
     byte[] recipientKey = publicKey(recipient);
-    KmsEcdhKeyAgreementScheme fetched = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(sender, recipientKey.clone());
+    KmsEcdhKeyAgreementScheme fetched = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(sender).recipientPublicKey(recipientKey.clone()).build();
     byte[] senderCopy = senderKey.clone();
     byte[] recipientCopy = recipientKey.clone();
-    KmsEcdhKeyAgreementScheme supplied = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(sender, senderCopy, recipientCopy);
+    KmsEcdhKeyAgreementScheme supplied = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(sender).senderPublicKey(senderCopy).recipientPublicKey(recipientCopy).build();
     Arrays.fill(senderCopy, (byte) 0);
     Arrays.fill(recipientCopy, (byte) 0);
-    KmsEcdhKeyAgreementScheme discovery = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(recipient);
+    KmsEcdhKeyAgreementScheme discovery = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier(recipient).build();
     assertEquals(KmsEcdhKeyAgreementScheme.Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, fetched.kind());
     assertEquals(KmsEcdhKeyAgreementScheme.Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, supplied.kind());
     assertEquals(KmsEcdhKeyAgreementScheme.Kind.KMS_PUBLIC_KEY_DISCOVERY, discovery.kind());
@@ -168,7 +167,7 @@ class KmsAsymmetricKeyringsNativeApiTest {
   void ecdhKeyringErrorKinds() {
     String sender = aws.kms().createEccKeyAgreementKey(REGION, "ECC_NIST_P256");
     String recipient = aws.kms().createEccKeyAgreementKey(REGION, "ECC_NIST_P256");
-    KmsEcdhKeyAgreementScheme discovery = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery(recipient);
+    KmsEcdhKeyAgreementScheme discovery = KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier(recipient).build();
     aws.kms().fail("GetPublicKey", null, ServiceError.accessDenied("no"));
     AccessDeniedException denied = assertThrows(AccessDeniedException.class, () -> ecdh(discovery, null));
     assertTrue(denied.getCause() instanceof SdkException);
@@ -177,7 +176,7 @@ class KmsAsymmetricKeyringsNativeApiTest {
     assertMessage(ServiceException.class, "Invalid response from KMS GetPublicKey", () -> ecdh(discovery, null));
     aws.kms().clearFailures();
 
-    AwsKmsEcdhKeyring keyring = ecdh(KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(sender, publicKey(recipient)), null);
+    AwsKmsEcdhKeyring keyring = ecdh(KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(sender).recipientPublicKey(publicKey(recipient)).build(), null);
     assertMessage(ValidationException.class, "KmsPublicKeyDiscovery Key Agreement Scheme is forbidden on encrypt.", () -> ecdh(discovery, null).onEncrypt(OnEncryptRequest.builder().materials(start()).build()));
     aws.kms().editResponses("DeriveSharedSecret", r -> {
       r.remove("KeyAgreementAlgorithm");

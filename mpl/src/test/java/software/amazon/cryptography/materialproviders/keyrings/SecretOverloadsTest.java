@@ -71,8 +71,8 @@ class SecretOverloadsTest {
   void nullSecretsAreMissing() {
     assertMessage("Missing value for required field `wrappingKey`", () -> aes().wrappingKey((byte[]) null).build());
     assertMessage("Missing value for required field `wrappingKey`", () -> aes().wrappingKey((SecretKey) null).build());
-    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey((byte[]) null, new byte[1]));
-    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery((byte[]) null));
+    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey((byte[]) null).recipientPublicKey(new byte[1]).build());
+    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey((byte[]) null).build());
   }
 
   @Test
@@ -93,8 +93,8 @@ class SecretOverloadsTest {
     KeyPair recipient = ecKeyPair();
     byte[] senderPem = pem("PRIVATE KEY", sender.getPrivate().getEncoded());
     byte[] recipientPem = pem("PRIVATE KEY", recipient.getPrivate().getEncoded());
-    RawEcdhKeyAgreementScheme fromBytes = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(senderPem, recipient.getPublic().getEncoded());
-    RawEcdhKeyAgreementScheme discovery = RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipientPem);
+    RawEcdhKeyAgreementScheme fromBytes = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(senderPem).recipientPublicKey(recipient.getPublic().getEncoded()).build();
+    RawEcdhKeyAgreementScheme discovery = RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(recipientPem).build();
     byte[] expected = senderPem.clone();
     Arrays.fill(senderPem, (byte) 0);
     Arrays.fill(recipientPem, (byte) 0);

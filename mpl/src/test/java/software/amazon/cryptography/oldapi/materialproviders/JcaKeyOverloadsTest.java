@@ -118,7 +118,7 @@ class JcaKeyOverloadsTest {
 
       Pair statically = ecdh(
         curve,
-        RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender.getPrivate(), recipient.getPublic()),
+        RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(sender.getPrivate()).recipientPublicKey(recipient.getPublic()).build(),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .RawPrivateKeyToStaticPublicKey(
@@ -128,7 +128,7 @@ class JcaKeyOverloadsTest {
       );
       Pair ephemeral = ecdh(
         curve,
-        RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipient.getPublic()),
+        RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(recipient.getPublic()).build(),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .EphemeralPrivateKeyToStaticPublicKey(EphemeralPrivateKeyToStaticPublicKeyInput.builder().recipientPublicKey(ByteBuffer.wrap(recipientDer)).build())
@@ -136,7 +136,7 @@ class JcaKeyOverloadsTest {
       );
       Pair discovery = ecdh(
         curve,
-        RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient.getPrivate()),
+        RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(recipient.getPrivate()).build(),
         software.amazon.cryptography.oldapi.materialproviders.model.RawEcdhStaticConfigurations
           .builder()
           .PublicKeyDiscovery(PublicKeyDiscoveryInput.builder().recipientStaticPrivateKey(ByteBuffer.wrap(recipientPem)).build())

@@ -39,10 +39,10 @@ class JcaKeysTest {
       assertArrayEquals(rsa.getPublic().getEncoded(), der(text));
     }
     KeyPair ec = keyPair("EC", "secp256r1");
-    String privatePem = new String(RawEcdhKeyAgreementScheme.publicKeyDiscovery(ec.getPrivate()).privateKey().toByteArray(), StandardCharsets.US_ASCII);
+    String privatePem = new String(RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(ec.getPrivate()).build().privateKey().toByteArray(), StandardCharsets.US_ASCII);
     assertTrue(privatePem.startsWith("-----BEGIN PRIVATE KEY-----"), privatePem);
     assertArrayEquals(ec.getPrivate().getEncoded(), der(privatePem));
-    assertArrayEquals(ec.getPublic().getEncoded(), RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(ec.getPublic()).recipientPublicKey());
+    assertArrayEquals(ec.getPublic().getEncoded(), RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(ec.getPublic()).build().recipientPublicKey());
   }
 
   // The keyring reads only these fields, so equal fields mean it behaves as with the byte form.
@@ -50,10 +50,10 @@ class JcaKeysTest {
   void kmsEcdhConfigurationsFromJcaKeysMatchTheByteForm() {
     PublicKey sender = keyPair("EC", "secp384r1").getPublic();
     PublicKey recipient = keyPair("EC", "secp384r1").getPublic();
-    KmsEcdhKeyAgreementScheme fetched = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, recipient);
-    KmsEcdhKeyAgreementScheme fetchedBytes = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, recipient.getEncoded());
-    KmsEcdhKeyAgreementScheme supplied = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, sender, recipient);
-    KmsEcdhKeyAgreementScheme suppliedBytes = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, sender.getEncoded(), recipient.getEncoded());
+    KmsEcdhKeyAgreementScheme fetched = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).recipientPublicKey(recipient).build();
+    KmsEcdhKeyAgreementScheme fetchedBytes = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).recipientPublicKey(recipient.getEncoded()).build();
+    KmsEcdhKeyAgreementScheme supplied = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).senderPublicKey(sender).recipientPublicKey(recipient).build();
+    KmsEcdhKeyAgreementScheme suppliedBytes = KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).senderPublicKey(sender.getEncoded()).recipientPublicKey(recipient.getEncoded()).build();
     for (KmsEcdhKeyAgreementScheme[] pair : new KmsEcdhKeyAgreementScheme[][] { { fetched, fetchedBytes }, { supplied, suppliedBytes } }) {
       assertEquals(KmsEcdhKeyAgreementScheme.Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, pair[0].kind());
       assertEquals(pair[1].kmsIdentifier(), pair[0].kmsIdentifier());
@@ -71,14 +71,14 @@ class JcaKeysTest {
     assertMessage("publicKey has no encoded form", () -> rsa().publicKey(publicKey));
     assertMessage("privateKey has no encoded form", () -> rsa().privateKey(privateKey));
     assertMessage("publicKey has no encoded form", () -> AwsKmsRsaKeyring.builder().publicKey(publicKey));
-    assertMessage("recipientPublicKey has no encoded form", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(publicKey));
-    assertMessage("recipientStaticPrivateKey has no encoded form", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery(privateKey));
-    assertMessage("senderStaticPrivateKey has no encoded form", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(privateKey, keyPair("EC", "secp256r1").getPublic()));
-    assertMessage("recipientPublicKey has no encoded form", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(keyPair("EC", "secp256r1").getPrivate(), publicKey));
+    assertMessage("recipientPublicKey has no encoded form", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(publicKey).build());
+    assertMessage("recipientStaticPrivateKey has no encoded form", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(privateKey).build());
+    assertMessage("senderStaticPrivateKey has no encoded form", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(privateKey).recipientPublicKey(keyPair("EC", "secp256r1").getPublic()).build());
+    assertMessage("recipientPublicKey has no encoded form", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(keyPair("EC", "secp256r1").getPrivate()).recipientPublicKey(publicKey).build());
     PublicKey ec = keyPair("EC", "secp256r1").getPublic();
-    assertMessage("recipientPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, publicKey));
-    assertMessage("senderPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, publicKey, ec));
-    assertMessage("recipientPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, ec, publicKey));
+    assertMessage("recipientPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).recipientPublicKey(publicKey).build());
+    assertMessage("senderPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).senderPublicKey(publicKey).recipientPublicKey(ec).build());
+    assertMessage("recipientPublicKey has no encoded form", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).senderPublicKey(ec).recipientPublicKey(publicKey).build());
   }
 
   @Test
@@ -89,24 +89,23 @@ class JcaKeysTest {
       () -> AwsKmsRsaKeyring.builder().publicKey((PublicKey) null).kmsKeyId(ARN).encryptionAlgorithm(EncryptionAlgorithmSpec.RSAES_OAEP_SHA_256).build()
     );
     KeyPair ec = keyPair("EC", "secp256r1");
-    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey((PrivateKey) null, ec.getPublic()));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(ec.getPrivate(), (PublicKey) null));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey((PublicKey) null));
-    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery((PrivateKey) null));
+    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey((PrivateKey) null).recipientPublicKey(ec.getPublic()).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(ec.getPrivate()).recipientPublicKey((PublicKey) null).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey((PublicKey) null).build());
+    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey((PrivateKey) null).build());
     PublicKey key = ec.getPublic();
-    assertMessage("Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(null, key));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, (PublicKey) null));
-    assertMessage("Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(null, key, key));
-    assertMessage("Missing value for required field `senderPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, null, key));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey(ARN, key, null));
+    assertMessage("Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(null).recipientPublicKey(key).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).recipientPublicKey((PublicKey) null).build());
+    assertMessage("Missing value for required field `senderKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(null).senderPublicKey(key).recipientPublicKey(key).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier(ARN).senderPublicKey(key).recipientPublicKey((PublicKey) null).build());
   }
 
   @Test
   void configurationsFromJcaKeysHaveTheirKind() throws Exception {
     KeyPair ec = keyPair("EC", "secp256r1");
-    assertEquals(RawEcdhKeyAgreementScheme.Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(ec.getPrivate(), ec.getPublic()).kind());
-    assertEquals(RawEcdhKeyAgreementScheme.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(ec.getPublic()).kind());
-    assertEquals(RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY, RawEcdhKeyAgreementScheme.publicKeyDiscovery(ec.getPrivate()).kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(ec.getPrivate()).recipientPublicKey(ec.getPublic()).build().kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.EPHEMERAL_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(ec.getPublic()).build().kind());
+    assertEquals(RawEcdhKeyAgreementScheme.Kind.PUBLIC_KEY_DISCOVERY, RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(ec.getPrivate()).build().kind());
   }
 
   // A private key's encoding is a secret: the builders clear the array getEncoded() returned once they hold the PEM.
@@ -120,10 +119,10 @@ class JcaKeysTest {
 
     KeyPair ec = keyPair("EC", "secp256r1");
     Recording sender = new Recording(ec.getPrivate());
-    RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(sender, ec.getPublic());
+    RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(sender).recipientPublicKey(ec.getPublic()).build();
     assertCleared(sender);
     Recording recipient = new Recording(ec.getPrivate());
-    RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipient);
+    RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(recipient).build();
     assertCleared(recipient);
   }
 

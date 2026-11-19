@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.materialproviders.keyrings;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,10 +22,10 @@ import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
-import software.amazon.cryptography.materialproviders.SecretBytes;
-import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.OnDecryptRequest;
 import software.amazon.cryptography.materialproviders.OnEncryptRequest;
+import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
 // The public API parts the differential tests cannot reach: argument checks, copies, and accessors.
 class RawEcdhKeyringApiTest {
@@ -32,11 +35,11 @@ class RawEcdhKeyringApiTest {
   @Test
   void requiredArguments() {
     byte[] key = new byte[1];
-    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey((SecretBytes) null, key));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(SecretBytes.copyOf(key), null));
-    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey((byte[]) null));
-    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery((SecretBytes) null));
-    RawEcdhKeyAgreementScheme scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(key);
+    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey((SecretBytes) null).recipientPublicKey(key).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(SecretBytes.copyOf(key)).recipientPublicKey((byte[]) null).build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey((byte[]) null).build());
+    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey((SecretBytes) null).build());
+    RawEcdhKeyAgreementScheme scheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(key).build();
     assertMessage("Missing value for required field `keyAgreementScheme`", () -> RawEcdhKeyring.builder().curveSpec(EcdhCurveSpec.ECC_NIST_P256).build());
     assertMessage("Missing value for required field `curveSpec`", () -> RawEcdhKeyring.builder().keyAgreementScheme(scheme).build());
   }
@@ -49,9 +52,9 @@ class RawEcdhKeyringApiTest {
     SecretBytes senderPrivate = privatePem(sender);
     SecretBytes recipientPrivate = privatePem(recipient);
     byte[] recipientPublic = recipient.getPublic().getEncoded();
-    RawEcdhKeyAgreementScheme staticScheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey(senderPrivate, recipientPublic);
-    RawEcdhKeyAgreementScheme ephemeralScheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey(recipientPublic);
-    RawEcdhKeyAgreementScheme discoveryScheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery(recipientPrivate);
+    RawEcdhKeyAgreementScheme staticScheme = RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().senderStaticPrivateKey(senderPrivate).recipientPublicKey(recipientPublic).build();
+    RawEcdhKeyAgreementScheme ephemeralScheme = RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().recipientPublicKey(recipientPublic).build();
+    RawEcdhKeyAgreementScheme discoveryScheme = RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(recipientPrivate).build();
     senderPrivate.destroy();
     recipientPrivate.destroy();
     Arrays.fill(recipientPublic, (byte) 0);
@@ -70,6 +73,45 @@ class RawEcdhKeyringApiTest {
       DecryptionMaterials decrypted = discoveryKeyring.onDecrypt(OnDecryptRequest.builder().materials(start).encryptedDataKeys(encrypted.encryptedDataKeys()).build()).materials();
       assertTrue(decrypted.plaintextDataKey().get().contentEquals(encrypted.plaintextDataKey().get()));
     }
+  }
+
+  // Each build() makes its own copies, so a builder can be reused and changed after building.
+  @Test
+  void schemeBuildersCopyPerBuildAndTakeAbsentOptionalKeys() throws Exception {
+    KeyPair pair = keyPair();
+    SecretBytes privateKey = privatePem(pair);
+    byte[] publicKey = pair.getPublic().getEncoded();
+    RawEcdhKeyAgreementScheme.RawPrivateKeyToStaticPublicKeyBuilder raw = RawEcdhKeyAgreementScheme
+      .rawPrivateKeyToStaticPublicKey()
+      .senderStaticPrivateKey(privateKey)
+      .recipientPublicKey(publicKey);
+    RawEcdhKeyAgreementScheme first = raw.build();
+    RawEcdhKeyAgreementScheme second = raw.build();
+    assertNotSame(first.privateKey(), second.privateKey());
+    assertNotSame(first.recipientPublicKey(), second.recipientPublicKey());
+    privateKey.destroy();
+    Arrays.fill(publicKey, (byte) 0);
+    assertArrayEquals(pair.getPublic().getEncoded(), first.recipientPublicKey());
+    assertTrue(first.privateKey().contentEquals(privatePem(pair)));
+    // The byte[] overload copies when set.
+    byte[] privateBytes = privatePem(pair).toByteArray();
+    RawEcdhKeyAgreementScheme.PublicKeyDiscoveryBuilder discovery = RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(privateBytes);
+    Arrays.fill(privateBytes, (byte) 0);
+    assertTrue(discovery.build().privateKey().contentEquals(privatePem(pair)));
+    assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().build());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().build());
+    assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().recipientPublicKey(publicKey).build());
+    // The KMS scheme's sender public key is optional: absent, the keyring fetches it.
+    KmsEcdhKeyAgreementScheme fetched = KmsEcdhKeyAgreementScheme
+      .kmsPrivateKeyToStaticPublicKey()
+      .senderKmsIdentifier("arn")
+      .senderPublicKey((byte[]) null)
+      .recipientPublicKey(publicKey)
+      .build();
+    assertNull(fetched.senderPublicKey());
+    assertMessage("Missing value for required field `recipientPublicKey`", () -> KmsEcdhKeyAgreementScheme.kmsPrivateKeyToStaticPublicKey().senderKmsIdentifier("arn").build());
+    assertMessage("Missing value for required field `recipientKmsIdentifier`", () -> KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().build());
+    assertEquals(KmsEcdhKeyAgreementScheme.Kind.KMS_PUBLIC_KEY_DISCOVERY, KmsEcdhKeyAgreementScheme.kmsPublicKeyDiscovery().recipientKmsIdentifier("arn").build().kind());
   }
 
   private static RawEcdhKeyring keyring(RawEcdhKeyAgreementScheme scheme) {

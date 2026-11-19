@@ -3,16 +3,16 @@
 package software.amazon.cryptography.materialproviders.keyrings;
 
 import java.security.PublicKey;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.KeyringNames;
 import software.amazon.cryptography.materialproviders.internal.primitives.Pem;
 
 /**
- * Which keys an {@link AwsKmsEcdhKeyring} uses. Create one with the static methods; there are no other kinds.
+ * Which keys an {@link AwsKmsEcdhKeyring} uses. Build one with the builder each static method returns; there are no other kinds.
  * Public keys are DER (X.509 SubjectPublicKeyInfo) and are copied.
- * The overloads that take JCA keys encode them that way, so a keyring behaves as with those bytes;
- * they throw {@link software.amazon.cryptography.materialproviders.exceptions.ValidationException} for a key with no encoding.
- * The static methods throw {@link software.amazon.cryptography.materialproviders.exceptions.ValidationException} for a null argument;
- * {@link AwsKmsEcdhKeyring.Builder#build()} checks the values themselves.
+ * The setters that take JCA keys encode them that way, so a keyring behaves as with those bytes;
+ * they throw {@link ValidationException} for a key with no encoding.
+ * {@code build()} throws {@link ValidationException} for a missing member; {@link AwsKmsEcdhKeyring.Builder#build()} checks the values themselves.
  * Immutable.
  */
 public abstract class KmsEcdhKeyAgreementScheme {
@@ -37,57 +37,19 @@ public abstract class KmsEcdhKeyAgreementScheme {
   }
 
   /**
-   * The sender is a KMS key agreement key; {@code recipientPublicKey} is fixed. Encrypts and decrypts.
-   * The keyring fetches the sender's public key with KMS GetPublicKey when it is built.
+   * The sender is a KMS key agreement key; the recipient's public key is fixed. Encrypts and decrypts.
+   * Requires {@code senderKmsIdentifier} and {@code recipientPublicKey}.
    */
-  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, byte[] recipientPublicKey) {
-    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
-    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-    return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, null, recipientPublicKey.clone());
-  }
-
-  /** As above with the sender's public key supplied, so the keyring makes no GetPublicKey call. */
-  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(
-    String senderKmsIdentifier,
-    byte[] senderPublicKey,
-    byte[] recipientPublicKey
-  ) {
-    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
-    KeyringNames.requireSet(senderPublicKey, "senderPublicKey");
-    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-    return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, senderPublicKey.clone(), recipientPublicKey.clone());
-  }
-
-  /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[])} with a JCA key. */
-  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(String senderKmsIdentifier, PublicKey recipientPublicKey) {
-    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
-    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-    return kmsPrivateKeyToStaticPublicKey(senderKmsIdentifier, Pem.encoded(recipientPublicKey, "recipientPublicKey"));
-  }
-
-  /** {@link #kmsPrivateKeyToStaticPublicKey(String, byte[], byte[])} with JCA keys. */
-  public static KmsEcdhKeyAgreementScheme kmsPrivateKeyToStaticPublicKey(
-    String senderKmsIdentifier,
-    PublicKey senderPublicKey,
-    PublicKey recipientPublicKey
-  ) {
-    KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
-    KeyringNames.requireSet(senderPublicKey, "senderPublicKey");
-    KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-    return kmsPrivateKeyToStaticPublicKey(
-      senderKmsIdentifier,
-      Pem.encoded(senderPublicKey, "senderPublicKey"),
-      Pem.encoded(recipientPublicKey, "recipientPublicKey")
-    );
+  public static KmsPrivateKeyToStaticPublicKeyBuilder kmsPrivateKeyToStaticPublicKey() {
+    return new KmsPrivateKeyToStaticPublicKeyBuilder();
   }
 
   /**
    * The recipient is a KMS key agreement key; decrypts any message addressed to it, encrypts nothing.
-   * The keyring fetches the recipient's public key with KMS GetPublicKey when it is built.
+   * Requires {@code recipientKmsIdentifier}. The keyring fetches the recipient's public key with KMS GetPublicKey when it is built.
    */
-  public static KmsEcdhKeyAgreementScheme kmsPublicKeyDiscovery(String recipientKmsIdentifier) {
-    KeyringNames.requireSet(recipientKmsIdentifier, "recipientKmsIdentifier");
-    return new Of(Kind.KMS_PUBLIC_KEY_DISCOVERY, recipientKmsIdentifier, null, null);
+  public static KmsPublicKeyDiscoveryBuilder kmsPublicKeyDiscovery() {
+    return new KmsPublicKeyDiscoveryBuilder();
   }
 
   public abstract Kind kind();
@@ -105,6 +67,84 @@ public abstract class KmsEcdhKeyAgreementScheme {
   /** Null for discovery. Not a copy. */
   byte[] recipientPublicKey() {
     return recipientPublicKey;
+  }
+
+  // Copied or encoded when set; null is a missing key.
+  private static byte[] publicKey(byte[] key) {
+    return key == null ? null : key.clone();
+  }
+
+  private static byte[] publicKey(PublicKey key, String name) {
+    return key == null ? null : Pem.encoded(key, name).clone();
+  }
+
+  private static byte[] copy(byte[] key) {
+    return key == null ? null : key.clone();
+  }
+
+  /** Not thread-safe. */
+  public static final class KmsPrivateKeyToStaticPublicKeyBuilder {
+
+    private String senderKmsIdentifier;
+    private byte[] senderPublicKey;
+    private byte[] recipientPublicKey;
+
+    private KmsPrivateKeyToStaticPublicKeyBuilder() {}
+
+    /** The sender's KMS key agreement key. */
+    public KmsPrivateKeyToStaticPublicKeyBuilder senderKmsIdentifier(String senderKmsIdentifier) {
+      this.senderKmsIdentifier = senderKmsIdentifier;
+      return this;
+    }
+
+    /** Optional: the sender's public key, so the keyring makes no KMS GetPublicKey call when it is built. */
+    public KmsPrivateKeyToStaticPublicKeyBuilder senderPublicKey(byte[] senderPublicKey) {
+      this.senderPublicKey = publicKey(senderPublicKey);
+      return this;
+    }
+
+    /** {@link #senderPublicKey(byte[])} with a JCA key. */
+    public KmsPrivateKeyToStaticPublicKeyBuilder senderPublicKey(PublicKey senderPublicKey) {
+      this.senderPublicKey = publicKey(senderPublicKey, "senderPublicKey");
+      return this;
+    }
+
+    public KmsPrivateKeyToStaticPublicKeyBuilder recipientPublicKey(byte[] recipientPublicKey) {
+      this.recipientPublicKey = publicKey(recipientPublicKey);
+      return this;
+    }
+
+    public KmsPrivateKeyToStaticPublicKeyBuilder recipientPublicKey(PublicKey recipientPublicKey) {
+      this.recipientPublicKey = publicKey(recipientPublicKey, "recipientPublicKey");
+      return this;
+    }
+
+    /** @throws ValidationException if {@code senderKmsIdentifier} or {@code recipientPublicKey} is missing */
+    public KmsEcdhKeyAgreementScheme build() {
+      KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
+      KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
+      return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, copy(senderPublicKey), recipientPublicKey.clone());
+    }
+  }
+
+  /** Not thread-safe. */
+  public static final class KmsPublicKeyDiscoveryBuilder {
+
+    private String recipientKmsIdentifier;
+
+    private KmsPublicKeyDiscoveryBuilder() {}
+
+    /** The recipient's KMS key agreement key. */
+    public KmsPublicKeyDiscoveryBuilder recipientKmsIdentifier(String recipientKmsIdentifier) {
+      this.recipientKmsIdentifier = recipientKmsIdentifier;
+      return this;
+    }
+
+    /** @throws ValidationException if {@code recipientKmsIdentifier} is missing */
+    public KmsEcdhKeyAgreementScheme build() {
+      KeyringNames.requireSet(recipientKmsIdentifier, "recipientKmsIdentifier");
+      return new Of(Kind.KMS_PUBLIC_KEY_DISCOVERY, recipientKmsIdentifier, null, null);
+    }
   }
 
   private static final class Of extends KmsEcdhKeyAgreementScheme {
