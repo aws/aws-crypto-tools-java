@@ -13,7 +13,13 @@ import java.util.function.Function;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
+import software.amazon.cryptography.materialproviders.cache.NoCache;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
+import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
 import software.amazon.cryptography.oldapi.keystore.model.BeaconKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.BranchKeyMaterials;
@@ -52,43 +58,81 @@ public final class CacheAdapter {
   }
 
   /**
-   * The native cache type. A {@code Shared} cache is a customer object in the old API;
+   * The native cache. A {@code Shared} cache is a customer object in the old API;
    * {@code sharedCache} turns it into a native one.
    */
-  public static software.amazon.cryptography.materialproviders.cache.CacheType cacheType(
+  public static CryptographicMaterialsCache cache(
     CacheType old,
     Function<ICryptographicMaterialsCache, CryptographicMaterialsCache> sharedCache
   ) {
     if (old.Default() != null) {
-      return software.amazon.cryptography.materialproviders.cache.CacheType.defaultCache(old.Default().entryCapacity());
+      return DefaultCache.builder().entryCapacity(old.Default().entryCapacity()).build();
     }
     if (old.No() != null) {
-      return software.amazon.cryptography.materialproviders.cache.CacheType.noCache();
+      return NoCache.create();
     }
     if (old.SingleThreaded() != null) {
       SingleThreadedCache c = old.SingleThreaded();
-      return software.amazon.cryptography.materialproviders.cache.CacheType.singleThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return software.amazon.cryptography.materialproviders.cache.SingleThreadedCache
+        .builder()
+        .entryCapacity(c.entryCapacity())
+        .entryPruningTailSize(tailSize(c.entryPruningTailSize()))
+        .build();
     }
     if (old.MultiThreaded() != null) {
       MultiThreadedCache c = old.MultiThreaded();
-      return software.amazon.cryptography.materialproviders.cache.CacheType.multiThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return software.amazon.cryptography.materialproviders.cache.MultiThreadedCache
+        .builder()
+        .entryCapacity(c.entryCapacity())
+        .entryPruningTailSize(tailSize(c.entryPruningTailSize()))
+        .build();
     }
     if (old.StormTracking() != null) {
-      // Through the internal settings, which hold any old configuration, its time unit included.
-      StormTrackingCache c = old.StormTracking();
-      StormSettings settings = StormSettings.create(
-        c.entryCapacity(),
-        tailSize(c.entryPruningTailSize()),
-        c.gracePeriod(),
-        c.graceInterval(),
-        c.fanOut(),
-        c.inFlightTTL(),
-        c.sleepMilli(),
-        c.timeUnits() != TimeUnits.Milliseconds
-      );
-      return software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(settings.toPublic());
+      return stormSettings(old.StormTracking()).toPublic();
     }
-    return software.amazon.cryptography.materialproviders.cache.CacheType.shared(sharedCache.apply(old.Shared()));
+    return sharedCache.apply(old.Shared());
+  }
+
+  /**
+   * The engine of a built-in cache on {@code clock}, for {@code CreateCryptographicMaterialsCache}.
+   *
+   * @throws ValidationException for invalid settings or a {@code Shared} cache, which the Dafny-based MPL rejected here
+   */
+  public static <V> CacheEngine<V> engine(CacheType old, CacheClock clock) {
+    if (old.Default() != null) {
+      return Caches.stormTracking(Caches.defaultSettings(old.Default().entryCapacity()), clock);
+    }
+    if (old.No() != null) {
+      return Caches.noCache(clock);
+    }
+    if (old.SingleThreaded() != null) {
+      SingleThreadedCache c = old.SingleThreaded();
+      Caches.checkLocal(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return Caches.singleThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()), clock);
+    }
+    if (old.MultiThreaded() != null) {
+      MultiThreadedCache c = old.MultiThreaded();
+      Caches.checkLocal(c.entryCapacity(), tailSize(c.entryPruningTailSize()));
+      return Caches.multiThreaded(c.entryCapacity(), tailSize(c.entryPruningTailSize()), clock);
+    }
+    if (old.StormTracking() != null) {
+      return Caches.stormTracking(stormSettings(old.StormTracking()), clock);
+    }
+    throw new ValidationException("CreateCryptographicMaterialsCache should never be called with Shared CacheType.");
+  }
+
+  // Through the internal settings, which hold any old configuration, its time unit included.
+  private static StormSettings stormSettings(StormTrackingCache c) {
+    return StormSettings.create(
+      c.entryCapacity(),
+      tailSize(c.entryPruningTailSize()),
+      c.gracePeriod(),
+      c.graceInterval(),
+      c.fanOut(),
+      c.inFlightTTL(),
+      c.sleepMilli(),
+      c.timeUnits() != TimeUnits.Milliseconds
+    );
   }
 
   // An unset optional int reads as 0, which the Dafny-based MPL took as absent (OptionalCountingNumber).

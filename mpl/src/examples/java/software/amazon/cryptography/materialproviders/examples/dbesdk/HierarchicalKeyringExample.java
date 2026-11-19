@@ -10,7 +10,7 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
@@ -68,7 +68,7 @@ public final class HierarchicalKeyringExample {
         // How long a branch key is used before the keyring asks KMS again.
         .ttl(Duration.ofMinutes(10))
         // How many branch keys the keyring holds.
-        .cache(CacheType.defaultCache(100))
+        .cache(DefaultCache.builder().entryCapacity(100).build())
         .build();
 
       DbEsdkLikeItemEncryptor encryptor = ExampleItems.encryptor(keyring);

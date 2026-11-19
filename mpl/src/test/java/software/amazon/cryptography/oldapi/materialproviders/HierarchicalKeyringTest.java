@@ -146,7 +146,7 @@ class HierarchicalKeyringTest {
                 .keyStore(input.keyStore().impl())
                 .branchKeyId(branchKey)
                 .ttl(Duration.ofSeconds(ttl))
-                .cache(software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(settings))
+                .cache(settings)
                 .build() == null
               ? null
               : "keyring"
@@ -185,17 +185,15 @@ class HierarchicalKeyringTest {
               .branchKeyId(branchKey)
               .ttl(Duration.ofSeconds(ttl))
               .cache(
-                software.amazon.cryptography.materialproviders.cache.CacheType.stormTracking(
-                  software.amazon.cryptography.materialproviders.cache.StormTrackingCache
-                    .builder()
-                    .entryCapacity(10)
-                    .gracePeriod(Duration.ofMillis(times[0]))
-                    .graceInterval(Duration.ofMillis(times[1]))
-                    .fanOut(5)
-                    .inFlightTtl(Duration.ofMillis(times[2]))
-                    .sleep(Duration.ofMillis(5))
-                    .build()
-                )
+                software.amazon.cryptography.materialproviders.cache.StormTrackingCache
+                  .builder()
+                  .entryCapacity(10)
+                  .gracePeriod(Duration.ofMillis(times[0]))
+                  .graceInterval(Duration.ofMillis(times[1]))
+                  .fanOut(5)
+                  .inFlightTtl(Duration.ofMillis(times[2]))
+                  .sleep(Duration.ofMillis(5))
+                  .build()
               )
               .build() == null
             ? null

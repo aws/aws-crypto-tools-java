@@ -28,10 +28,12 @@ import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 import software.amazon.cryptography.materialproviders.OnEncryptResponse;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.materialproviders.cache.SingleThreadedCache;
+import software.amazon.cryptography.materialproviders.cache.StormTrackingCache;
 import software.amazon.cryptography.materialproviders.exceptions.CryptographicException;
 import software.amazon.cryptography.materialproviders.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
@@ -44,7 +46,6 @@ import software.amazon.cryptography.materialproviders.internal.MaterialsRules;
 import software.amazon.cryptography.materialproviders.internal.Utf8;
 import software.amazon.cryptography.materialproviders.internal.cache.BuiltInCache;
 import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheSpec;
 import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
 import software.amazon.cryptography.materialproviders.internal.primitives.AesGcm;
@@ -56,7 +57,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Random
 
 /**
  * Wraps data keys with branch keys from a branch key store, caching branch keys so most operations make no KMS call.
- * Thread-safe when its cache is: not with {@link CacheType#singleThreaded}, nor with a shared cache that is not thread-safe.
+ * Thread-safe when its cache is, so not with a {@link SingleThreadedCache}.
  *
  * <p>Each encrypted data key has provider id {@code aws-kms-hierarchy}, provider info = the branch key id as UTF-8,
  * and ciphertext = {@code salt (16) || IV (12) || branch key version as a 16-byte UUID || AES-GCM ciphertext || tag (16)}.
@@ -96,7 +97,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   private final BranchKeyIdSupplier branchKeyIdSupplier;
   private final BranchKeyStore keyStore;
   private final long ttlSeconds;
-  private final CacheType cacheType;
+  private final CryptographicMaterialsCache configuredCache;
   private final String partitionId;
   private final CryptographicMaterialsCache cache;
   private final byte[] partitionIdBytes;
@@ -113,7 +114,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     this.branchKeyIdSupplier = builder.branchKeyIdSupplier;
     this.keyStore = builder.keyStore;
     this.ttlSeconds = builder.ttl.getSeconds();
-    this.cacheType = builder.cache;
+    this.configuredCache = builder.cache;
     this.partitionId = builder.partitionId;
     this.cache = cache;
     this.partitionIdBytes = partitionIdBytes;
@@ -140,14 +141,14 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     return keyStore;
   }
 
-  /** How long a cached branch key is used: a positive whole number of seconds. See {@link CacheType} for the check against the cache. */
+  /** How long a cached branch key is used: a positive whole number of seconds. See {@link Builder#cache} for the check against the cache. */
   public Duration ttl() {
     return Duration.ofSeconds(ttlSeconds);
   }
 
-  /** Where branch keys are cached; default {@code CacheType.defaultCache(1000)}. */
-  public Optional<CacheType> cache() {
-    return Optional.ofNullable(cacheType);
+  /** The cache set on the builder; empty when the keyring uses its own {@link DefaultCache} of 1000 entries. */
+  public Optional<CryptographicMaterialsCache> cache() {
+    return Optional.ofNullable(configuredCache);
   }
 
   /** Keyrings sharing a cache share entries only when their partition ids and key stores' logical names are equal; default: a random id, so nothing is shared. */
@@ -491,7 +492,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     private BranchKeyIdSupplier branchKeyIdSupplier;
     private BranchKeyStore keyStore;
     private Duration ttl;
-    private CacheType cache;
+    private CryptographicMaterialsCache cache;
     private String partitionId;
     private CacheClock clock = CacheClock.SYSTEM;
 
@@ -517,7 +518,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
     /**
      * How long a cached branch key is used: a positive whole number of seconds, such as {@code Duration.ofMinutes(10)}.
-     * {@link #build()} rejects any other value, including null. See {@link CacheType} for the check against the cache.
+     * {@link #build()} rejects any other value, including null. See {@link #cache} for the check against the cache.
      */
     public Builder ttl(Duration ttl) {
       this.ttl = ttl;
@@ -525,11 +526,17 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     }
 
     /**
-     * Where branch keys are cached; default {@code CacheType.defaultCache(1000)}.
-     * Without this setting {@link #build()} requires {@code ttl} above the default 10-second grace period;
-     * with {@code CacheType.defaultCache} given explicitly it does not (see {@link CacheType}).
+     * Where branch keys are cached; default: a new {@link DefaultCache} of 1000 entries for this keyring.
+     * Keyrings given the same cache share it (see {@link #partitionId}).
+     *
+     * <p>{@link #build()} checks the TTL against the grace period, requiring {@code ttl} above it, in two cases:
+     * with no cache set (the default 10-second grace period), and with a {@link StormTrackingCache} (its grace period, in whole seconds).
+     * Other caches are not checked. So a keyring given a {@link DefaultCache} explicitly accepts a TTL at or below its 10-second grace period,
+     * which the same keyring without a cache rejects. Each branch key it caches is then inside the grace period as soon as it is
+     * cached, so the cache saves few key store reads: a read while no refresh of the key is in flight is a miss and reads the key store,
+     * and only reads during such a refresh (at most one grace interval, 1 second) get the cached key.
      */
-    public Builder cache(CacheType cache) {
+    public Builder cache(CryptographicMaterialsCache cache) {
       this.cache = cache;
       return this;
     }
@@ -588,20 +595,16 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       return new AwsKmsHierarchicalKeyring(this, built, partitionIdBytes, logicalKeyStoreNameBytes);
     }
 
-    // CheckCache, then the cache: the shared instance, or a new one of the configured or default type.
+    // CheckCache, then the cache: the configured one, or a new default one.
     private CryptographicMaterialsCache cache(long ttlSeconds) {
       if (cache == null) {
         checkGracePeriod(ttlSeconds, DEFAULT_GRACE_PERIOD_SECONDS);
-        return new BuiltInCache(Caches.engine(CacheType.defaultCache(1000), clock));
+        return new BuiltInCache(Caches.stormTracking(Caches.defaultSettings(Caches.KEYRING_DEFAULT_ENTRY_CAPACITY), clock));
       }
-      CacheSpec spec = CacheSpec.of(cache);
-      if (spec.kind == CacheType.Kind.STORM_TRACKING) {
-        checkGracePeriod(ttlSeconds, StormSettings.of(spec.stormTracking).gracePeriodSeconds());
+      if (cache instanceof StormTrackingCache) {
+        checkGracePeriod(ttlSeconds, StormSettings.of((StormTrackingCache) cache).gracePeriodSeconds());
       }
-      if (spec.kind == CacheType.Kind.SHARED) {
-        return spec.shared;
-      }
-      return new BuiltInCache(Caches.engine(cache, clock));
+      return cache;
     }
 
     // The message names ttlSeconds, the Dafny field, as the Dafny-based keyring's does.

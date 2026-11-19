@@ -29,23 +29,27 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.OnDecryptRequest;
 import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryResponse;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
+import software.amazon.cryptography.materialproviders.cache.NoCache;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryResponse;
+import software.amazon.cryptography.materialproviders.cache.SingleThreadedCache;
+import software.amazon.cryptography.materialproviders.cache.StormTrackingCache;
 import software.amazon.cryptography.materialproviders.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
@@ -142,26 +146,26 @@ class AwsKmsHierarchicalKeyringTest {
     );
     assertEquals(
       "`ttl` must be greater than 0",
-      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(0)).cache(CacheType.noCache()).build()).getMessage()
+      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(0)).cache(NoCache.create()).build()).getMessage()
     );
     for (Duration fraction : Arrays.asList(Duration.ofMillis(1500), Duration.ofNanos(1), Duration.ofSeconds(5, 1))) {
       assertEquals(
         "`ttl` must be a whole number of seconds",
-        assertThrows(ValidationException.class, () -> builder().ttl(fraction).cache(CacheType.noCache()).build()).getMessage()
+        assertThrows(ValidationException.class, () -> builder().ttl(fraction).cache(NoCache.create()).build()).getMessage()
       );
     }
     assertEquals(
       "Missing value for required field `ttl`",
       assertThrows(ValidationException.class, () -> builder().ttl(null).build()).getMessage()
     );
-    builder().ttl(Duration.ofSeconds(1)).cache(CacheType.noCache()).build();
+    builder().ttl(Duration.ofSeconds(1)).cache(NoCache.create()).build();
     assertEquals(Duration.ofSeconds(Long.MAX_VALUE), builder().ttl(Duration.ofSeconds(Long.MAX_VALUE)).build().ttl());
   }
 
   @Test
   void accessors() {
     BranchKeyIdSupplier supplier = request -> GetBranchKeyIdResponse.builder().branchKeyId(branchKey).build();
-    CacheType cache = CacheType.multiThreaded(5);
+    CryptographicMaterialsCache cache = MultiThreadedCache.builder().entryCapacity(5).build();
     AwsKmsHierarchicalKeyring configured = builder().branchKeyId(null).branchKeyIdSupplier(supplier).cache(cache).partitionId("p").ttl(Duration.ofSeconds(7)).build();
     assertSame(store, configured.keyStore());
     assertEquals(Optional.empty(), configured.branchKeyId());
@@ -176,11 +180,50 @@ class AwsKmsHierarchicalKeyringTest {
     assertFalse(defaults.partitionId().isPresent());
   }
 
+  // The TTL is checked against the grace period only with no cache set or with a StormTrackingCache.
+  @Test
+  void theTtlIsCheckedOnlyAgainstAStormTrackingCacheOrTheDefault() {
+    StormTrackingCache storm = StormTrackingCache.builder().entryCapacity(5).gracePeriod(Duration.ofMillis(5999)).inFlightTtl(Duration.ofSeconds(1)).build();
+    assertEquals(
+      "When creating an AwsKmsHierarchicalKeyring with a StormCache, the ttlSeconds of the KeyRing must be greater than " +
+      "the gracePeriod of the StormCache yet the ttlSeconds is 5 and the gracePeriod is 5.",
+      assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(5)).cache(storm).build()).getMessage()
+    );
+    builder().ttl(Duration.ofSeconds(6)).cache(storm).build();
+    assertThrows(ValidationException.class, () -> builder().ttl(Duration.ofSeconds(10)).build());
+    for (CryptographicMaterialsCache unchecked : Arrays.asList(
+      DefaultCache.builder().entryCapacity(5).build(),
+      NoCache.create(),
+      SingleThreadedCache.builder().entryCapacity(5).build(),
+      MultiThreadedCache.builder().entryCapacity(5).build(),
+      new MapCache()
+    )) {
+      builder().ttl(Duration.ofSeconds(1)).cache(unchecked).build();
+    }
+  }
+
+  // Sharing is passing one cache to several keyrings; they share entries only with equal partition ids.
+  @Test
+  void keyringsGivenOneCacheShareEntriesByPartitionId() {
+    CryptographicMaterialsCache shared = MultiThreadedCache.builder().entryCapacity(10).build();
+    builder().cache(shared).partitionId("p").build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    assertEquals(2, reads());
+    builder().cache(shared).partitionId("p").build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    assertEquals(0, reads());
+    builder().cache(shared).partitionId("q").build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    assertEquals(2, reads());
+    // Without a cache each keyring has its own.
+    builder().partitionId("p").build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    assertEquals(2, reads());
+    builder().partitionId("p").build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    assertEquals(2, reads());
+  }
+
   @Test
   void theTtlBoundsAnEntrysAgeWhateverItsExpiry() {
     TestClock clock = new TestClock(1_000_999);
     MapCache cache = new MapCache();
-    AwsKmsHierarchicalKeyring keyring = builder().ttl(Duration.ofSeconds(5)).cache(CacheType.shared(cache)).clock(clock).build();
+    AwsKmsHierarchicalKeyring keyring = builder().ttl(Duration.ofSeconds(5)).cache(cache).clock(clock).build();
     keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
     assertEquals(2, reads());
     CacheEntry entry = cache.entries.values().iterator().next();
@@ -204,16 +247,16 @@ class AwsKmsHierarchicalKeyringTest {
     TestClock clock = new TestClock(1_000_000);
     MapCache cache = new MapCache();
     // now = 1000 s: now + ttl = Long.MAX_VALUE - 1 is the largest sum that passes.
-    builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1001)).cache(CacheType.shared(cache)).clock(clock).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
+    builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1001)).cache(cache).clock(clock).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
     assertEquals(Instant.MAX, cache.entries.values().iterator().next().expiryTime());
-    AwsKmsHierarchicalKeyring overflow = builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1000)).cache(CacheType.shared(new MapCache())).clock(clock).build();
+    AwsKmsHierarchicalKeyring overflow = builder().ttl(Duration.ofSeconds(Long.MAX_VALUE - 1000)).cache(new MapCache()).clock(clock).build();
     assertEquals("INT64 Overflow when putting cache entry.", assertThrows(ValidationException.class, () -> overflow.onEncrypt(OnEncryptRequest.builder().materials(materials()).build())).getMessage());
   }
 
   @Test
   void cacheEntriesThatAreNotBranchKeys() {
     MapCache cache = new MapCache();
-    AwsKmsHierarchicalKeyring keyring = builder().cache(CacheType.shared(cache)).build();
+    AwsKmsHierarchicalKeyring keyring = builder().cache(cache).build();
     keyring.onEncrypt(OnEncryptRequest.builder().materials(materials()).build());
     CacheKey key = cache.entries.keySet().iterator().next();
     cache.entries.put(
@@ -232,7 +275,7 @@ class AwsKmsHierarchicalKeyringTest {
         throw failure;
       }
     };
-    assertSame(failure, assertThrows(IllegalStateException.class, () -> builder().cache(CacheType.shared(failing)).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build())));
+    assertSame(failure, assertThrows(IllegalStateException.class, () -> builder().cache(failing).build().onEncrypt(OnEncryptRequest.builder().materials(materials()).build())));
     RuntimeException supplierFailure = new RuntimeException("supplier failed");
     AwsKmsHierarchicalKeyring throwing = builder().branchKeyId(null).branchKeyIdSupplier(request -> {
       throw supplierFailure;
@@ -297,7 +340,7 @@ class AwsKmsHierarchicalKeyringTest {
   void concurrentMissesOnAMultiThreadedCacheEachReadTheKeyStore() throws Exception {
     // As in Dafny, only a storm-tracking cache makes concurrent misses wait for one read; with any other cache each
     // caller that misses reads the key store. The cache here holds every lookup until all callers have missed.
-    CryptographicMaterialsCache multiThreaded = CryptographicMaterialsCache.create(CacheType.multiThreaded(10));
+    CryptographicMaterialsCache multiThreaded = MultiThreadedCache.builder().entryCapacity(10).build();
     CyclicBarrier allLookedUp = new CyclicBarrier(THREADS);
     CryptographicMaterialsCache missTogether = new CryptographicMaterialsCache() {
       @Override
@@ -317,7 +360,7 @@ class AwsKmsHierarchicalKeyringTest {
         return multiThreaded.deleteCacheEntry(request);
       }
     };
-    assertConcurrentReads(builder().cache(CacheType.shared(missTogether)).build(), THREADS);
+    assertConcurrentReads(builder().cache(missTogether).build(), THREADS);
   }
 
   // THREADS concurrent encryptions, then THREADS concurrent decryptions of their results, each phase making

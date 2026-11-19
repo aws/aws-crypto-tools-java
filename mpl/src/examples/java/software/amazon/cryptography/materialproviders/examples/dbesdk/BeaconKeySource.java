@@ -23,8 +23,8 @@ import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
 
@@ -183,7 +183,7 @@ public final class BeaconKeySource {
 
   /**
    * Not thread-safe. Requires {@code cacheTtlSeconds} from 1 to 2^32 - 1, the Dafny uint32 range.
-   * Default cache, per ConfigToInfo.dfy: {@code CacheType.defaultCache(1)} for a single key store, 1000 entries for a multi key store.
+   * Default cache, per ConfigToInfo.dfy: a new {@link DefaultCache} of 1 entry for a single key store, 1000 entries for a multi key store.
    */
   public static final class Builder {
 
@@ -192,7 +192,7 @@ public final class BeaconKeySource {
     private final String keyFieldName;
     private List<String> beaconNames = new ArrayList<>();
     private long cacheTtlSeconds;
-    private CacheType cache;
+    private CryptographicMaterialsCache cache;
     private String partitionId;
     private LongSupplier epochSeconds = () -> System.currentTimeMillis() / 1000;
 
@@ -213,8 +213,8 @@ public final class BeaconKeySource {
       return this;
     }
 
-    /** The cache to build, or with {@link CacheType#shared} one shared with hierarchical keyrings. */
-    public Builder cache(CacheType cache) {
+    /** The cache, which may also be given to hierarchical keyrings. */
+    public Builder cache(CryptographicMaterialsCache cache) {
       this.cache = cache;
       return this;
     }
@@ -238,7 +238,7 @@ public final class BeaconKeySource {
       if (cacheTtlSeconds > 0xFFFFFFFFL) {
         throw new IllegalArgumentException("Beacon Cache TTL must fit in 32 bits.");
       }
-      CryptographicMaterialsCache built = CryptographicMaterialsCache.create(cache != null ? cache : CacheType.defaultCache(keyId != null ? 1 : 1000));
+      CryptographicMaterialsCache built = cache != null ? cache : DefaultCache.builder().entryCapacity(keyId != null ? 1 : 1000).build();
       return new BeaconKeySource(this, built);
     }
   }

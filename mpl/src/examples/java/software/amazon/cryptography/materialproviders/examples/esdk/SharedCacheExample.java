@@ -11,8 +11,8 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
@@ -39,7 +39,7 @@ public final class SharedCacheExample {
     KmsClient kmsClient,
     DynamoDbClient ddbClient
   ) {
-    CacheType sharedCache = CacheType.shared(CryptographicMaterialsCache.create(CacheType.defaultCache(100)));
+    CryptographicMaterialsCache sharedCache = DefaultCache.builder().entryCapacity(100).build();
     EsdkLikeClient crypto = EsdkLikeClient.builder().build();
     Map<String, String> encryptionContext = Collections.singletonMap("encryption", "context");
 
@@ -69,7 +69,7 @@ public final class SharedCacheExample {
       .build();
   }
 
-  private static Keyring keyring(BranchKeyStore keyStore, String branchKeyId, CacheType cache, String partitionId) {
+  private static Keyring keyring(BranchKeyStore keyStore, String branchKeyId, CryptographicMaterialsCache cache, String partitionId) {
     return AwsKmsHierarchicalKeyring
       .builder()
       .keyStore(keyStore)

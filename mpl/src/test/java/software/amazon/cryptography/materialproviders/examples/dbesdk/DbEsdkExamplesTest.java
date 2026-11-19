@@ -34,12 +34,12 @@ import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.DeleteCacheEntryResponse;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryResponse;
+import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryResponse;
 import software.amazon.cryptography.materialproviders.examples.dbesdk.DbEsdkLikeItemEncryptor.ParsedHeader;
@@ -327,7 +327,7 @@ class DbEsdkExamplesTest {
   void beaconKeySourceCachesWithinItsTtlAndPartition() {
     BranchKeyStore store = keyStore();
     String key = store.createKey().branchKeyIdentifier();
-    CryptographicMaterialsCache backing = CryptographicMaterialsCache.create(CacheType.multiThreaded(10));
+    CryptographicMaterialsCache backing = MultiThreadedCache.builder().entryCapacity(10).build();
     List<CacheEntry> puts = new ArrayList<>();
     CryptographicMaterialsCache cache = new CryptographicMaterialsCache() {
       @Override
@@ -381,7 +381,7 @@ class DbEsdkExamplesTest {
       .singleKeyStore(store, key)
       .beaconNames(Collections.singletonList("b"))
       .cacheTtlSeconds(60)
-      .cache(CacheType.shared(cache))
+      .cache(cache)
       .partitionId(partitionId)
       .clock(now::get)
       .build();

@@ -2,29 +2,51 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.materialproviders.internal.cache;
 
-import software.amazon.cryptography.materialproviders.cache.CacheType;
-import software.amazon.cryptography.materialproviders.exceptions.InternalException;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Builds the cache a {@link CacheType} names, per CreateCryptographicMaterialsCache in AwsCryptographyMaterialProvidersOperations.dfy. */
+/** The built-in cache engines, per CreateCryptographicMaterialsCache in AwsCryptographyMaterialProvidersOperations.dfy. */
 public final class Caches {
+
+  /** The entry capacity of the cache a hierarchical keyring builds when none is set. */
+  public static final int KEYRING_DEFAULT_ENTRY_CAPACITY = 1000;
 
   private Caches() {}
 
-  /** Not for {@code SHARED}, which already is a cache. */
-  public static <V> CacheEngine<V> engine(CacheType type, CacheClock clock) {
-    CacheSpec spec = CacheSpec.of(type);
-    switch (spec.kind) {
-      case DEFAULT:
-      case STORM_TRACKING:
-        return new StormTracker<>(spec.stormTracking, clock);
-      case NO_CACHE:
-        return new LocalCache<>(0, 1, clock);
-      case SINGLE_THREADED:
-        return new LocalCache<>(spec.entryCapacity, spec.entryPruningTailSize, clock);
-      case MULTI_THREADED:
-        return new SynchronizedCache<>(new LocalCache<>(spec.entryCapacity, spec.entryPruningTailSize, clock));
-      default:
-        throw new InternalException("No cache engine for kind " + spec.kind);
+  /**
+   * StormTracker.dfy DefaultStorm, with its times in milliseconds.
+   *
+   * @throws ValidationException if {@code entryCapacity} is below 1
+   */
+  public static StormSettings defaultSettings(int entryCapacity) {
+    return StormSettings.create(entryCapacity, 1, 10 * 1000, 1 * 1000, 20, 10 * 1000, 20, false);
+  }
+
+  public static <V> CacheEngine<V> noCache(CacheClock clock) {
+    return new LocalCache<>(0, 1, clock);
+  }
+
+  public static <V> CacheEngine<V> singleThreaded(int entryCapacity, int entryPruningTailSize, CacheClock clock) {
+    return new LocalCache<>(entryCapacity, entryPruningTailSize, clock);
+  }
+
+  public static <V> CacheEngine<V> multiThreaded(int entryCapacity, int entryPruningTailSize, CacheClock clock) {
+    return new SynchronizedCache<>(new LocalCache<>(entryCapacity, entryPruningTailSize, clock));
+  }
+
+  public static <V> CacheEngine<V> stormTracking(StormSettings settings, CacheClock clock) {
+    return new StormTracker<>(settings, clock);
+  }
+
+  /**
+   * The checks of the local caches' settings.
+   *
+   * @throws ValidationException if {@code entryCapacity} was not set or either number is below 1
+   */
+  public static void checkLocal(Integer entryCapacity, int entryPruningTailSize) {
+    if (entryCapacity == null) {
+      throw new ValidationException("Missing value for required field `entryCapacity`");
     }
+    StormSettings.atLeastOne("entryCapacity", entryCapacity);
+    StormSettings.atLeastOne("entryPruningTailSize", entryPruningTailSize);
   }
 }

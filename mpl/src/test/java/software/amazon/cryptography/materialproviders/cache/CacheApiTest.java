@@ -5,8 +5,6 @@ package software.amazon.cryptography.materialproviders.cache;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -28,69 +26,87 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 import software.amazon.cryptography.materialproviders.internal.cache.BuiltInCache;
 import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheSpec;
 import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
 
-// The public cache API: CacheType factories, storm-tracking settings, keys, entries, and the built-in caches.
+// The public cache API: the built-in caches' builders and settings, keys, and entries.
 class CacheApiTest {
 
   @Test
-  void cacheTypeKinds() {
-    assertEquals(CacheType.Kind.DEFAULT, CacheType.defaultCache(1).kind());
-    assertEquals(CacheType.Kind.NO_CACHE, CacheType.noCache().kind());
-    assertEquals(CacheType.Kind.SINGLE_THREADED, CacheType.singleThreaded(1).kind());
-    assertEquals(CacheType.Kind.SINGLE_THREADED, CacheType.singleThreaded(1, 2).kind());
-    assertEquals(CacheType.Kind.MULTI_THREADED, CacheType.multiThreaded(1).kind());
-    assertEquals(CacheType.Kind.MULTI_THREADED, CacheType.multiThreaded(1, 2).kind());
-    assertEquals(CacheType.Kind.STORM_TRACKING, CacheType.stormTracking(StormTrackingCache.builder().entryCapacity(1).build()).kind());
-    CryptographicMaterialsCache shared = CryptographicMaterialsCache.create(CacheType.noCache());
-    assertEquals(CacheType.Kind.SHARED, CacheType.shared(shared).kind());
-    assertSame(shared, CacheSpec.of(CacheType.shared(shared)).shared);
-  }
-
-  @Test
-  void cacheTypeSpecs() {
-    CacheSpec single = CacheSpec.of(CacheType.singleThreaded(7));
-    assertEquals(7, single.entryCapacity);
-    assertEquals(1, single.entryPruningTailSize);
-    CacheSpec multi = CacheSpec.of(CacheType.multiThreaded(8, 3));
-    assertEquals(8, multi.entryCapacity);
-    assertEquals(3, multi.entryPruningTailSize);
-    assertEquals(3, CacheSpec.of(CacheType.singleThreaded(8, 3)).entryPruningTailSize);
-    assertEquals(1, CacheSpec.of(CacheType.multiThreaded(8)).entryPruningTailSize);
-    // StormTracker.dfy DefaultStorm, in milliseconds. The builder's defaults are the same times, held in seconds.
-    StormTrackingCache dafnyDefault = CacheSpec.of(CacheType.defaultCache(9)).stormTracking;
-    assertEquals(StormSettings.create(9, 1, 10_000, 1000, 20, 10_000, 20, false).toPublic(), dafnyDefault);
-    assertFalse(StormSettings.of(dafnyDefault).seconds);
-    assertEquals(StormTrackingCache.builder().entryCapacity(9).build(), dafnyDefault);
-    assertTrue(StormSettings.of(StormTrackingCache.builder().entryCapacity(9).build()).seconds);
-    StormTrackingCache settings = StormTrackingCache.builder().entryCapacity(4).build();
-    assertSame(settings, CacheSpec.of(CacheType.stormTracking(settings)).stormTracking);
-    assertNull(CacheSpec.of(CacheType.noCache()).stormTracking);
-  }
-
-  @Test
-  void cacheTypeValidation() {
-    List<Supplier<CacheType>> invalidCapacity = Arrays.asList(
-      () -> CacheType.defaultCache(0),
-      () -> CacheType.defaultCache(-1),
-      () -> CacheType.singleThreaded(0),
-      () -> CacheType.singleThreaded(0, 1),
-      () -> CacheType.multiThreaded(0),
-      () -> CacheType.multiThreaded(Integer.MIN_VALUE, 1)
+  void builtInCacheSettings() {
+    SingleThreadedCache single = SingleThreadedCache.builder().entryCapacity(7).build();
+    assertEquals(Arrays.asList(7, 1), Arrays.asList(single.entryCapacity(), single.entryPruningTailSize()));
+    MultiThreadedCache multi = MultiThreadedCache.builder().entryCapacity(8).entryPruningTailSize(3).build();
+    assertEquals(Arrays.asList(8, 3), Arrays.asList(multi.entryCapacity(), multi.entryPruningTailSize()));
+    assertEquals(3, SingleThreadedCache.builder().entryCapacity(8).entryPruningTailSize(3).build().entryPruningTailSize());
+    assertEquals(1, MultiThreadedCache.builder().entryCapacity(8).build().entryPruningTailSize());
+    assertEquals(9, DefaultCache.builder().entryCapacity(9).build().entryCapacity());
+    assertEquals("SingleThreadedCache[entryCapacity=7, entryPruningTailSize=1]", single.toString());
+    assertEquals("MultiThreadedCache[entryCapacity=8, entryPruningTailSize=3]", multi.toString());
+    assertEquals("DefaultCache[entryCapacity=9]", DefaultCache.builder().entryCapacity(9).build().toString());
+    assertEquals("NoCache", NoCache.create().toString());
+    // StormTracker.dfy DefaultStorm, in milliseconds. The storm-tracking builder's defaults are the same times, held in seconds.
+    StormSettings dafnyDefault = Caches.defaultSettings(9);
+    assertEquals(
+      Arrays.asList(9, 1, 10_000, 1000, 20, 10_000, 20),
+      Arrays.asList(
+        dafnyDefault.entryCapacity,
+        dafnyDefault.entryPruningTailSize,
+        dafnyDefault.gracePeriod,
+        dafnyDefault.graceInterval,
+        dafnyDefault.fanOut,
+        dafnyDefault.inFlightTtl,
+        dafnyDefault.sleepMilli
+      )
     );
-    for (Supplier<CacheType> create : invalidCapacity) {
+    assertFalse(dafnyDefault.seconds);
+    assertEquals(settingsOf(dafnyDefault.toPublic()), settingsOf(StormTrackingCache.builder().entryCapacity(9).build()));
+    assertTrue(StormSettings.of(StormTrackingCache.builder().entryCapacity(9).build()).seconds);
+  }
+
+  @Test
+  void builtInCacheValidation() {
+    List<Supplier<CryptographicMaterialsCache>> invalidCapacity = Arrays.asList(
+      () -> DefaultCache.builder().entryCapacity(0).build(),
+      () -> DefaultCache.builder().entryCapacity(-1).build(),
+      () -> SingleThreadedCache.builder().entryCapacity(0).build(),
+      () -> SingleThreadedCache.builder().entryCapacity(0).entryPruningTailSize(1).build(),
+      () -> MultiThreadedCache.builder().entryCapacity(0).build(),
+      () -> MultiThreadedCache.builder().entryCapacity(Integer.MIN_VALUE).entryPruningTailSize(1).build()
+    );
+    for (Supplier<CryptographicMaterialsCache> create : invalidCapacity) {
       assertEquals("`entryCapacity` must be greater than or equal to 1", assertThrows(ValidationException.class, create::get).getMessage());
     }
-    for (Supplier<CacheType> create : Arrays.<Supplier<CacheType>>asList(() -> CacheType.singleThreaded(1, 0), () -> CacheType.multiThreaded(1, -1))) {
+    for (Supplier<CryptographicMaterialsCache> create : Arrays.<Supplier<CryptographicMaterialsCache>>asList(
+      () -> SingleThreadedCache.builder().entryCapacity(1).entryPruningTailSize(0).build(),
+      () -> MultiThreadedCache.builder().entryCapacity(1).entryPruningTailSize(-1).build()
+    )) {
       assertEquals(
         "`entryPruningTailSize` must be greater than or equal to 1",
         assertThrows(ValidationException.class, create::get).getMessage()
       );
     }
-    assertThrows(NullPointerException.class, () -> CacheType.stormTracking(null));
-    assertThrows(NullPointerException.class, () -> CacheType.shared(null));
+    for (Supplier<CryptographicMaterialsCache> create : Arrays.<Supplier<CryptographicMaterialsCache>>asList(
+      () -> DefaultCache.builder().build(),
+      () -> SingleThreadedCache.builder().build(),
+      () -> MultiThreadedCache.builder().entryPruningTailSize(2).build(),
+      () -> StormTrackingCache.builder().build()
+    )) {
+      assertEquals("Missing value for required field `entryCapacity`", assertThrows(ValidationException.class, create::get).getMessage());
+    }
+  }
+
+  // Every setting, the times in milliseconds.
+  private static List<Object> settingsOf(StormTrackingCache cache) {
+    return Arrays.<Object>asList(
+      cache.entryCapacity(),
+      cache.entryPruningTailSize(),
+      cache.gracePeriod(),
+      cache.graceInterval(),
+      cache.fanOut(),
+      cache.inFlightTtl(),
+      cache.sleep()
+    );
   }
 
   @Test
@@ -118,7 +134,7 @@ class CacheApiTest {
   }
 
   @Test
-  void stormTrackingSettersAndValueSemantics() {
+  void stormTrackingSetters() {
     StormTrackingCache settings = storm(2, 3, 9, 4, 6, 7, 8);
     assertEquals(
       Arrays.<Object>asList(2, 3, Duration.ofMillis(9), Duration.ofMillis(4), 6, Duration.ofMillis(7), Duration.ofMillis(8)),
@@ -137,24 +153,8 @@ class CacheApiTest {
       "inFlightTtl=PT0.007S, sleep=PT0.008S]",
       settings.toString()
     );
-    StormTrackingCache same = storm(2, 3, 9, 4, 6, 7, 8);
-    assertEquals(settings, same);
-    assertEquals(settings.hashCode(), same.hashCode());
-    assertNotEquals(settings, "settings");
-    List<StormTrackingCache> different = Arrays.asList(
-      storm(1, 3, 9, 4, 6, 7, 8),
-      storm(2, 1, 9, 4, 6, 7, 8),
-      storm(2, 3, 8, 4, 6, 7, 8),
-      storm(2, 3, 9, 3, 6, 7, 8),
-      storm(2, 3, 9, 4, 5, 7, 8),
-      storm(2, 3, 9, 4, 6, 6, 8),
-      storm(2, 3, 9, 4, 6, 7, 9)
-    );
-    for (StormTrackingCache other : different) {
-      assertNotEquals(settings, other);
-    }
-    // Equal times are equal settings whichever unit holds them.
-    assertEquals(StormSettings.create(2, 3, 9000, 4000, 6, 7000, 8, false).toPublic(), StormSettings.create(2, 3, 9, 4, 6, 7, 8, true).toPublic());
+    // Equal times give equal settings whichever unit holds them.
+    assertEquals(settingsOf(StormSettings.create(2, 3, 9000, 4000, 6, 7000, 8, false).toPublic()), settingsOf(StormSettings.create(2, 3, 9, 4, 6, 7, 8, true).toPublic()));
   }
 
   // Times in milliseconds.
@@ -347,28 +347,15 @@ class CacheApiTest {
     assertEquals(Instant.ofEpochSecond(300), branch.toBuilder().expiryTime(Instant.ofEpochSecond(300)).build().expiryTime());
   }
 
-  // A consumer that takes a CacheType, such as a DB-ESDK beacon key source, gets the instance back from a shared one.
-  @Test
-  void aSharedTypeHoldsItsCache() {
-    CryptographicMaterialsCache shared = CryptographicMaterialsCache.create(CacheType.noCache());
-    assertSame(shared, CryptographicMaterialsCache.create(CacheType.shared(shared)));
-    for (CacheType other : Arrays.asList(CacheType.defaultCache(1), CacheType.noCache(), CacheType.singleThreaded(1), CacheType.multiThreaded(1),
-        CacheType.stormTracking(StormTrackingCache.builder().entryCapacity(1).build()))) {
-      assertNotSame(shared, CryptographicMaterialsCache.create(other), other.kind().toString());
-    }
-    assertThrows(NullPointerException.class, () -> CryptographicMaterialsCache.create(null));
-  }
-
   @Test
   void builtInCachesStoreBranchAndBeaconKeys() {
     Instant now = Instant.now();
-    for (CacheType type : Arrays.asList(
-      CacheType.defaultCache(5),
-      CacheType.singleThreaded(5),
-      CacheType.multiThreaded(5, 2),
-      CacheType.stormTracking(StormTrackingCache.builder().entryCapacity(5).build())
+    for (CryptographicMaterialsCache cache : Arrays.asList(
+      DefaultCache.builder().entryCapacity(5).build(),
+      SingleThreadedCache.builder().entryCapacity(5).build(),
+      MultiThreadedCache.builder().entryCapacity(5).entryPruningTailSize(2).build(),
+      StormTrackingCache.builder().entryCapacity(5).build()
     )) {
-      CryptographicMaterialsCache cache = CryptographicMaterialsCache.create(type);
       CacheEntry branch = CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now.plusSeconds(1000)).build();
       CacheEntry beacon = CacheEntry.builder().beaconKeyMaterials(beaconKey()).creationTime(now).expiryTime(now.plusSeconds(1000)).build();
       put(cache, key("a"), branch);
@@ -376,11 +363,11 @@ class CacheApiTest {
       assertSame(branch, get(cache, key("a")).get());
       assertSame(beacon, get(cache, key("b")).get());
       cache.deleteCacheEntry(DeleteCacheEntryRequest.builder().key(key("a")).build());
-      assertFalse(get(cache, key("a")).isPresent(), type.kind().toString());
+      assertFalse(get(cache, key("a")).isPresent(), cache.toString());
       cache.deleteCacheEntry(DeleteCacheEntryRequest.builder().key(key("a")).build());
       // Expired: before this second.
       put(cache, key("c"), CacheEntry.builder().branchKeyMaterials(branchKey("c")).creationTime(now).expiryTime(now.minusSeconds(2)).build());
-      assertFalse(get(cache, key("c")).isPresent(), type.kind().toString());
+      assertFalse(get(cache, key("c")).isPresent(), cache.toString());
       assertThrows(NullPointerException.class, () -> cache.getCacheEntry(null));
       assertThrows(NullPointerException.class, () -> cache.putCacheEntry(null));
       assertThrows(NullPointerException.class, () -> cache.deleteCacheEntry(null));
@@ -389,7 +376,7 @@ class CacheApiTest {
     assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(null).entry(CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now).build()).build());
     assertThrows(ValidationException.class, () -> PutCacheEntryRequest.builder().key(key("a")).entry(null).build());
     assertThrows(ValidationException.class, () -> DeleteCacheEntryRequest.builder().key(null).build());
-    CryptographicMaterialsCache none = CryptographicMaterialsCache.create(CacheType.noCache());
+    CryptographicMaterialsCache none = NoCache.create();
     put(none, key("a"), CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(now).expiryTime(now.plusSeconds(1000)).build());
     assertFalse(get(none, key("a")).isPresent());
   }
@@ -409,7 +396,7 @@ class CacheApiTest {
         return wall[0];
       }
     };
-    BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.singleThreaded(5), clock));
+    BuiltInCache cache = new BuiltInCache(Caches.singleThreaded(5, 1, clock));
     put(cache, key("a"), CacheEntry.builder().branchKeyMaterials(branchKey("a")).creationTime(Instant.EPOCH).expiryTime(Instant.ofEpochMilli(10_001)).build());
     assertTrue(get(cache, key("a")).isPresent());
     wall[0] = 11_000;
@@ -441,7 +428,7 @@ class CacheApiTest {
       .fanOut(1)
       .sleep(Duration.ofMillis(1))
       .build();
-    BuiltInCache cache = new BuiltInCache(Caches.engine(CacheType.stormTracking(settings), clock));
+    BuiltInCache cache = new BuiltInCache(Caches.stormTracking(StormSettings.of(settings), clock));
     assertFalse(get(cache, key("a")).isPresent());
     ThrottlingException thrown = assertThrows(ThrottlingException.class, () -> get(cache, key("b")));
     assertEquals("Storm cache inFlightTTL exceeded.", thrown.getMessage());

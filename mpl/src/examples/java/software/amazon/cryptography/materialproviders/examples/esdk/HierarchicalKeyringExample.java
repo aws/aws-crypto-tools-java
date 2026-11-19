@@ -11,7 +11,8 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
+import software.amazon.cryptography.materialproviders.cache.NoCache;
 import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
@@ -71,7 +72,7 @@ public final class HierarchicalKeyringExample {
         .keyStore(keyStore)
         .branchKeyIdSupplier(byTenant)
         .ttl(Duration.ofMinutes(10))
-        .cache(CacheType.defaultCache(100))
+        .cache(DefaultCache.builder().entryCapacity(100).build())
         .build();
 
       EsdkLikeClient crypto = EsdkLikeClient.builder().build();
@@ -97,7 +98,7 @@ public final class HierarchicalKeyringExample {
         .keyStore(keyStore)
         .branchKeyIdSupplier(byTenant)
         .ttl(Duration.ofMinutes(10))
-        .cache(CacheType.noCache())
+        .cache(NoCache.create())
         .build();
       byte[] afterRotation = crypto.encryptData(uncached, EXAMPLE_DATA, contextA);
       Expect.equal(EXAMPLE_DATA, crypto.decryptData(uncached, ciphertextA).getResult());

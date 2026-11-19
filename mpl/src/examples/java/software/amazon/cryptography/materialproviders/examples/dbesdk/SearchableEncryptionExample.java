@@ -11,7 +11,7 @@ import java.util.Map;
 import javax.crypto.Mac;
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
+import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
 
 /**
  * Customer example (BasicSearchableEncryptionExample, searchable-encryption-multitenant):
@@ -56,7 +56,7 @@ public final class SearchableEncryptionExample {
       .multiKeyStore(keyStore, "tenant_key_id")
       .beaconNames(Collections.singletonList(BEACON_NAME))
       .cacheTtlSeconds(60)
-      .cache(CacheType.multiThreaded(100))
+      .cache(MultiThreadedCache.builder().entryCapacity(100).build())
       .partitionId("searchable-encryption-example")
       .build();
     Map<String, String> beacons = new LinkedHashMap<>();

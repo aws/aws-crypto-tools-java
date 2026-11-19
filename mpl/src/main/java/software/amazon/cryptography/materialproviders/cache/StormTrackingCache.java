@@ -5,18 +5,22 @@ package software.amazon.cryptography.materialproviders.cache;
 import java.time.Duration;
 import java.util.Objects;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.internal.cache.BuiltInCache;
+import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
+import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
 
 /**
- * Settings for a storm-tracking cache: as an entry nears expiry, one caller at a time refreshes it while
- * others keep using it. Immutable.
+ * A storm-tracking cache: as an entry nears expiry, one caller at a time refreshes it while others keep using it.
+ * Thread-safe.
  *
  * <p>The cache counts the grace period, grace interval, and in-flight TTL in milliseconds,
  * and entry expiry in whole seconds.
+ * A hierarchical keyring given this cache requires its TTL to exceed the grace period.
  *
  * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/storm-tracking-cryptographic-materials-cache.md">storm tracking cryptographic materials cache</a>.
  */
-public final class StormTrackingCache {
+public final class StormTrackingCache implements CryptographicMaterialsCache {
 
   public static final int DEFAULT_ENTRY_PRUNING_TAIL_SIZE = 1;
   public static final Duration DEFAULT_GRACE_PERIOD = Duration.ofSeconds(10);
@@ -34,9 +38,11 @@ public final class StormTrackingCache {
   }
 
   private final StormSettings settings;
+  private final BuiltInCache cache;
 
   private StormTrackingCache(StormSettings settings) {
     this.settings = settings;
+    this.cache = new BuiltInCache(Caches.stormTracking(settings, CacheClock.SYSTEM));
   }
 
   public static Builder builder() {
@@ -72,25 +78,18 @@ public final class StormTrackingCache {
   }
 
   @Override
-  public boolean equals(Object other) {
-    if (!(other instanceof StormTrackingCache)) {
-      return false;
-    }
-    StormTrackingCache that = (StormTrackingCache) other;
-    return (
-      entryCapacity() == that.entryCapacity() &&
-      entryPruningTailSize() == that.entryPruningTailSize() &&
-      gracePeriod().equals(that.gracePeriod()) &&
-      graceInterval().equals(that.graceInterval()) &&
-      fanOut() == that.fanOut() &&
-      inFlightTtl().equals(that.inFlightTtl()) &&
-      sleep().equals(that.sleep())
-    );
+  public GetCacheEntryResponse getCacheEntry(GetCacheEntryRequest request) {
+    return cache.getCacheEntry(request);
   }
 
   @Override
-  public int hashCode() {
-    return Objects.hash(entryCapacity(), entryPruningTailSize(), gracePeriod(), graceInterval(), fanOut(), inFlightTtl(), sleep());
+  public PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request) {
+    return cache.putCacheEntry(request);
+  }
+
+  @Override
+  public DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request) {
+    return cache.deleteCacheEntry(request);
   }
 
   @Override

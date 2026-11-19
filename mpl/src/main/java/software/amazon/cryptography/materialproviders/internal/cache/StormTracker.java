@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
-import software.amazon.cryptography.materialproviders.cache.StormTrackingCache;
 import software.amazon.cryptography.materialproviders.exceptions.ThrottlingException;
 
 /**
@@ -44,8 +43,7 @@ public final class StormTracker<V> implements CacheEngine<V> {
   // Long.MIN_VALUE lets the first prune run whatever the monotonic clock's origin.
   private long lastPrune = Long.MIN_VALUE;
 
-  public StormTracker(StormTrackingCache cache, CacheClock clock) {
-    StormSettings settings = StormSettings.of(cache);
+  public StormTracker(StormSettings settings, CacheClock clock) {
     this.wrapped = new LocalCache<>(settings.entryCapacity, settings.entryPruningTailSize, clock);
     this.clock = clock;
     this.gracePeriod = settings.gracePeriodMillis();

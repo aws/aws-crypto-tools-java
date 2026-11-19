@@ -68,7 +68,6 @@ import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionCont
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
 import software.amazon.cryptography.materialproviders.internal.cache.CacheEngine;
-import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryMultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
@@ -286,7 +285,7 @@ public class MaterialProviders {
         .branchKeyIdSupplier(input.branchKeyIdSupplier() == null ? null : CustomBranchKeyIdSupplier.of(input.branchKeyIdSupplier()))
         .partitionId(input.partitionId());
       if (input.cache() != null) {
-        builder.cache(CacheAdapter.cacheType(input.cache(), SharedCaches::toNative));
+        builder.cache(CacheAdapter.cache(input.cache(), SharedCaches::toNative));
       }
       return new NativeKeyring(builder.build());
     } catch (RuntimeException e) {
@@ -488,16 +487,7 @@ public class MaterialProviders {
   /** The engine behind {@link #CreateCryptographicMaterialsCache}, on a given clock. */
   static CacheEngine<NativeCache.Entry> cacheEngine(CreateCryptographicMaterialsCacheInput input, CacheClock clock) {
     try {
-      // The Dafny-based MPL rejected a shared cache here, where the native create returns it;
-      // so which native instance stands in for the customer's does not matter.
-      software.amazon.cryptography.materialproviders.cache.CacheType type = CacheAdapter.cacheType(
-        input.cache(),
-        shared -> software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache.create(software.amazon.cryptography.materialproviders.cache.CacheType.noCache())
-      );
-      if (type.kind() == software.amazon.cryptography.materialproviders.cache.CacheType.Kind.SHARED) {
-        throw new ValidationException("CreateCryptographicMaterialsCache should never be called with Shared CacheType.");
-      }
-      return Caches.engine(type, clock);
+      return CacheAdapter.engine(input.cache(), clock);
     } catch (ValidationException e) {
       throw AwsCryptographicMaterialProvidersException.builder().message(e.getMessage()).build();
     }

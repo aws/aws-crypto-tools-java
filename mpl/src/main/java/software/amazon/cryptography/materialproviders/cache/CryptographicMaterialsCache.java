@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.materialproviders.cache;
 
-import java.util.Objects;
-import software.amazon.cryptography.materialproviders.internal.cache.BuiltInCache;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
-import software.amazon.cryptography.materialproviders.internal.cache.CacheSpec;
-import software.amazon.cryptography.materialproviders.internal.cache.Caches;
-
 /**
- * Caches branch keys and beacon keys. Create one with {@link #create(CacheType)} to share it between keyrings
- * (pass it with {@link CacheType#shared}); implement this only for storage the built-in caches do not cover.
- * A cache used from several threads must be thread-safe; the built-in {@link CacheType#singleThreaded} cache is not.
+ * Caches branch keys and beacon keys. The built-in caches are {@link DefaultCache}, {@link StormTrackingCache},
+ * {@link MultiThreadedCache}, {@link SingleThreadedCache}, and {@link NoCache};
+ * implement this only for storage they do not cover.
+ * Keyrings given the same instance share it; a cache used from several threads must be thread-safe,
+ * which {@link SingleThreadedCache} is not.
  *
  * <p>Each method takes a request object and returns a response object,
  * so a later version can add fields to either without breaking caches that callers implement.
@@ -37,16 +33,4 @@ public interface CryptographicMaterialsCache {
   PutCacheEntryResponse putCacheEntry(PutCacheEntryRequest request);
 
   DeleteCacheEntryResponse deleteCacheEntry(DeleteCacheEntryRequest request);
-
-  /**
-   * A built-in cache, or for {@link CacheType#shared} the cache it holds.
-   * The {@link CacheType#singleThreaded} cache is the one built-in cache that is not thread-safe.
-   */
-  static CryptographicMaterialsCache create(CacheType cacheType) {
-    CacheSpec spec = CacheSpec.of(Objects.requireNonNull(cacheType, "cacheType"));
-    if (spec.kind == CacheType.Kind.SHARED) {
-      return spec.shared;
-    }
-    return new BuiltInCache(Caches.engine(cacheType, CacheClock.SYSTEM));
-  }
 }

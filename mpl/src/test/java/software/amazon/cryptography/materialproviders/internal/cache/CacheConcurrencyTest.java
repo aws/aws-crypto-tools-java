@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
 import software.amazon.cryptography.materialproviders.cache.StormTrackingCache;
 import software.amazon.cryptography.materialproviders.exceptions.ThrottlingException;
 
@@ -95,7 +94,7 @@ class CacheConcurrencyTest {
   // All callers ask for one absent key: one fetches, the others wait for its put.
   @Test
   void oneCallerFetchesAMissingEntry() throws Exception {
-    StormTracker<String> st = new StormTracker<>(settings().build(), clock);
+    StormTracker<String> st = new StormTracker<>(StormSettings.of(settings().build()), clock);
     AtomicInteger fetches = new AtomicInteger();
     List<Future<String>> results = everyone(() -> {
       Lookup<String> lookup = st.get(key("k"));
@@ -116,7 +115,7 @@ class CacheConcurrencyTest {
   // Inside the grace period: one caller refreshes, everyone else keeps using the entry.
   @Test
   void oneCallerRefreshesInsideTheGracePeriod() throws Exception {
-    StormTracker<String> st = new StormTracker<>(settings().build(), clock);
+    StormTracker<String> st = new StormTracker<>(StormSettings.of(settings().build()), clock);
     st.put(key("k"), "old", 10 + 5);
     AtomicInteger refreshes = new AtomicInteger();
     AtomicInteger olds = new AtomicInteger();
@@ -140,7 +139,7 @@ class CacheConcurrencyTest {
   @Test
   void fetchesStayWithinFanOut() throws Exception {
     int fanOut = 3;
-    StormTracker<String> st = new StormTracker<>(settings().fanOut(fanOut).build(), clock);
+    StormTracker<String> st = new StormTracker<>(StormSettings.of(settings().fanOut(fanOut).build()), clock);
     AtomicInteger running = new AtomicInteger();
     AtomicInteger maxRunning = new AtomicInteger();
     AtomicInteger fetches = new AtomicInteger();
@@ -186,7 +185,7 @@ class CacheConcurrencyTest {
 
   private List<CacheEngine<String>> threadSafe(int entryCapacity) {
     List<CacheEngine<String>> caches = new ArrayList<>();
-    caches.add(Caches.engine(CacheType.multiThreaded(entryCapacity), clock));
+    caches.add(Caches.multiThreaded(entryCapacity, 1, clock));
     // On the system clock with 5 ms windows: a caller for a key nobody puts again waits at most 5 ms.
     StormTrackingCache shortWindows = settings()
       .entryCapacity(entryCapacity)
@@ -195,7 +194,7 @@ class CacheConcurrencyTest {
       .inFlightTtl(Duration.ofMillis(5))
       .sleep(Duration.ofMillis(1))
       .build();
-    caches.add(new StormTracker<>(shortWindows, CacheClock.SYSTEM));
+    caches.add(new StormTracker<>(StormSettings.of(shortWindows), CacheClock.SYSTEM));
     return caches;
   }
 
