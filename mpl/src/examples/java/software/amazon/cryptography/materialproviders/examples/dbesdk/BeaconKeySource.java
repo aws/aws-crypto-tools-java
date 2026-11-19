@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.LongSupplier;
 import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
@@ -34,7 +34,7 @@ import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest
  * It replaces "a beacon key retrieved elsewhere" in the native DB-ESDK's {@code BeaconKeyDerivation}.
  *
  * <p>A single key store always uses one beacon key; a multi key store reads the beacon key id from an item attribute
- * (or a query value). Both read beacon keys with {@link BranchKeyStore#getBeaconKey}, derive one HMAC key per configured
+ * (or a query value). Both read beacon keys with {@link DynamoDbKeyStore#getBeaconKey}, derive one HMAC key per configured
  * beacon, and cache the derived keys without the beacon key ({@link BeaconKeyMaterials#toHmacKeysOnly}).
  * The cache identifier is a SHA-384 that includes a partition id and the key store's logical name,
  * so a cache shared with hierarchical keyrings or other beacon key sources keeps their entries apart.
@@ -49,7 +49,7 @@ public final class BeaconKeySource {
   private static final String BEACON_INFO_PREFIX = "AWS_DBE_SCAN_BEACON";
   private static final int HMAC_KEY_LENGTH = 64;
 
-  private final BranchKeyStore keyStore;
+  private final DynamoDbKeyStore keyStore;
   private final List<String> beaconNames;
   private final String keyId;
   private final String keyFieldName;
@@ -72,12 +72,12 @@ public final class BeaconKeySource {
   }
 
   /** The DB-ESDK's {@code SingleKeyStore}: one beacon key for every item. */
-  public static Builder singleKeyStore(BranchKeyStore keyStore, String keyId) {
+  public static Builder singleKeyStore(DynamoDbKeyStore keyStore, String keyId) {
     return new Builder(keyStore, Objects.requireNonNull(keyId, "keyId"), null);
   }
 
   /** The DB-ESDK's {@code MultiKeyStore}: the beacon key id is in the item attribute {@code keyFieldName}. */
-  public static Builder multiKeyStore(BranchKeyStore keyStore, String keyFieldName) {
+  public static Builder multiKeyStore(DynamoDbKeyStore keyStore, String keyFieldName) {
     return new Builder(keyStore, null, Objects.requireNonNull(keyFieldName, "keyFieldName"));
   }
 
@@ -187,7 +187,7 @@ public final class BeaconKeySource {
    */
   public static final class Builder {
 
-    private final BranchKeyStore keyStore;
+    private final DynamoDbKeyStore keyStore;
     private final String keyId;
     private final String keyFieldName;
     private List<String> beaconNames = new ArrayList<>();
@@ -196,7 +196,7 @@ public final class BeaconKeySource {
     private String partitionId;
     private LongSupplier epochSeconds = () -> System.currentTimeMillis() / 1000;
 
-    private Builder(BranchKeyStore keyStore, String keyId, String keyFieldName) {
+    private Builder(DynamoDbKeyStore keyStore, String keyId, String keyFieldName) {
       this.keyStore = Objects.requireNonNull(keyStore, "keyStore");
       this.keyId = keyId;
       this.keyFieldName = keyFieldName;

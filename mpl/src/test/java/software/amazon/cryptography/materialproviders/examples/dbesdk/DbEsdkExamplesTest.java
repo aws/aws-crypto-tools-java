@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
@@ -100,7 +100,7 @@ class DbEsdkExamplesTest {
 
   @Test
   void singleKeyStoreBeaconIsStableAndPerKey() {
-    BranchKeyStore store = keyStore();
+    DynamoDbKeyStore store = keyStore();
     String first = store.createKey().branchKeyIdentifier();
     String second = store.createKey().branchKeyIdentifier();
     String beacon = SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321");
@@ -214,7 +214,7 @@ class DbEsdkExamplesTest {
 
   @Test
   void headersStoreNoBaseOrSignAndIncludeEntries() {
-    BranchKeyStore store = keyStore();
+    DynamoDbKeyStore store = keyStore();
     Map<String, String> encrypted = RequiredEncryptionContextExample.encryptAndDecrypt(store);
     Map<String, String> stored = DbEsdkLikeItemEncryptor.parseHeader(encrypted).storedEncryptionContext();
     // As in the Dafny item encryptor, every base context and version-2 entry is required,
@@ -230,7 +230,7 @@ class DbEsdkExamplesTest {
 
   @Test
   void oneCacheServesTwoKeyringsAndTheBeaconKeySource() {
-    BranchKeyStore store = keyStore();
+    DynamoDbKeyStore store = keyStore();
     String branchKey = store.createKey().branchKeyIdentifier();
     aws.clearRequests();
     String beacon = SharedCacheExample.shareOneCache(store, branchKey);
@@ -325,7 +325,7 @@ class DbEsdkExamplesTest {
 
   @Test
   void beaconKeySourceCachesWithinItsTtlAndPartition() {
-    BranchKeyStore store = keyStore();
+    DynamoDbKeyStore store = keyStore();
     String key = store.createKey().branchKeyIdentifier();
     CryptographicMaterialsCache backing = MultiThreadedCache.builder().entryCapacity(10).build();
     List<CacheEntry> puts = new ArrayList<>();
@@ -376,7 +376,7 @@ class DbEsdkExamplesTest {
     assertEquals(3, operations("Decrypt").size());
   }
 
-  private static BeaconKeySource beaconSource(BranchKeyStore store, String key, CryptographicMaterialsCache cache, String partitionId, AtomicLong now) {
+  private static BeaconKeySource beaconSource(DynamoDbKeyStore store, String key, CryptographicMaterialsCache cache, String partitionId, AtomicLong now) {
     return BeaconKeySource
       .singleKeyStore(store, key)
       .beaconNames(Collections.singletonList("b"))
@@ -421,8 +421,8 @@ class DbEsdkExamplesTest {
     assertThrows(NoMatchingDataKeyException.class, () -> encryptor.decryptItem(otherSortKey));
   }
 
-  private BranchKeyStore keyStore() {
-    BranchKeyStore store = BranchKeyStore
+  private DynamoDbKeyStore keyStore() {
+    DynamoDbKeyStore store = DynamoDbKeyStore
       .builder()
       .ddbTableName("KeyStoreTable")
       .logicalKeyStoreName("logical")

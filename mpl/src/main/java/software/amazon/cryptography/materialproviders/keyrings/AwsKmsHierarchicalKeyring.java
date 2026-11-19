@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import software.amazon.cryptography.keystore.BranchKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -95,7 +95,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
   private final String branchKeyId;
   private final BranchKeyIdSupplier branchKeyIdSupplier;
-  private final BranchKeyStore keyStore;
+  private final DynamoDbKeyStore keyStore;
   private final long ttlSeconds;
   private final CryptographicMaterialsCache configuredCache;
   private final String partitionId;
@@ -137,7 +137,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   }
 
   /** Where branch keys come from. */
-  public BranchKeyStore keyStore() {
+  public DynamoDbKeyStore keyStore() {
     return keyStore;
   }
 
@@ -490,7 +490,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
     private String branchKeyId;
     private BranchKeyIdSupplier branchKeyIdSupplier;
-    private BranchKeyStore keyStore;
+    private DynamoDbKeyStore keyStore;
     private Duration ttl;
     private CryptographicMaterialsCache cache;
     private String partitionId;
@@ -511,7 +511,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     }
 
     /** Where branch keys come from. */
-    public Builder keyStore(BranchKeyStore keyStore) {
+    public Builder keyStore(DynamoDbKeyStore keyStore) {
       this.keyStore = keyStore;
       return this;
     }

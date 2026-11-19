@@ -4,7 +4,7 @@ package software.amazon.cryptography.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Input to {@link BranchKeyStore#getBranchKeyVersion}. Immutable. */
+/** Input to {@link DynamoDbKeyStore#getBranchKeyVersion}. Immutable. */
 public final class GetBranchKeyVersionRequest {
 
   private final String branchKeyIdentifier;

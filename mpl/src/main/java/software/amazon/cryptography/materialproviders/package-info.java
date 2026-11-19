@@ -20,7 +20,7 @@
  *   <tr><td>Protect data keys with AWS KMS</td><td>{@link software.amazon.cryptography.materialproviders.keyrings.AwsKmsMultiKeyring}</td></tr>
  *   <tr><td>Decrypt with any KMS key a filter allows</td><td>{@link software.amazon.cryptography.materialproviders.keyrings.AwsKmsDiscoveryKeyring}</td></tr>
  *   <tr><td>Cache data keys protected by a branch key</td><td>{@link software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring}</td></tr>
- *   <tr><td>Create and version branch keys</td><td>{@link software.amazon.cryptography.keystore.BranchKeyStore}</td></tr>
+ *   <tr><td>Create and version branch keys</td><td>{@link software.amazon.cryptography.keystore.DynamoDbKeyStore}</td></tr>
  *   <tr><td>Use a local AES, RSA, or ECDH key</td><td>{@code RawAesKeyring}, {@code RawRsaKeyring}, {@code RawEcdhKeyring}</td></tr>
  *   <tr><td>Combine keyrings</td><td>{@link software.amazon.cryptography.materialproviders.keyrings.MultiKeyring}</td></tr>
  *   <tr><td>Turn a keyring into materials</td><td>{@link software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager}</td></tr>

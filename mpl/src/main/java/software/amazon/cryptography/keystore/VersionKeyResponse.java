@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.keystore;
 
-/** Output of {@link BranchKeyStore#versionKey}; it has no members yet. Immutable. */
+/** Output of {@link DynamoDbKeyStore#versionKey}; it has no members yet. Immutable. */
 public final class VersionKeyResponse {
 
   private VersionKeyResponse(Builder builder) {}

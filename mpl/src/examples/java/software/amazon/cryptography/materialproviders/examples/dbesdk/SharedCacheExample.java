@@ -5,7 +5,7 @@ package software.amazon.cryptography.materialproviders.examples.dbesdk;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
@@ -26,7 +26,7 @@ public final class SharedCacheExample {
    *
    * @return the beacon of the item's {@code sensitive_data}
    */
-  public static String shareOneCache(BranchKeyStore keyStore, String branchKeyId) {
+  public static String shareOneCache(DynamoDbKeyStore keyStore, String branchKeyId) {
     CryptographicMaterialsCache shared = MultiThreadedCache.builder().entryCapacity(100).build();
     AwsKmsHierarchicalKeyring writerKeyring = hierarchical(keyStore, branchKeyId, shared);
     AwsKmsHierarchicalKeyring readerKeyring = hierarchical(keyStore, branchKeyId, shared);
@@ -47,7 +47,7 @@ public final class SharedCacheExample {
     return SearchableEncryptionExample.beacon(beacons, branchKeyId, item.get(ExampleItems.SENSITIVE));
   }
 
-  private static AwsKmsHierarchicalKeyring hierarchical(BranchKeyStore keyStore, String branchKeyId, CryptographicMaterialsCache shared) {
+  private static AwsKmsHierarchicalKeyring hierarchical(DynamoDbKeyStore keyStore, String branchKeyId, CryptographicMaterialsCache shared) {
     return AwsKmsHierarchicalKeyring
       .builder()
       .keyStore(keyStore)

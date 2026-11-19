@@ -4,7 +4,7 @@ package software.amazon.cryptography.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Output of {@link BranchKeyStore#getBeaconKey}. Immutable. */
+/** Output of {@link DynamoDbKeyStore#getBeaconKey}. Immutable. */
 public final class GetBeaconKeyResponse {
 
   private final BeaconKeyMaterials beaconKeyMaterials;

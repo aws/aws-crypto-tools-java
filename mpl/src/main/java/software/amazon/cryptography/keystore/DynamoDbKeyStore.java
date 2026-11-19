@@ -47,12 +47,12 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
 //#- [GetActiveBranchKey](#getactivebranchkey)
 //#- [GetBranchKeyVersion](#getbranchkeyversion)
 //#- [GetBeaconKey](#getbeaconkey)
-public final class BranchKeyStore implements AutoCloseable {
+public final class DynamoDbKeyStore implements AutoCloseable {
 
   private final GetKeyStoreInfoResponse info;
   private final KeyStoreOperations operations;
 
-  private BranchKeyStore(GetKeyStoreInfoResponse info, KeyStoreOperations operations) {
+  private DynamoDbKeyStore(GetKeyStoreInfoResponse info, KeyStoreOperations operations) {
     this.info = info;
     this.operations = operations;
   }
@@ -335,7 +335,7 @@ public final class BranchKeyStore implements AutoCloseable {
       return this;
     }
 
-    public BranchKeyStore build() {
+    public DynamoDbKeyStore build() {
       //= spec/framework/branch-key-store.md#initialization
       //= type=implication
       //# The following inputs MUST be specified to create a KeyStore:
@@ -368,7 +368,7 @@ public final class BranchKeyStore implements AutoCloseable {
         .grantTokens(grantTokens)
         .kmsConfiguration(kmsConfiguration)
         .build();
-      return new BranchKeyStore(info, operations);
+      return new DynamoDbKeyStore(info, operations);
     }
   }
 }

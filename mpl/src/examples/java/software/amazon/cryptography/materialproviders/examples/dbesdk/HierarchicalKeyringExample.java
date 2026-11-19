@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
@@ -34,10 +34,10 @@ public final class HierarchicalKeyringExample {
     String logicalKeyStoreName,
     String kmsKeyArn
   ) {
-    // With real AWS: BranchKeyStore.builder().ddbTableName(...).logicalKeyStoreName(...)
+    // With real AWS: DynamoDbKeyStore.builder().ddbTableName(...).logicalKeyStoreName(...)
     //   .kmsConfiguration(KmsConfiguration.kmsKeyArn(kmsKeyArn)).build()
     try (
-      BranchKeyStore keyStore = BranchKeyStore
+      DynamoDbKeyStore keyStore = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(logicalKeyStoreName)

@@ -4,7 +4,7 @@ package software.amazon.cryptography.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Output of {@link BranchKeyStore#createKeyStore}. Immutable. */
+/** Output of {@link DynamoDbKeyStore#createKeyStore}. Immutable. */
 public final class CreateKeyStoreResponse {
 
   private final String tableArn;

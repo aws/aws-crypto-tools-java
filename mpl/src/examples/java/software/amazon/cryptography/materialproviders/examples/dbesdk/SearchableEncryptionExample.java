@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.crypto.Mac;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
 
@@ -36,7 +36,7 @@ public final class SearchableEncryptionExample {
    * @return the beacon of {@code value}: the attribute value written as {@code aws_dbe_b_inspector_id_last4},
    *   and the value to query with
    */
-  public static String singleKeyStoreBeacon(BranchKeyStore keyStore, String beaconKeyId, String value) {
+  public static String singleKeyStoreBeacon(DynamoDbKeyStore keyStore, String beaconKeyId, String value) {
     BeaconKeySource source = BeaconKeySource
       .singleKeyStore(keyStore, beaconKeyId)
       .beaconNames(Collections.singletonList(BEACON_NAME))
@@ -51,7 +51,7 @@ public final class SearchableEncryptionExample {
    *
    * @return each tenant item's beacon of the same {@code value}, by beacon key id
    */
-  public static Map<String, String> multiKeyStoreBeacons(BranchKeyStore keyStore, String tenant1KeyId, String tenant2KeyId, String value) {
+  public static Map<String, String> multiKeyStoreBeacons(DynamoDbKeyStore keyStore, String tenant1KeyId, String tenant2KeyId, String value) {
     BeaconKeySource source = BeaconKeySource
       .multiKeyStore(keyStore, "tenant_key_id")
       .beaconNames(Collections.singletonList(BEACON_NAME))

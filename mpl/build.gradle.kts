@@ -52,7 +52,7 @@ val integrationTest: SourceSet by sourceSets.creating {
 }
 
 dependencies {
-    // The public API takes AWS SDK clients: a KmsClient (KMS keyrings, BranchKeyStore) and a DynamoDbClient (BranchKeyStore).
+    // The public API takes AWS SDK clients: a KmsClient (KMS keyrings, DynamoDbKeyStore) and a DynamoDbClient (DynamoDbKeyStore).
     api(platform("software.amazon.awssdk:bom:$awsSdkVersion"))
     api("software.amazon.awssdk:kms")
     api("software.amazon.awssdk:dynamodb")

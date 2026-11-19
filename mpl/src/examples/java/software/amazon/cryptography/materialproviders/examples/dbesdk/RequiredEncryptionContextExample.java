@@ -5,7 +5,7 @@ package software.amazon.cryptography.materialproviders.examples.dbesdk;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.examples.dbesdk.DbEsdkLikeItemEncryptor.CryptoAction;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
@@ -30,7 +30,7 @@ public final class RequiredEncryptionContextExample {
    * @param keyStore a key store whose table exists
    * @return a tenant item, encrypted
    */
-  public static Map<String, String> encryptAndDecrypt(BranchKeyStore keyStore) {
+  public static Map<String, String> encryptAndDecrypt(DynamoDbKeyStore keyStore) {
     DbEsdkLikeItemEncryptor encryptor = tenantTable(keyStore);
     return ExampleItems.roundTrip(encryptor, tenantItem("tenantA"));
   }
@@ -40,7 +40,7 @@ public final class RequiredEncryptionContextExample {
    *
    * @return what decrypt throws
    */
-  public static RuntimeException decryptAfterChangingSortKey(BranchKeyStore keyStore) {
+  public static RuntimeException decryptAfterChangingSortKey(DynamoDbKeyStore keyStore) {
     DbEsdkLikeItemEncryptor encryptor = tenantTable(keyStore);
     Map<String, String> encrypted = encryptor.encryptItem(tenantItem("tenantA"));
     Map<String, String> moved = new LinkedHashMap<>(encrypted);
@@ -53,7 +53,7 @@ public final class RequiredEncryptionContextExample {
     throw new IllegalStateException("An item with a changed sort key decrypted");
   }
 
-  private static DbEsdkLikeItemEncryptor tenantTable(BranchKeyStore keyStore) {
+  private static DbEsdkLikeItemEncryptor tenantTable(DynamoDbKeyStore keyStore) {
     Map<String, String> branchKeyIds = new LinkedHashMap<>();
     branchKeyIds.put("tenantA", keyStore.createKey().branchKeyIdentifier());
     branchKeyIds.put("tenantB", keyStore.createKey().branchKeyIdentifier());

@@ -11,7 +11,7 @@ import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 
@@ -54,8 +54,8 @@ final class VectorEnvironment implements AutoCloseable {
     return aws.dynamoDbClient("native", KEY_STORE_REGION);
   }
 
-  BranchKeyStore keyStore() {
-    return BranchKeyStore
+  DynamoDbKeyStore keyStore() {
+    return DynamoDbKeyStore
       .builder()
       .ddbTableName(KEY_STORE_TABLE)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(keyStoreKmsKey))
@@ -91,7 +91,7 @@ final class VectorEnvironment implements AutoCloseable {
 
   // The items CreateKey would write (Structure.dfy), with the manifest's branch key instead of a generated one.
   private void seedBranchKeys() {
-    try (BranchKeyStore store = keyStore()) {
+    try (DynamoDbKeyStore store = keyStore()) {
       store.createKeyStore();
     }
     for (KeyMaterial material : keys.values()) {

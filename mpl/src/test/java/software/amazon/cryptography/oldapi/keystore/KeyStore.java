@@ -4,7 +4,7 @@ package software.amazon.cryptography.oldapi.keystore;
 
 import java.util.Objects;
 import java.util.function.Supplier;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.oldapi.keystore.internal.KeyStoreConvert;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
@@ -22,10 +22,10 @@ import software.amazon.cryptography.oldapi.keystore.model.KeyStoreConfig;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.VersionKeyOutput;
 
-/** Test adapter: the Dafny-shaped key store client on top of {@link BranchKeyStore}. */
+/** Test adapter: the Dafny-shaped key store client on top of {@link DynamoDbKeyStore}. */
 public class KeyStore {
 
-  private final BranchKeyStore store;
+  private final DynamoDbKeyStore store;
 
   protected KeyStore(BuilderImpl builder) {
     KeyStoreConfig config = builder.KeyStoreConfig();
@@ -37,7 +37,7 @@ public class KeyStore {
   }
 
   /** The native key store behind this client. */
-  public BranchKeyStore impl() {
+  public DynamoDbKeyStore impl() {
     return store;
   }
 

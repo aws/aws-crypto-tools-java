@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.internal.UserAgent;
@@ -153,7 +153,7 @@ class KeyStoreDefaultClientsTest {
   void closeClosesOnlyTheClientsTheStoreCreated() {
     String key = harness.symmetricKey(KEY_REGION);
     System.setProperty("aws.endpointUrl", harness.nativeAws.endpoint(ReferenceAws.NATIVE).toString());
-    BranchKeyStore owning = BranchKeyStore.builder()
+    DynamoDbKeyStore owning = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
       .logicalKeyStoreName(KeyStoreHarness.LOGICAL_NAME)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
@@ -167,7 +167,7 @@ class KeyStoreDefaultClientsTest {
 
     KmsClient kms = harness.nativeAws.kmsClient(ReferenceAws.NATIVE, KEY_REGION);
     DynamoDbClient ddb = harness.nativeAws.dynamoDbClient(ReferenceAws.NATIVE, KEY_REGION);
-    BranchKeyStore borrowing = BranchKeyStore.builder()
+    DynamoDbKeyStore borrowing = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
       .logicalKeyStoreName(KeyStoreHarness.LOGICAL_NAME)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
@@ -177,7 +177,7 @@ class KeyStoreDefaultClientsTest {
     borrowing.close();
     assertNotNull(borrowing.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials());
     // A store with only one client passed in closes the other.
-    BranchKeyStore half = BranchKeyStore.builder()
+    DynamoDbKeyStore half = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
       .logicalKeyStoreName(KeyStoreHarness.LOGICAL_NAME)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
@@ -231,7 +231,7 @@ class KeyStoreDefaultClientsTest {
   void closeClosesACreatedKmsClient() {
     String key = harness.symmetricKey(KEY_REGION);
     System.setProperty("aws.endpointUrl", harness.nativeAws.endpoint(ReferenceAws.NATIVE).toString());
-    BranchKeyStore setup = BranchKeyStore.builder()
+    DynamoDbKeyStore setup = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
       .logicalKeyStoreName(KeyStoreHarness.LOGICAL_NAME)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))
@@ -239,7 +239,7 @@ class KeyStoreDefaultClientsTest {
     setup.createKeyStore();
     String id = setup.createKey().branchKeyIdentifier();
     setup.close();
-    BranchKeyStore half = BranchKeyStore.builder()
+    DynamoDbKeyStore half = DynamoDbKeyStore.builder()
       .ddbTableName(KeyStoreHarness.TABLE)
       .logicalKeyStoreName(KeyStoreHarness.LOGICAL_NAME)
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(key))

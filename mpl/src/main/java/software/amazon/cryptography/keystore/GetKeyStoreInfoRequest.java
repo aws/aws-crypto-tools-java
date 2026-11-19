@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 package software.amazon.cryptography.keystore;
 
-/** Input to {@link BranchKeyStore#getKeyStoreInfo}; it has no members yet. Immutable. */
+/** Input to {@link DynamoDbKeyStore#getKeyStoreInfo}; it has no members yet. Immutable. */
 public final class GetKeyStoreInfoRequest {
 
   private GetKeyStoreInfoRequest(Builder builder) {}

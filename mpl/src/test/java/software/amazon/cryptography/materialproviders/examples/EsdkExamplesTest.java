@@ -27,14 +27,14 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
-import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionMaterials;
+import software.amazon.cryptography.materialproviders.EsdkAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsRequest;
 import software.amazon.cryptography.materialproviders.GetEncryptionMaterialsResponse;
 import software.amazon.cryptography.materialproviders.Keyring;
@@ -149,7 +149,7 @@ class EsdkExamplesTest {
   void sharedCacheServesTheSecondKeyring() {
     String kmsKey = aws.kms().createSymmetricKey(REGION);
     String branchKeyId;
-    try (BranchKeyStore admin = keyStore(kmsKey)) {
+    try (DynamoDbKeyStore admin = keyStore(kmsKey)) {
       admin.createKeyStore();
       branchKeyId = admin.createKey().branchKeyIdentifier();
     }
@@ -401,8 +401,8 @@ class EsdkExamplesTest {
     return aws.requests().stream().filter(r -> r.service().equals("kms") && r.operation().equals(operation)).collect(Collectors.toList());
   }
 
-  private BranchKeyStore keyStore(String kmsKey) {
-    return BranchKeyStore
+  private DynamoDbKeyStore keyStore(String kmsKey) {
+    return DynamoDbKeyStore
       .builder()
       .ddbTableName("KeyStoreTable")
       .logicalKeyStoreName("logical")

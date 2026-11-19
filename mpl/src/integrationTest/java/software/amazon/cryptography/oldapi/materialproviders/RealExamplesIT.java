@@ -16,7 +16,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
@@ -33,8 +33,8 @@ import software.amazon.cryptography.materialproviders.examples.esdk.CommitmentPo
 import software.amazon.cryptography.materialproviders.examples.esdk.CustomClientSupplierExample;
 import software.amazon.cryptography.materialproviders.examples.esdk.CustomCmmExample;
 import software.amazon.cryptography.materialproviders.examples.esdk.DiscoveryKeyringExample;
-import software.amazon.cryptography.materialproviders.examples.esdk.ErrorHandlingExample;
 import software.amazon.cryptography.materialproviders.examples.esdk.ErrorHandlingExample.Outcome;
+import software.amazon.cryptography.materialproviders.examples.esdk.ErrorHandlingExample;
 import software.amazon.cryptography.materialproviders.examples.esdk.EscrowMultiKeyringExample;
 import software.amazon.cryptography.materialproviders.examples.esdk.EsdkLikeClient;
 import software.amazon.cryptography.materialproviders.examples.esdk.HierarchicalKeyringExample;
@@ -91,7 +91,7 @@ class RealExamplesIT {
   @Test
   void esdkKeyStoreExamples() {
     HierarchicalKeyringExample.encryptAndDecrypt(RealAws.TABLE, RealAws.LOGICAL_NAME, aws.sym, kms, ddb);
-    try (BranchKeyStore store = store()) {
+    try (DynamoDbKeyStore store = store()) {
       String branchKey = store.createKey().branchKeyIdentifier();
       System.out.println("created branch key " + branchKey);
       SharedCacheExample.encryptAndDecrypt(RealAws.TABLE, RealAws.LOGICAL_NAME, "partition", aws.sym, branchKey, kms, ddb);
@@ -151,7 +151,7 @@ class RealExamplesIT {
       aws.sym
     );
     assertEquals(2, tenants.size());
-    try (BranchKeyStore store = store()) {
+    try (DynamoDbKeyStore store = store()) {
       String first = store.createKey().branchKeyIdentifier();
       System.out.println("created branch key " + first);
       String beacon = SearchableEncryptionExample.singleKeyStoreBeacon(store, first, "4321");
@@ -167,8 +167,8 @@ class RealExamplesIT {
     }
   }
 
-  private static BranchKeyStore store() {
-    return BranchKeyStore
+  private static DynamoDbKeyStore store() {
+    return DynamoDbKeyStore
       .builder()
       .ddbTableName(RealAws.TABLE)
       .logicalKeyStoreName(RealAws.LOGICAL_NAME)

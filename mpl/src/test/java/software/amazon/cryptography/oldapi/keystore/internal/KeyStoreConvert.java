@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.dynamodb.model.InternalServerErrorException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
@@ -61,8 +61,8 @@ public final class KeyStoreConvert {
   }
 
   /** A builder holding the config, in the order the Dafny-based store converted and then checked it. */
-  public static BranchKeyStore.Builder toNative(KeyStoreConfig config) {
-    BranchKeyStore.Builder builder = BranchKeyStore.builder()
+  public static DynamoDbKeyStore.Builder toNative(KeyStoreConfig config) {
+    DynamoDbKeyStore.Builder builder = DynamoDbKeyStore.builder()
       .ddbTableName(config.ddbTableName())
       .logicalKeyStoreName(config.logicalKeyStoreName())
       .id(config.id())

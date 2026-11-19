@@ -27,7 +27,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.IntFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -65,7 +65,7 @@ class AwsKmsHierarchicalKeyringTest {
   private static final int THREADS = 32;
 
   private final FakeAws aws = FakeAws.start();
-  private final BranchKeyStore store = BranchKeyStore
+  private final DynamoDbKeyStore store = DynamoDbKeyStore
     .builder()
     .ddbTableName("KeyStoreTable")
     .logicalKeyStoreName("logical")
@@ -124,7 +124,7 @@ class AwsKmsHierarchicalKeyringTest {
       "Could not UTF-8 Encode Partition ID: Could not encode input to Dafny Bytes.",
       assertThrows(ValidationException.class, () -> builder().partitionId("a\uD800b").build()).getMessage()
     );
-    BranchKeyStore badName = BranchKeyStore
+    DynamoDbKeyStore badName = DynamoDbKeyStore
       .builder()
       .ddbTableName("KeyStoreTable")
       .logicalKeyStoreName("a\uD800b")

@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,11 +27,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
-import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
-import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 import software.amazon.cryptography.materialproviders.exceptions.AccessDeniedException;
 import software.amazon.cryptography.materialproviders.exceptions.ConflictException;
 import software.amazon.cryptography.materialproviders.exceptions.DispatchException;
@@ -41,10 +38,13 @@ import software.amazon.cryptography.materialproviders.exceptions.ResourceNotFoun
 import software.amazon.cryptography.materialproviders.exceptions.ServiceException;
 import software.amazon.cryptography.materialproviders.exceptions.ThrottlingException;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.fakeaws.ServiceError;
+import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 
 // The native API: exception kinds and causes, value semantics, and argument checks.
 // Behavior against the reference is covered through the test adapter in oldapi.materialproviders.KeyStore*Test.
-class BranchKeyStoreTest {
+class DynamoDbKeyStoreTest {
 
   private static final String REGION = "us-west-2";
   private static final String TABLE = "KeyStoreTable";
@@ -59,8 +59,8 @@ class BranchKeyStoreTest {
     aws.close();
   }
 
-  private BranchKeyStore.Builder builder(KmsConfiguration configuration) {
-    return BranchKeyStore.builder()
+  private DynamoDbKeyStore.Builder builder(KmsConfiguration configuration) {
+    return DynamoDbKeyStore.builder()
       .ddbTableName(TABLE)
       .logicalKeyStoreName("logical")
       .kmsConfiguration(configuration)
@@ -68,8 +68,8 @@ class BranchKeyStoreTest {
       .ddbClient(ddb);
   }
 
-  private BranchKeyStore store() {
-    BranchKeyStore store = builder(KmsConfiguration.kmsKeyArn(kmsKey)).build();
+  private DynamoDbKeyStore store() {
+    DynamoDbKeyStore store = builder(KmsConfiguration.kmsKeyArn(kmsKey)).build();
     store.createKeyStore();
     return store;
   }
@@ -78,17 +78,17 @@ class BranchKeyStoreTest {
   void builderRequiresTheTableLogicalNameAndConfiguration() {
     assertEquals(
       "Missing value for required field `ddbTableName`",
-      assertThrows(ValidationException.class, () -> BranchKeyStore.builder().build()).getMessage()
+      assertThrows(ValidationException.class, () -> DynamoDbKeyStore.builder().build()).getMessage()
     );
     assertEquals(
       "Missing value for required field `kmsConfiguration`",
-      assertThrows(ValidationException.class, () -> BranchKeyStore.builder().ddbTableName(TABLE).build()).getMessage()
+      assertThrows(ValidationException.class, () -> DynamoDbKeyStore.builder().ddbTableName(TABLE).build()).getMessage()
     );
     assertEquals(
       "Missing value for required field `logicalKeyStoreName`",
       assertThrows(
         ValidationException.class,
-        () -> BranchKeyStore.builder().ddbTableName(TABLE).kmsConfiguration(KmsConfiguration.discovery()).build()
+        () -> DynamoDbKeyStore.builder().ddbTableName(TABLE).kmsConfiguration(KmsConfiguration.discovery()).build()
       ).getMessage()
     );
     assertEquals(
@@ -108,7 +108,7 @@ class BranchKeyStoreTest {
   @Test
   void keyStoreInfo() {
     List<String> tokens = new ArrayList<>(Arrays.asList("t1", "t2"));
-    BranchKeyStore store = builder(KmsConfiguration.kmsKeyArn(kmsKey)).id("store-id").grantTokens(tokens).build();
+    DynamoDbKeyStore store = builder(KmsConfiguration.kmsKeyArn(kmsKey)).id("store-id").grantTokens(tokens).build();
     tokens.add("added later");
     GetKeyStoreInfoResponse info = store.getKeyStoreInfo();
     assertEquals("store-id", info.keyStoreId());
@@ -181,7 +181,7 @@ class BranchKeyStoreTest {
 
   @Test
   void materials() {
-    BranchKeyStore store = store();
+    DynamoDbKeyStore store = store();
     String id = store.createKey(b -> b.branchKeyIdentifier("branch").encryptionContext(EncryptionContext.of("tenant", "a"))).branchKeyIdentifier();
     BranchKeyMaterials active = store.getActiveBranchKey(GetActiveBranchKeyRequest.builder().branchKeyIdentifier(id).build()).branchKeyMaterials();
     assertEquals("branch", active.branchKeyIdentifier());
@@ -247,7 +247,7 @@ class BranchKeyStoreTest {
 
   @Test
   void failureKinds() {
-    BranchKeyStore store = store();
+    DynamoDbKeyStore store = store();
     store.createKey(b -> b.branchKeyIdentifier("taken").encryptionContext(EncryptionContext.of("k", "v")));
 
     ConflictException conflict = assertThrows(ConflictException.class, () -> store.createKey(b -> b.branchKeyIdentifier("taken").encryptionContext(EncryptionContext.of("k", "v"))));
@@ -331,7 +331,7 @@ class BranchKeyStoreTest {
 
   @Test
   void nullArgumentsAndMissingMembers() {
-    BranchKeyStore store = store();
+    DynamoDbKeyStore store = store();
     assertThrows(NullPointerException.class, () -> store.createKey((CreateKeyRequest) null));
     assertThrows(NullPointerException.class, () -> store.versionKey((VersionKeyRequest) null));
     assertThrows(NullPointerException.class, () -> store.getActiveBranchKey((GetActiveBranchKeyRequest) null));
@@ -357,7 +357,7 @@ class BranchKeyStoreTest {
 
   @Test
   void consumerAndNoArgumentOverloadsBuildTheRequest() {
-    BranchKeyStore store = store();
+    DynamoDbKeyStore store = store();
     String id = store.createKey(b -> b.branchKeyIdentifier("consumer").encryptionContext(EncryptionContext.of("k", "v"))).branchKeyIdentifier();
     assertEquals("consumer", id);
     BranchKeyMaterials active = store.getActiveBranchKey(b -> b.branchKeyIdentifier(id)).branchKeyMaterials();

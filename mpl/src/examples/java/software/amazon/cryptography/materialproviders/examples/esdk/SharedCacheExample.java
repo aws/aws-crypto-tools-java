@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
@@ -44,8 +44,8 @@ public final class SharedCacheExample {
     Map<String, String> encryptionContext = Collections.singletonMap("encryption", "context");
 
     try (
-      BranchKeyStore keyStore1 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient);
-      BranchKeyStore keyStore2 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient)
+      DynamoDbKeyStore keyStore1 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient);
+      DynamoDbKeyStore keyStore2 = keyStore(keyStoreTableName, logicalKeyStoreName, kmsKeyArn, kmsClient, ddbClient)
     ) {
       Keyring keyring1 = keyring(keyStore1, branchKeyId, sharedCache, partitionId);
       Keyring keyring2 = keyring(keyStore2, branchKeyId, sharedCache, partitionId);
@@ -58,8 +58,8 @@ public final class SharedCacheExample {
     }
   }
 
-  private static BranchKeyStore keyStore(String table, String logicalName, String kmsKeyArn, KmsClient kms, DynamoDbClient ddb) {
-    return BranchKeyStore
+  private static DynamoDbKeyStore keyStore(String table, String logicalName, String kmsKeyArn, KmsClient kms, DynamoDbClient ddb) {
+    return DynamoDbKeyStore
       .builder()
       .ddbTableName(table)
       .logicalKeyStoreName(logicalName)
@@ -69,7 +69,7 @@ public final class SharedCacheExample {
       .build();
   }
 
-  private static Keyring keyring(BranchKeyStore keyStore, String branchKeyId, CryptographicMaterialsCache cache, String partitionId) {
+  private static Keyring keyring(DynamoDbKeyStore keyStore, String branchKeyId, CryptographicMaterialsCache cache, String partitionId) {
     return AwsKmsHierarchicalKeyring
       .builder()
       .keyStore(keyStore)

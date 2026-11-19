@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Output of {@link BranchKeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
+/** Output of {@link DynamoDbKeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
 public final class GetKeyStoreInfoResponse {
 
   private final String keyStoreId;

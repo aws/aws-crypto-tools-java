@@ -28,7 +28,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
-import software.amazon.cryptography.keystore.BranchKeyStore;
+import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
@@ -205,7 +205,7 @@ class VarargsSettersTest {
   @Test
   void branchKeyStoreGrantTokens() {
     matches(TOKENS, t -> store().grantTokens(t).build(), t -> store().grantTokens(t).build(), s -> {
-      try (BranchKeyStore closing = s) {
+      try (DynamoDbKeyStore closing = s) {
         return closing.getKeyStoreInfo().grantTokens();
       }
     });
@@ -379,8 +379,8 @@ class VarargsSettersTest {
       .kmsClient(kms);
   }
 
-  private BranchKeyStore.Builder store() {
-    return BranchKeyStore.builder()
+  private DynamoDbKeyStore.Builder store() {
+    return DynamoDbKeyStore.builder()
       .ddbTableName("KeyStoreTable")
       .logicalKeyStoreName("logical")
       .kmsConfiguration(KmsConfiguration.kmsKeyArn(KEY))

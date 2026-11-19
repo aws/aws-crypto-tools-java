@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 
-/** Input to {@link BranchKeyStore#createKey}. Immutable. */
+/** Input to {@link DynamoDbKeyStore#createKey}. Immutable. */
 public final class CreateKeyRequest {
 
   private final String branchKeyIdentifier;
