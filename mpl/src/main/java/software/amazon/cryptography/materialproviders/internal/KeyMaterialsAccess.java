@@ -3,10 +3,10 @@
 package software.amazon.cryptography.materialproviders.internal;
 
 import java.util.Map;
-import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
 
 /**
  * Builds branch key and beacon key materials, which have no public constructors, for library code

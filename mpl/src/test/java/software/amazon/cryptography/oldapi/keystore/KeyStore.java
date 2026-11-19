@@ -4,8 +4,8 @@ package software.amazon.cryptography.oldapi.keystore;
 
 import java.util.Objects;
 import java.util.function.Supplier;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.oldapi.keystore.internal.KeyStoreConvert;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyInput;
 import software.amazon.cryptography.oldapi.keystore.model.CreateKeyOutput;

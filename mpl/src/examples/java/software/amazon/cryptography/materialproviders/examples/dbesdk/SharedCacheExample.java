@@ -5,10 +5,10 @@ package software.amazon.cryptography.materialproviders.examples.dbesdk;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 
 /**
  * Customer example (SharedCacheAcrossHierarchicalKeyringsExample): one branch key cache for several hierarchical keyrings,

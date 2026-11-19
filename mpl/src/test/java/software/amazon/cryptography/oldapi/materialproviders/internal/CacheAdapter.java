@@ -43,7 +43,7 @@ public final class CacheAdapter {
    * Stands for a cached encryption or decryption materials entry, which a native cache entry cannot hold.
    * The hierarchical keyring only tells branch keys from everything else, so any non-branch-key entry serves.
    */
-  static final software.amazon.cryptography.keystore.BeaconKeyMaterials NOT_A_KEY = KeyMaterialsAccess.beaconKey(
+  static final software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials NOT_A_KEY = KeyMaterialsAccess.beaconKey(
     "",
     EncryptionContext.empty(),
     null,
@@ -140,7 +140,7 @@ public final class CacheAdapter {
     return entryPruningTailSize <= 0 ? 1 : entryPruningTailSize;
   }
 
-  public static software.amazon.cryptography.keystore.BranchKeyMaterials toNative(BranchKeyMaterials old) {
+  public static software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials toNative(BranchKeyMaterials old) {
     Boundary.utf8(old.branchKeyVersion());
     Boundary.encryptionContext(old.encryptionContext());
     return KeyMaterialsAccess.branchKey(
@@ -151,7 +151,7 @@ public final class CacheAdapter {
     );
   }
 
-  public static BranchKeyMaterials toOld(software.amazon.cryptography.keystore.BranchKeyMaterials materials) {
+  public static BranchKeyMaterials toOld(software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials materials) {
     return BranchKeyMaterials
       .builder()
       .branchKeyIdentifier(materials.branchKeyIdentifier())
@@ -161,7 +161,7 @@ public final class CacheAdapter {
       .build();
   }
 
-  public static software.amazon.cryptography.keystore.BeaconKeyMaterials toNative(BeaconKeyMaterials old) {
+  public static software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials toNative(BeaconKeyMaterials old) {
     Boundary.encryptionContext(old.encryptionContext());
     Map<String, SecretBytes> hmacKeys = new LinkedHashMap<>();
     if (old.hmacKeys() != null) {
@@ -178,7 +178,7 @@ public final class CacheAdapter {
   }
 
   /** An empty map of HMAC keys is absent, as the Dafny-based MPL returned it. */
-  public static BeaconKeyMaterials toOld(software.amazon.cryptography.keystore.BeaconKeyMaterials materials) {
+  public static BeaconKeyMaterials toOld(software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials materials) {
     Map<String, ByteBuffer> hmacKeys = null;
     if (!materials.hmacKeys().isEmpty()) {
       hmacKeys = new HashMap<>();

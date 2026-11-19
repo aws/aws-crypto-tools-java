@@ -101,8 +101,8 @@ public final class NativeCache implements ICryptographicMaterialsCache {
   /** A cached old-shape entry; the counters change under the entry's lock. */
   public static final class Entry {
 
-    private final software.amazon.cryptography.keystore.BranchKeyMaterials branchKey;
-    private final software.amazon.cryptography.keystore.BeaconKeyMaterials beaconKey;
+    private final software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials branchKey;
+    private final software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials beaconKey;
     private final Materials encryptionOrDecryption;
     final long creationTime;
     final long expiryTime;

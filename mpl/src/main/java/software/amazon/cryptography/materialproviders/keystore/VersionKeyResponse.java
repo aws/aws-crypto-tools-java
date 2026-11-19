@@ -1,6 +1,6 @@
 // Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-package software.amazon.cryptography.keystore;
+package software.amazon.cryptography.materialproviders.keystore;
 
 /** Output of {@link DynamoDbKeyStore#versionKey}; it has no members yet. Immutable. */
 public final class VersionKeyResponse {

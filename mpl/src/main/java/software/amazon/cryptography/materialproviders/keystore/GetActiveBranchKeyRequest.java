@@ -1,15 +1,15 @@
 // Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-package software.amazon.cryptography.keystore;
+package software.amazon.cryptography.materialproviders.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Input to {@link DynamoDbKeyStore#getBeaconKey}. Immutable. */
-public final class GetBeaconKeyRequest {
+/** Input to {@link DynamoDbKeyStore#getActiveBranchKey}. Immutable. */
+public final class GetActiveBranchKeyRequest {
 
   private final String branchKeyIdentifier;
 
-  private GetBeaconKeyRequest(Builder builder) {
+  private GetActiveBranchKeyRequest(Builder builder) {
     this.branchKeyIdentifier = builder.branchKeyIdentifier;
   }
 
@@ -28,7 +28,7 @@ public final class GetBeaconKeyRequest {
 
   @Override
   public String toString() {
-    return "GetBeaconKeyRequest[" + branchKeyIdentifier + "]";
+    return "GetActiveBranchKeyRequest[" + branchKeyIdentifier + "]";
   }
 
   /** Not thread-safe. Requires {@code branchKeyIdentifier}. */
@@ -43,11 +43,11 @@ public final class GetBeaconKeyRequest {
       return this;
     }
 
-    public GetBeaconKeyRequest build() {
+    public GetActiveBranchKeyRequest build() {
       if (branchKeyIdentifier == null) {
         throw new ValidationException("Missing value for required field `branchKeyIdentifier`");
       }
-      return new GetBeaconKeyRequest(this);
+      return new GetActiveBranchKeyRequest(this);
     }
   }
 }

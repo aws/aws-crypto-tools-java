@@ -9,9 +9,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.crypto.Mac;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 
 /**
  * Customer example (BasicSearchableEncryptionExample, searchable-encryption-multitenant):

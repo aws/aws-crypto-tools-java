@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.NoCache;
@@ -17,6 +15,8 @@ import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataK
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
 import software.amazon.cryptography.materialproviders.keyrings.GetBranchKeyIdResponse;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * Pattern (b): a branch key per tenant, chosen from the encryption context by a lambda,

@@ -10,11 +10,11 @@ import java.util.function.Supplier;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.dynamodb.model.InternalServerErrorException;
 import software.amazon.awssdk.services.kms.model.KmsInternalException;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.exceptions.MaterialProvidersException;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.GetKeyStoreInfoResponse;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 import software.amazon.cryptography.oldapi.keystore.model.BeaconKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.BranchKeyMaterials;
 import software.amazon.cryptography.oldapi.keystore.model.Discovery;
@@ -124,7 +124,7 @@ public final class KeyStoreConvert {
     }
   }
 
-  public static BranchKeyMaterials toOld(software.amazon.cryptography.keystore.BranchKeyMaterials materials) {
+  public static BranchKeyMaterials toOld(software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials materials) {
     return BranchKeyMaterials.builder()
       .branchKeyIdentifier(materials.branchKeyIdentifier())
       .branchKeyVersion(materials.branchKeyVersion())
@@ -134,7 +134,7 @@ public final class KeyStoreConvert {
   }
 
   /** The key store derives no HMAC keys, so they stay unset, as in the Dafny-based store. */
-  public static BeaconKeyMaterials toOld(software.amazon.cryptography.keystore.BeaconKeyMaterials materials) {
+  public static BeaconKeyMaterials toOld(software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials materials) {
     return BeaconKeyMaterials.builder()
       .beaconKeyIdentifier(materials.beaconKeyIdentifier())
       .encryptionContext(new HashMap<>(materials.encryptionContext()))

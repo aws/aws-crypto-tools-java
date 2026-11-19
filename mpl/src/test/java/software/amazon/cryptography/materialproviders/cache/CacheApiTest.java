@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.exceptions.ThrottlingException;
@@ -28,6 +26,8 @@ import software.amazon.cryptography.materialproviders.internal.cache.BuiltInCach
 import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
 import software.amazon.cryptography.materialproviders.internal.cache.Caches;
 import software.amazon.cryptography.materialproviders.internal.cache.StormSettings;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
 
 // The public cache API: the built-in caches' builders and settings, keys, and entries.
 class CacheApiTest {

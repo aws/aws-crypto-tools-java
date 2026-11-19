@@ -18,8 +18,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.LongSupplier;
-import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CacheEntry;
 import software.amazon.cryptography.materialproviders.cache.CacheKey;
@@ -27,6 +25,8 @@ import software.amazon.cryptography.materialproviders.cache.CryptographicMateria
 import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 
 /**
  * Integration example: the DB-ESDK's beacon key source on the native MPL, per SearchInfo.dfy and ConfigToInfo.dfy

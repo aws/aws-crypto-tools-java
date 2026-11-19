@@ -16,8 +16,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.examples.dbesdk.ClientSupplierExample;
@@ -46,6 +44,8 @@ import software.amazon.cryptography.materialproviders.examples.esdk.SharedCacheE
 import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 // The ESDK and DB-ESDK examples that need AWS, run on the native MPL against the real keys and the key store table.
 // The examples check their own results and throw on a mismatch.

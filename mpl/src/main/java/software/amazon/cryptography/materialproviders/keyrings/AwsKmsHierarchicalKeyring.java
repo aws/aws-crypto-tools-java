@@ -14,8 +14,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import software.amazon.cryptography.keystore.BranchKeyMaterials;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.AlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -54,6 +52,8 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Digest
 import software.amazon.cryptography.materialproviders.internal.primitives.Digests;
 import software.amazon.cryptography.materialproviders.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.materialproviders.internal.primitives.Randoms;
+import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 
 /**
  * Wraps data keys with branch keys from a branch key store, caching branch keys so most operations make no KMS call.

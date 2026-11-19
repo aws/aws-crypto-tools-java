@@ -17,12 +17,12 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.utils.SdkAutoCloseable;
 import software.amazon.awssdk.utils.builder.SdkBuilder;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.exceptions.InvalidMaterialsException;
 import software.amazon.cryptography.materialproviders.exceptions.ServiceException;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.AwsArnParsing;
 import software.amazon.cryptography.materialproviders.internal.UserAgent;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * The key store operations, per AwsCryptographyKeyStoreOperations.dfy, CreateKeys.dfy, and GetKeys.dfy.

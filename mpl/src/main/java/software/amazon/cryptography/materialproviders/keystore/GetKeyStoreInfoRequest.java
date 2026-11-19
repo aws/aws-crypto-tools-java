@@ -1,11 +1,11 @@
 // Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-package software.amazon.cryptography.keystore;
+package software.amazon.cryptography.materialproviders.keystore;
 
-/** Input to {@link DynamoDbKeyStore#createKeyStore}; it has no members yet. Immutable. */
-public final class CreateKeyStoreRequest {
+/** Input to {@link DynamoDbKeyStore#getKeyStoreInfo}; it has no members yet. Immutable. */
+public final class GetKeyStoreInfoRequest {
 
-  private CreateKeyStoreRequest(Builder builder) {}
+  private GetKeyStoreInfoRequest(Builder builder) {}
 
   public static Builder builder() {
     return new Builder();
@@ -18,7 +18,7 @@ public final class CreateKeyStoreRequest {
 
   @Override
   public String toString() {
-    return "CreateKeyStoreRequest[]";
+    return "GetKeyStoreInfoRequest[]";
   }
 
   /** Not thread-safe. */
@@ -26,8 +26,8 @@ public final class CreateKeyStoreRequest {
 
     private Builder() {}
 
-    public CreateKeyStoreRequest build() {
-      return new CreateKeyStoreRequest(this);
+    public GetKeyStoreInfoRequest build() {
+      return new GetKeyStoreInfoRequest(this);
     }
   }
 }

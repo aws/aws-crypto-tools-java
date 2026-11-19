@@ -24,9 +24,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
@@ -51,6 +48,9 @@ import software.amazon.cryptography.materialproviders.fakeaws.RecordedRequest;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 // Runs every DB-ESDK example against the in-process fake AWS endpoint, and checks what each example claims.
 class DbEsdkExamplesTest {

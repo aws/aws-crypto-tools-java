@@ -5,11 +5,11 @@ package software.amazon.cryptography.materialproviders.examples.dbesdk;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.examples.dbesdk.DbEsdkLikeItemEncryptor.CryptoAction;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.BranchKeyIdSupplier;
 import software.amazon.cryptography.materialproviders.keyrings.GetBranchKeyIdResponse;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 
 /**
  * Customer example: a SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT attribute.

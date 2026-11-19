@@ -27,8 +27,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.IntFunction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.DecryptionMaterials;
 import software.amazon.cryptography.materialproviders.EncryptedDataKey;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
@@ -56,6 +54,8 @@ import software.amazon.cryptography.materialproviders.exceptions.ValidationExcep
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 import software.amazon.cryptography.materialproviders.internal.cache.CacheClock;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 // The native API: builder checks, accessors, exception kinds, and time-dependent cache use on a test clock.
 // Behavior against the reference is covered through the test adapter in oldapi.materialproviders.HierarchicalKeyring*Test.

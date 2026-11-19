@@ -27,8 +27,6 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.CryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsRequest;
 import software.amazon.cryptography.materialproviders.DecryptMaterialsResponse;
@@ -73,6 +71,8 @@ import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.ClientSupplier;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 // Runs every ESDK example against the in-process fake AWS. The examples check their own results and throw on a mismatch;
 // these tests add what only the fake can observe (requests sent, clients built) and pin the integration mappings.

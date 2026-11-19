@@ -1,15 +1,15 @@
 // Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-package software.amazon.cryptography.keystore;
+package software.amazon.cryptography.materialproviders.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Input to {@link DynamoDbKeyStore#getActiveBranchKey}. Immutable. */
-public final class GetActiveBranchKeyRequest {
+/** Output of {@link DynamoDbKeyStore#createKey}. Immutable. */
+public final class CreateKeyResponse {
 
   private final String branchKeyIdentifier;
 
-  private GetActiveBranchKeyRequest(Builder builder) {
+  private CreateKeyResponse(Builder builder) {
     this.branchKeyIdentifier = builder.branchKeyIdentifier;
   }
 
@@ -17,18 +17,19 @@ public final class GetActiveBranchKeyRequest {
     return new Builder();
   }
 
-  /** A builder holding this request's values. */
+  /** A builder holding this response's values. */
   public Builder toBuilder() {
     return new Builder().branchKeyIdentifier(branchKeyIdentifier);
   }
 
+  /** The id of the created branch key. */
   public String branchKeyIdentifier() {
     return branchKeyIdentifier;
   }
 
   @Override
   public String toString() {
-    return "GetActiveBranchKeyRequest[" + branchKeyIdentifier + "]";
+    return "CreateKeyResponse[" + branchKeyIdentifier + "]";
   }
 
   /** Not thread-safe. Requires {@code branchKeyIdentifier}. */
@@ -43,11 +44,11 @@ public final class GetActiveBranchKeyRequest {
       return this;
     }
 
-    public GetActiveBranchKeyRequest build() {
+    public CreateKeyResponse build() {
       if (branchKeyIdentifier == null) {
         throw new ValidationException("Missing value for required field `branchKeyIdentifier`");
       }
-      return new GetActiveBranchKeyRequest(this);
+      return new CreateKeyResponse(this);
     }
   }
 }

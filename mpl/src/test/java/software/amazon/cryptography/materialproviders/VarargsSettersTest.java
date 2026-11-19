@@ -28,9 +28,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.EncryptionAlgorithmSpec;
-import software.amazon.cryptography.keystore.DynamoDbKeyStore;
-import software.amazon.cryptography.keystore.GetKeyStoreInfoResponse;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.cmm.DefaultCryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.cmm.RequiredEncryptionContextCryptographicMaterialsManager;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
@@ -49,6 +46,9 @@ import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
 import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.MultiKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.GetKeyStoreInfoResponse;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 // Each varargs setter must behave as its Collection twin: the same values, and the same failure for a null array,
 // a null element, or a value the builder rejects.

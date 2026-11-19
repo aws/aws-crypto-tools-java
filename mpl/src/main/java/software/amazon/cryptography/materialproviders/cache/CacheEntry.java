@@ -5,9 +5,9 @@ package software.amazon.cryptography.materialproviders.cache;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
-import software.amazon.cryptography.keystore.BeaconKeyMaterials;
-import software.amazon.cryptography.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
 
 /**
  * Cached materials with their lifetime: a branch key (hierarchical keyring)

@@ -10,10 +10,10 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
 import software.amazon.awssdk.services.kms.model.GenerateDataKeyWithoutPlaintextResponse;
 import software.amazon.awssdk.services.kms.model.ReEncryptResponse;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.exceptions.ServiceException;
 import software.amazon.cryptography.materialproviders.internal.AwsErrors;
 import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /** The key store's KMS calls and the checks on their responses, per KMSKeystoreOperations.dfy. */
 final class KeyStoreKms {
