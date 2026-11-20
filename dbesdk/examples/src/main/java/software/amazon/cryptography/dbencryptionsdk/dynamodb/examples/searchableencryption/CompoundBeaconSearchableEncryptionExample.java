@@ -95,7 +95,7 @@ public class CompoundBeaconSearchableEncryptionExample {
     //    Encrypted parts define the beacons that can be used to construct a compound beacon,
     //        and how the compound beacon prefixes those beacon values.
     // A encrypted part must receive:
-    //  - name: Name of a standard beacon
+    //  - beacon: The standard beacon whose value this part holds
     //  - prefix: Any string. This is plaintext that prefixes the beaconized value in the compound beacon.
     //            Prefixes must be unique across the configuration, and must not be a prefix of
     //            another prefix; i.e. for all configured prefixes, the first N characters of a
@@ -109,7 +109,7 @@ public class CompoundBeaconSearchableEncryptionExample {
     //     `L-000` to `L-3ff` inside a compound beacon.
     EncryptedPart last4EncryptedPart = EncryptedPart
       .builder()
-      .name("inspector_id_last4")
+      .beacon(last4Beacon)
       .prefix("L-")
       .build();
     // For this example, we will choose "U-" as the prefix for "unit".
@@ -117,19 +117,19 @@ public class CompoundBeaconSearchableEncryptionExample {
     //     as `U-00000000` to `U-3fffffff` inside a compound beacon.
     EncryptedPart unitEncryptedPart = EncryptedPart
       .builder()
-      .name("unit")
+      .beacon(unitBeacon)
       .prefix("U-")
       .build();
 
     // A constructor is one allowed way to assemble the compound beacon's value: an ordered list of
-    // parts, joined by the compound beacon's separator. Each part names an encrypted or signed part
+    // parts, joined by the compound beacon's separator. Each part takes an encrypted or signed part
     // and says whether the constructor needs it: a required part must be on the item for this
     // constructor to be used, and an optional part is left out when it is missing. The parts are
     // written in the order they are listed. This constructor writes the beacon as
     // `L-XXX.U-YYYYYYYY` and needs both parts.
     CompoundBeaconConstructor constructor = CompoundBeaconConstructor.of(
-      CompoundBeaconConstructorPart.required("inspector_id_last4"),
-      CompoundBeaconConstructorPart.required("unit")
+      CompoundBeaconConstructorPart.required(last4EncryptedPart),
+      CompoundBeaconConstructorPart.required(unitEncryptedPart)
     );
 
     // 3. Define compound beacon.

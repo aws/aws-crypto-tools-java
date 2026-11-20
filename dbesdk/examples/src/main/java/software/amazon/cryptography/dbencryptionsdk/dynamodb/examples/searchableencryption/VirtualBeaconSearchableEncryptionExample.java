@@ -189,8 +189,8 @@ public class VirtualBeaconSearchableEncryptionExample {
     //    sharing that beacon value.
     StandardBeacon stateAndHasTestResultBeacon = StandardBeacon
       .builder()
-      // This name is the same as our virtual field's name above
-      .name("stateAndHasTestResult")
+      // The beacon is computed over the virtual field above, and takes the field's name
+      .virtualField(stateAndHasTestResultField)
       .bitLength(5)
       .build();
 

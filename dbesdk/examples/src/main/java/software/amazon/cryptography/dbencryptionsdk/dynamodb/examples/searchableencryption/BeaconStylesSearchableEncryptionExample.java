@@ -81,7 +81,7 @@ public class BeaconStylesSearchableEncryptionExample {
       .builder()
       .name("basket")
       .bitLength(30)
-      .style(BeaconStyle.sharedSet("fruit"))
+      .style(BeaconStyle.sharedSet(fruitBeacon))
       .build();
 
     // The dessert beacon allows searching on the encrypted dessert attribute
@@ -91,7 +91,7 @@ public class BeaconStylesSearchableEncryptionExample {
       .builder()
       .name("dessert")
       .bitLength(30)
-      .style(BeaconStyle.shared("fruit"))
+      .style(BeaconStyle.shared(fruitBeacon))
       .build();
 
     // The veggieBeacon allows searching on the encrypted veggies attribute
@@ -115,10 +115,11 @@ public class BeaconStylesSearchableEncryptionExample {
 
     // Here we build a compound beacon from work_id and work_type
     // If we had tried to make a StandardBeacon from work_type, we would have seen an error
-    // because work_type uses the BeaconStyle.partOnly style
+    // because work_type uses the BeaconStyle.partOnly style.
+    // The encrypted part takes the standard beacon whose value it holds.
     EncryptedPart workTypePart = EncryptedPart
       .builder()
-      .name("work_type")
+      .beacon(workTypeBeacon)
       .prefix("T-")
       .build();
 
