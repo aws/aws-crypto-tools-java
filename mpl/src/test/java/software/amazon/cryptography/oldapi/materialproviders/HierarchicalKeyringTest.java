@@ -69,16 +69,19 @@ class HierarchicalKeyringTest {
     for (long ttl : new long[] { 0, 1, 9, 10, 11, 600, Long.MAX_VALUE }) {
       inputs.add(h.input(branchKey).ttlSeconds(ttl).build());
     }
-    // These cache types are not checked against the TTL.
+    // These cache types are not checked against the TTL, a shared storm-tracking cache included.
     List<CacheType> unchecked = Arrays.asList(
       CacheType.builder().Default(DefaultCache.builder().entryCapacity(1).build()).build(),
       CacheType.builder().No(NoCache.builder().build()).build(),
       CacheType.builder().SingleThreaded(SingleThreadedCache.builder().entryCapacity(1).entryPruningTailSize(1).build()).build(),
       CacheType.builder().MultiThreaded(MultiThreadedCache.builder().entryCapacity(1).entryPruningTailSize(2).build()).build(),
-      h.sharedBuiltIn(CacheType.builder().MultiThreaded(MultiThreadedCache.builder().entryCapacity(5).entryPruningTailSize(1).build()).build())
+      h.sharedBuiltIn(CacheType.builder().MultiThreaded(MultiThreadedCache.builder().entryCapacity(5).entryPruningTailSize(1).build()).build()),
+      h.sharedBuiltIn(storm(10, TimeUnits.Seconds))
     );
     for (CacheType cache : unchecked) {
-      inputs.add(h.input(branchKey).ttlSeconds(0).cache(cache).build());
+      for (long ttl : new long[] { 0, 5 }) {
+        inputs.add(h.input(branchKey).ttlSeconds(ttl).cache(cache).build());
+      }
     }
     // Storm tracking: the TTL must exceed the grace period, in seconds; milliseconds are rounded down.
     for (TimeUnits units : new TimeUnits[] { null, TimeUnits.Seconds, TimeUnits.Milliseconds }) {

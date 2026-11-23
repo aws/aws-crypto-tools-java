@@ -23,8 +23,8 @@ public final class HierarchicalKeyringExample {
   private HierarchicalKeyringExample() {}
 
   /**
-   * @param ddb the client for the key store table; with real AWS, leave it out and the store makes one
-   * @param kms the client for {@code kmsKeyArn}; with real AWS, leave it out and the store makes one
+   * @param ddb the client for the key store table; with real AWS, leave it out and the store makes one, open for the store's lifetime
+   * @param kms the client for {@code kmsKeyArn}; with real AWS, leave it out and the store makes one, open for the store's lifetime
    * @return the two tenants' encrypted items
    */
   public static List<Map<String, String>> encryptAndDecryptForTwoTenants(

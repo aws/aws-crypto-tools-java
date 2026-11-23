@@ -30,7 +30,7 @@ public final class HierarchicalKeyringExample {
   private HierarchicalKeyringExample() {}
 
   /**
-   * @param kmsClient real AWS: {@code KmsClient.create()}, or leave it out and the store creates one for the key's Region
+   * @param kmsClient real AWS: {@code KmsClient.create()}, or leave it out and the store creates one for the key's Region, open for the store's lifetime
    * @param ddbClient real AWS: {@code DynamoDbClient.create()}; the example also needs it to wait for the new table
    */
   public static void encryptAndDecrypt(

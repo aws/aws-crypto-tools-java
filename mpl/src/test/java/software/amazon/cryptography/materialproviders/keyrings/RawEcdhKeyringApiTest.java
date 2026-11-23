@@ -97,7 +97,13 @@ class RawEcdhKeyringApiTest {
     byte[] privateBytes = privatePem(pair).toByteArray();
     RawEcdhKeyAgreementScheme.PublicKeyDiscoveryBuilder discovery = RawEcdhKeyAgreementScheme.publicKeyDiscovery().recipientStaticPrivateKey(privateBytes);
     Arrays.fill(privateBytes, (byte) 0);
-    assertTrue(discovery.build().privateKey().contentEquals(privatePem(pair)));
+    RawEcdhKeyAgreementScheme built = discovery.build();
+    assertTrue(built.privateKey().contentEquals(privatePem(pair)));
+    // Setting another key after build() replaces, and destroys, only the builder's copy.
+    KeyPair other = keyPair();
+    discovery.recipientStaticPrivateKey(privatePem(other).toByteArray());
+    assertTrue(built.privateKey().contentEquals(privatePem(pair)));
+    assertTrue(discovery.build().privateKey().contentEquals(privatePem(other)));
     assertMessage("Missing value for required field `recipientStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.publicKeyDiscovery().build());
     assertMessage("Missing value for required field `recipientPublicKey`", () -> RawEcdhKeyAgreementScheme.ephemeralPrivateKeyToStaticPublicKey().build());
     assertMessage("Missing value for required field `senderStaticPrivateKey`", () -> RawEcdhKeyAgreementScheme.rawPrivateKeyToStaticPublicKey().recipientPublicKey(publicKey).build());

@@ -12,7 +12,7 @@ import software.amazon.cryptography.materialproviders.internal.cache.Caches;
  * 10-second in-flight TTL, and 20-millisecond sleep, the same as {@link StormTrackingCache.Builder}'s defaults.
  * A hierarchical keyring with no cache set builds one of these with 1000 entries. Thread-safe.
  *
- * <p>A keyring given this cache does not check its TTL against the grace period, as it does for a {@link StormTrackingCache};
+ * <p>Unlike with a {@link StormTrackingCache}, a keyring given this cache does not check its TTL against the cache's grace period;
  * see {@link software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring.Builder#cache}.
  */
 public final class DefaultCache implements CryptographicMaterialsCache {

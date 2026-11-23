@@ -61,13 +61,32 @@ public abstract class RawEcdhKeyAgreementScheme {
     return recipientPublicKey;
   }
 
-  // A SecretBytes is copied by build(); a byte[] or JCA key is copied or encoded when set, and null is a missing key.
-  private static SecretBytes secret(byte[] key) {
-    return key == null ? null : SecretBytes.copyOf(key);
-  }
+  // A builder's private key. The caller owns a SecretBytes it sets; the builder owns the copy it makes of a byte[] or JCA key,
+  // and destroys that copy when the key is replaced. Null is a missing key; build() copies whichever is set.
+  private static final class PrivateKeySetting {
 
-  private static SecretBytes secret(PrivateKey key, String name) {
-    return key == null ? null : Pem.privateKey(key, name);
+    private SecretBytes key;
+    private boolean owned;
+
+    void caller(SecretBytes key) {
+      replace(key, false);
+    }
+
+    void copyOf(byte[] key) {
+      replace(key == null ? null : SecretBytes.copyOf(key), key != null);
+    }
+
+    void encode(PrivateKey key, String name) {
+      replace(key == null ? null : Pem.privateKey(key, name), key != null);
+    }
+
+    private void replace(SecretBytes next, boolean ownsNext) {
+      if (owned) {
+        key.destroy();
+      }
+      key = next;
+      owned = ownsNext;
+    }
   }
 
   private static byte[] publicKey(byte[] key) {
@@ -78,29 +97,32 @@ public abstract class RawEcdhKeyAgreementScheme {
     return key == null ? null : Pem.encoded(key, name).clone();
   }
 
-  /** Not thread-safe. */
+  /**
+   * Not thread-safe. A key set as {@code byte[]} or {@code PrivateKey} is copied into the builder, which keeps that copy
+   * until the key is set again or the builder is garbage collected.
+   */
   public static final class RawPrivateKeyToStaticPublicKeyBuilder {
 
-    private SecretBytes senderStaticPrivateKey;
+    private final PrivateKeySetting senderStaticPrivateKey = new PrivateKeySetting();
     private byte[] recipientPublicKey;
 
     private RawPrivateKeyToStaticPublicKeyBuilder() {}
 
     /** The sender's private key; {@link #build()} copies it. */
     public RawPrivateKeyToStaticPublicKeyBuilder senderStaticPrivateKey(SecretBytes senderStaticPrivateKey) {
-      this.senderStaticPrivateKey = senderStaticPrivateKey;
+      this.senderStaticPrivateKey.caller(senderStaticPrivateKey);
       return this;
     }
 
     /** {@link #senderStaticPrivateKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
     public RawPrivateKeyToStaticPublicKeyBuilder senderStaticPrivateKey(byte[] senderStaticPrivateKey) {
-      this.senderStaticPrivateKey = secret(senderStaticPrivateKey);
+      this.senderStaticPrivateKey.copyOf(senderStaticPrivateKey);
       return this;
     }
 
     /** {@link #senderStaticPrivateKey(SecretBytes)} with a JCA key, encoded now. */
     public RawPrivateKeyToStaticPublicKeyBuilder senderStaticPrivateKey(PrivateKey senderStaticPrivateKey) {
-      this.senderStaticPrivateKey = secret(senderStaticPrivateKey, "senderStaticPrivateKey");
+      this.senderStaticPrivateKey.encode(senderStaticPrivateKey, "senderStaticPrivateKey");
       return this;
     }
 
@@ -116,9 +138,9 @@ public abstract class RawEcdhKeyAgreementScheme {
 
     /** @throws ValidationException if a key is missing */
     public RawEcdhKeyAgreementScheme build() {
-      KeyringNames.requireSet(senderStaticPrivateKey, "senderStaticPrivateKey");
+      KeyringNames.requireSet(senderStaticPrivateKey.key, "senderStaticPrivateKey");
       KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-      return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderStaticPrivateKey.copy(), recipientPublicKey.clone());
+      return new Of(Kind.RAW_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderStaticPrivateKey.key.copy(), recipientPublicKey.clone());
     }
   }
 
@@ -146,35 +168,35 @@ public abstract class RawEcdhKeyAgreementScheme {
     }
   }
 
-  /** Not thread-safe. */
+  /** Not thread-safe. Keeps its copy of a key set as {@code byte[]} or {@code PrivateKey}, as the static key builder does. */
   public static final class PublicKeyDiscoveryBuilder {
 
-    private SecretBytes recipientStaticPrivateKey;
+    private final PrivateKeySetting recipientStaticPrivateKey = new PrivateKeySetting();
 
     private PublicKeyDiscoveryBuilder() {}
 
     /** The recipient's private key; {@link #build()} copies it. */
     public PublicKeyDiscoveryBuilder recipientStaticPrivateKey(SecretBytes recipientStaticPrivateKey) {
-      this.recipientStaticPrivateKey = recipientStaticPrivateKey;
+      this.recipientStaticPrivateKey.caller(recipientStaticPrivateKey);
       return this;
     }
 
     /** {@link #recipientStaticPrivateKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
     public PublicKeyDiscoveryBuilder recipientStaticPrivateKey(byte[] recipientStaticPrivateKey) {
-      this.recipientStaticPrivateKey = secret(recipientStaticPrivateKey);
+      this.recipientStaticPrivateKey.copyOf(recipientStaticPrivateKey);
       return this;
     }
 
     /** {@link #recipientStaticPrivateKey(SecretBytes)} with a JCA key, encoded now. */
     public PublicKeyDiscoveryBuilder recipientStaticPrivateKey(PrivateKey recipientStaticPrivateKey) {
-      this.recipientStaticPrivateKey = secret(recipientStaticPrivateKey, "recipientStaticPrivateKey");
+      this.recipientStaticPrivateKey.encode(recipientStaticPrivateKey, "recipientStaticPrivateKey");
       return this;
     }
 
     /** @throws ValidationException if the key is missing */
     public RawEcdhKeyAgreementScheme build() {
-      KeyringNames.requireSet(recipientStaticPrivateKey, "recipientStaticPrivateKey");
-      return new Of(Kind.PUBLIC_KEY_DISCOVERY, recipientStaticPrivateKey.copy(), null);
+      KeyringNames.requireSet(recipientStaticPrivateKey.key, "recipientStaticPrivateKey");
+      return new Of(Kind.PUBLIC_KEY_DISCOVERY, recipientStaticPrivateKey.key.copy(), null);
     }
   }
 

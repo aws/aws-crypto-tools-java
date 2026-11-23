@@ -69,17 +69,13 @@ public abstract class KmsEcdhKeyAgreementScheme {
     return recipientPublicKey;
   }
 
-  // Copied or encoded when set; null is a missing key.
+  // Copied or encoded when set; null clears the key.
   private static byte[] publicKey(byte[] key) {
     return key == null ? null : key.clone();
   }
 
   private static byte[] publicKey(PublicKey key, String name) {
     return key == null ? null : Pem.encoded(key, name).clone();
-  }
-
-  private static byte[] copy(byte[] key) {
-    return key == null ? null : key.clone();
   }
 
   /** Not thread-safe. */
@@ -123,7 +119,7 @@ public abstract class KmsEcdhKeyAgreementScheme {
     public KmsEcdhKeyAgreementScheme build() {
       KeyringNames.requireSet(senderKmsIdentifier, "senderKmsIdentifier");
       KeyringNames.requireSet(recipientPublicKey, "recipientPublicKey");
-      return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, copy(senderPublicKey), recipientPublicKey.clone());
+      return new Of(Kind.KMS_PRIVATE_KEY_TO_STATIC_PUBLIC_KEY, senderKmsIdentifier, publicKey(senderPublicKey), recipientPublicKey.clone());
     }
   }
 

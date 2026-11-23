@@ -122,7 +122,7 @@ public final class StormSettings {
     return fromPublic.apply(cache);
   }
 
-  /** The public settings holding exactly these values. */
+  /** A new {@link StormTrackingCache} with exactly these settings, on the system clock; for the old-API test adapter and tests. */
   public StormTrackingCache toPublic() {
     load();
     return toPublic.apply(this);

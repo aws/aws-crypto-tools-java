@@ -202,6 +202,35 @@ class AwsKmsHierarchicalKeyringTest {
     }
   }
 
+  // The keyring's own cache holds 1000 branch keys: the 1001st evicts the least recently used one.
+  @Test
+  void theDefaultCacheHoldsOneThousandBranchKeys() {
+    List<String> ids = new ArrayList<>();
+    for (int i = 0; i < 1001; i++) {
+      ids.add(store.createKey().branchKeyId());
+    }
+    AwsKmsHierarchicalKeyring keyring = builder()
+      .branchKeyId(null)
+      .branchKeyIdSupplier(request -> GetBranchKeyIdResponse.builder().branchKeyId(request.encryptionContext().get("id")).build())
+      .build();
+    for (String id : ids) {
+      encryptWith(keyring, id);
+    }
+    aws.clearRequests();
+    encryptWith(keyring, ids.get(1));
+    assertEquals(0, reads());
+    encryptWith(keyring, ids.get(0));
+    assertEquals(2, reads());
+  }
+
+  private static void encryptWith(AwsKmsHierarchicalKeyring keyring, String branchKeyId) {
+    EncryptionMaterials materials = EncryptionMaterials
+      .builder(EsdkAlgorithmSuite.ALG_AES_256_GCM_IV12_TAG16_NO_KDF)
+      .encryptionContext(EncryptionContext.of("id", branchKeyId))
+      .build();
+    keyring.onEncrypt(OnEncryptRequest.builder().materials(materials).build());
+  }
+
   // Sharing is passing one cache to several keyrings; they share entries only with equal partition ids.
   @Test
   void keyringsGivenOneCacheShareEntriesByPartitionId() {
