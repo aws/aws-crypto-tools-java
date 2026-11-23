@@ -21,8 +21,9 @@ import software.amazon.cryptography.materialproviders.internal.keystore.Unwrappe
 import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
 
 /**
- * Branch keys, the versioned keys the hierarchical keyring wraps data keys with, stored in a DynamoDB table
- * and protected by a KMS key. Thread-safe.
+ * The provided {@link KeyStore}: branch keys, the versioned keys the hierarchical keyring wraps data keys with,
+ * stored in a DynamoDB table and protected by a KMS key. Thread-safe.
+ * Creating and versioning keys are operations of this class, not of {@code KeyStore}.
  * Clients passed to the builder are not closed; clients the store creates are closed by {@link #close()}.
  *
  * <p>Each operation takes a request object and returns a response object.
@@ -47,7 +48,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Bytes;
 //#- [GetActiveBranchKey](#getactivebranchkey)
 //#- [GetBranchKeyVersion](#getbranchkeyversion)
 //#- [GetBeaconKey](#getbeaconkey)
-public final class DynamoDbKeyStore implements AutoCloseable {
+public final class DynamoDbKeyStore implements KeyStore, AutoCloseable {
 
   private final GetKeyStoreInfoResponse info;
   private final KeyStoreOperations operations;
@@ -137,6 +138,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getactivebranchkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
+  @Override
   public GetActiveBranchKeyResponse getActiveBranchKey(GetActiveBranchKeyRequest request) {
     //= spec/framework/branch-key-store.md#getactivebranchkey
     //= type=implication
@@ -151,13 +153,6 @@ public final class DynamoDbKeyStore implements AutoCloseable {
       .build();
   }
 
-  /** {@link #getActiveBranchKey(GetActiveBranchKeyRequest)} with a request built by {@code request}. */
-  public GetActiveBranchKeyResponse getActiveBranchKey(Consumer<GetActiveBranchKeyRequest.Builder> request) {
-    GetActiveBranchKeyRequest.Builder builder = GetActiveBranchKeyRequest.builder();
-    request.accept(builder);
-    return getActiveBranchKey(builder.build());
-  }
-
   //= spec/framework/branch-key-store.md#getbranchkeyversion
   //= type=implication
   //# - MUST supply a `branch-key-id`
@@ -165,6 +160,7 @@ public final class DynamoDbKeyStore implements AutoCloseable {
   //= spec/framework/branch-key-store.md#getbranchkeyversion
   //= type=implication
   //# - MUST supply a `branchKeyVersion`
+  @Override
   public GetBranchKeyVersionResponse getBranchKeyVersion(GetBranchKeyVersionRequest request) {
     //= spec/framework/branch-key-store.md#getbranchkeyversion
     //= type=implication
@@ -179,16 +175,10 @@ public final class DynamoDbKeyStore implements AutoCloseable {
       .build();
   }
 
-  /** {@link #getBranchKeyVersion(GetBranchKeyVersionRequest)} with a request built by {@code request}. */
-  public GetBranchKeyVersionResponse getBranchKeyVersion(Consumer<GetBranchKeyVersionRequest.Builder> request) {
-    GetBranchKeyVersionRequest.Builder builder = GetBranchKeyVersionRequest.builder();
-    request.accept(builder);
-    return getBranchKeyVersion(builder.build());
-  }
-
   //= spec/framework/branch-key-store.md#getbeaconkey
   //= type=implication
   //# - MUST supply a `branch-key-id`
+  @Override
   public GetBeaconKeyResponse getBeaconKey(GetBeaconKeyRequest request) {
     UnwrappedKey unwrapped = operations.getBeaconKey(request.branchKeyId());
     try {
@@ -209,31 +199,13 @@ public final class DynamoDbKeyStore implements AutoCloseable {
     }
   }
 
-  /** {@link #getBeaconKey(GetBeaconKeyRequest)} with a request built by {@code request}. */
-  public GetBeaconKeyResponse getBeaconKey(Consumer<GetBeaconKeyRequest.Builder> request) {
-    GetBeaconKeyRequest.Builder builder = GetBeaconKeyRequest.builder();
-    request.accept(builder);
-    return getBeaconKey(builder.build());
-  }
-
   //= spec/framework/branch-key-store.md#getkeystoreinfo
   //= type=implication
   //# This operation MUST return the keystore information in this keystore configuration.
+  @Override
   public GetKeyStoreInfoResponse getKeyStoreInfo(GetKeyStoreInfoRequest request) {
     Objects.requireNonNull(request, "request");
     return info;
-  }
-
-  /** The same as {@code getKeyStoreInfo(GetKeyStoreInfoRequest.builder().build())}. */
-  public GetKeyStoreInfoResponse getKeyStoreInfo() {
-    return info;
-  }
-
-  /** {@link #getKeyStoreInfo(GetKeyStoreInfoRequest)} with a request built by {@code request}. */
-  public GetKeyStoreInfoResponse getKeyStoreInfo(Consumer<GetKeyStoreInfoRequest.Builder> request) {
-    GetKeyStoreInfoRequest.Builder builder = GetKeyStoreInfoRequest.builder();
-    request.accept(builder);
-    return getKeyStoreInfo(builder.build());
   }
 
   @Override

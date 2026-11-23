@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.Optional;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 
 //= spec/framework/structures.md#structure-4
@@ -48,6 +49,11 @@ public final class BeaconKeyMaterials {
       copy.put(Objects.requireNonNull(entry.getKey(), "hmac key name"), Objects.requireNonNull(entry.getValue(), "hmac key"));
     }
     this.hmacKeys = Collections.unmodifiableMap(copy);
+  }
+
+  /** For a {@link KeyStore} implementation that decrypts beacon keys itself. */
+  public static Builder builder() {
+    return new Builder();
   }
 
   public String beaconKeyIdentifier() {
@@ -120,5 +126,50 @@ public final class BeaconKeyMaterials {
   @Override
   public String toString() {
     return "BeaconKeyMaterials[" + beaconKeyIdentifier + ", context keys " + encryptionContext.keySet() + "]";
+  }
+
+  /** Not thread-safe. Requires every member. */
+  public static final class Builder {
+
+    private String beaconKeyIdentifier;
+    private EncryptionContext encryptionContext;
+    private SecretBytes beaconKey;
+
+    private Builder() {}
+
+    public Builder beaconKeyIdentifier(String beaconKeyIdentifier) {
+      this.beaconKeyIdentifier = beaconKeyIdentifier;
+      return this;
+    }
+
+    public Builder encryptionContext(EncryptionContext encryptionContext) {
+      this.encryptionContext = encryptionContext;
+      return this;
+    }
+
+    /** The decrypted beacon key. Copied by {@link #build()}, so the caller keeps ownership of its own. */
+    public Builder beaconKey(SecretBytes beaconKey) {
+      this.beaconKey = beaconKey;
+      return this;
+    }
+
+    /** {@link #beaconKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
+    public Builder beaconKey(byte[] beaconKey) {
+      return beaconKey(beaconKey == null ? null : SecretBytes.copyOf(beaconKey));
+    }
+
+    /** Materials with the beacon key and no HMAC keys, as {@link DynamoDbKeyStore#getBeaconKey} returns them. */
+    public BeaconKeyMaterials build() {
+      if (beaconKeyIdentifier == null) {
+        throw new ValidationException("Missing value for required field `beaconKeyIdentifier`");
+      }
+      if (encryptionContext == null) {
+        throw new ValidationException("Missing value for required field `encryptionContext`");
+      }
+      if (beaconKey == null) {
+        throw new ValidationException("Missing value for required field `beaconKey`");
+      }
+      return new BeaconKeyMaterials(beaconKeyIdentifier, encryptionContext, beaconKey.copy(), Collections.<String, SecretBytes>emptyMap());
+    }
   }
 }

@@ -53,7 +53,7 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Digest
 import software.amazon.cryptography.materialproviders.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.materialproviders.internal.primitives.Randoms;
 import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
-import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KeyStore;
 
 /**
  * Wraps data keys with branch keys from a branch key store, caching branch keys so most operations make no KMS call.
@@ -95,7 +95,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
   private final String branchKeyId;
   private final BranchKeyIdSupplier branchKeyIdSupplier;
-  private final DynamoDbKeyStore keyStore;
+  private final KeyStore keyStore;
   private final long ttlSeconds;
   private final CryptographicMaterialsCache configuredCache;
   private final String partitionId;
@@ -137,7 +137,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
   }
 
   /** Where branch keys come from. */
-  public DynamoDbKeyStore keyStore() {
+  public KeyStore keyStore() {
     return keyStore;
   }
 
@@ -490,7 +490,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
 
     private String branchKeyId;
     private BranchKeyIdSupplier branchKeyIdSupplier;
-    private DynamoDbKeyStore keyStore;
+    private KeyStore keyStore;
     private Duration ttl;
     private CryptographicMaterialsCache cache;
     private String partitionId;
@@ -510,8 +510,8 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       return this;
     }
 
-    /** Where branch keys come from. */
-    public Builder keyStore(DynamoDbKeyStore keyStore) {
+    /** Where branch keys come from: a {@link software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore} or your own implementation. */
+    public Builder keyStore(KeyStore keyStore) {
       this.keyStore = keyStore;
       return this;
     }

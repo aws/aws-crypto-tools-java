@@ -5,6 +5,7 @@ package software.amazon.cryptography.materialproviders.keystore;
 import java.util.Objects;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 
 //= spec/framework/structures.md#structure-3
@@ -37,6 +38,11 @@ public final class BranchKeyMaterials {
     this.branchKeyVersion = Objects.requireNonNull(branchKeyVersion, "branchKeyVersion");
     this.encryptionContext = Objects.requireNonNull(encryptionContext, "encryptionContext");
     this.branchKey = Objects.requireNonNull(branchKey, "branchKey");
+  }
+
+  /** For a {@link KeyStore} implementation that decrypts branch keys itself. */
+  public static Builder builder() {
+    return new Builder();
   }
 
   public String branchKeyId() {
@@ -85,5 +91,60 @@ public final class BranchKeyMaterials {
       "BranchKeyMaterials[" + branchKeyId + ", version " + branchKeyVersion +
       ", context keys " + encryptionContext.keySet() + "]"
     );
+  }
+
+  /** Not thread-safe. Requires every member. */
+  public static final class Builder {
+
+    private String branchKeyId;
+    private String branchKeyVersion;
+    private EncryptionContext encryptionContext;
+    private SecretBytes branchKey;
+
+    private Builder() {}
+
+    public Builder branchKeyId(String branchKeyId) {
+      this.branchKeyId = branchKeyId;
+      return this;
+    }
+
+    /** A UUID string. */
+    public Builder branchKeyVersion(String branchKeyVersion) {
+      this.branchKeyVersion = branchKeyVersion;
+      return this;
+    }
+
+    /** The custom encryption context given at creation. */
+    public Builder encryptionContext(EncryptionContext encryptionContext) {
+      this.encryptionContext = encryptionContext;
+      return this;
+    }
+
+    /** The decrypted branch key. Copied by {@link #build()}, so the caller keeps ownership of its own. */
+    public Builder branchKey(SecretBytes branchKey) {
+      this.branchKey = branchKey;
+      return this;
+    }
+
+    /** {@link #branchKey(SecretBytes)} from an array, copied now; zero your own array when you no longer need it. */
+    public Builder branchKey(byte[] branchKey) {
+      return branchKey(branchKey == null ? null : SecretBytes.copyOf(branchKey));
+    }
+
+    public BranchKeyMaterials build() {
+      if (branchKeyId == null) {
+        throw new ValidationException("Missing value for required field `branchKeyId`");
+      }
+      if (branchKeyVersion == null) {
+        throw new ValidationException("Missing value for required field `branchKeyVersion`");
+      }
+      if (encryptionContext == null) {
+        throw new ValidationException("Missing value for required field `encryptionContext`");
+      }
+      if (branchKey == null) {
+        throw new ValidationException("Missing value for required field `branchKey`");
+      }
+      return new BranchKeyMaterials(branchKeyId, branchKeyVersion, encryptionContext, branchKey.copy());
+    }
   }
 }

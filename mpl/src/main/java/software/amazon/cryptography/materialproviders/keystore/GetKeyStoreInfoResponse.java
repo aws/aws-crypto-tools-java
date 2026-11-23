@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Output of {@link DynamoDbKeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
+/** Output of {@link KeyStore#getKeyStoreInfo}: the store's configuration. Immutable. */
 public final class GetKeyStoreInfoResponse {
 
   private final String keyStoreId;
@@ -45,7 +45,7 @@ public final class GetKeyStoreInfoResponse {
     return keyStoreId;
   }
 
-  /** The DynamoDB table name. */
+  /** The name of the storage; for {@link DynamoDbKeyStore}, the DynamoDB table name. */
   public String keyStoreName() {
     return keyStoreName;
   }
@@ -108,7 +108,7 @@ public final class GetKeyStoreInfoResponse {
       return this;
     }
 
-    /** The DynamoDB table name. */
+    /** The name of the storage; for {@link DynamoDbKeyStore}, the DynamoDB table name. */
     public Builder keyStoreName(String keyStoreName) {
       this.keyStoreName = keyStoreName;
       return this;

@@ -18,9 +18,10 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import software.amazon.cryptography.materialproviders.EncryptionContext;
 import software.amazon.cryptography.materialproviders.SecretBytes;
+import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 import software.amazon.cryptography.materialproviders.internal.KeyMaterialsAccess;
 
-// BranchKeyMaterials and BeaconKeyMaterials built through the internal factories.
+// BranchKeyMaterials and BeaconKeyMaterials built through the internal factories and the public builders.
 class KeyMaterialsTest {
 
   private static final EncryptionContext CONTEXT = EncryptionContext.of("tenant", "a");
@@ -115,6 +116,53 @@ class KeyMaterialsTest {
     assertEquals(KeyMaterialsAccess.beaconKey("id", CONTEXT, null, Collections.<String, SecretBytes>emptyMap()), fetched.toHmacKeysOnly(Collections.<String, SecretBytes>emptyMap()));
     assertThrows(NullPointerException.class, () -> fetched.toHmacKeysOnly(Collections.<String, SecretBytes>singletonMap("b", null)));
     assertThrows(NullPointerException.class, () -> fetched.toHmacKeysOnly(Collections.singletonMap((String) null, secret(1))));
+  }
+
+  // The builders a custom KeyStore uses: required members, and copies of the keys.
+  @Test
+  void branchKeyMaterialsBuilder() {
+    SecretBytes key = secret(1);
+    BranchKeyMaterials built = BranchKeyMaterials.builder().branchKeyId("id").branchKeyVersion("version").encryptionContext(CONTEXT).branchKey(key).build();
+    assertEquals(KeyMaterialsAccess.branchKey("id", "version", CONTEXT, secret(1)), built);
+    key.destroy();
+    assertArrayEquals(new byte[] { 1, 1 }, built.branchKey().toByteArray());
+    byte[] array = { 2, 2 };
+    BranchKeyMaterials fromArray = BranchKeyMaterials.builder().branchKeyId("id").branchKeyVersion("version").encryptionContext(CONTEXT).branchKey(array).build();
+    array[0] = 0;
+    assertArrayEquals(new byte[] { 2, 2 }, fromArray.branchKey().toByteArray());
+    for (String member : Arrays.asList("branchKeyId", "branchKeyVersion", "encryptionContext", "branchKey")) {
+      BranchKeyMaterials.Builder missing = BranchKeyMaterials.builder().branchKeyId("id").branchKeyVersion("version").encryptionContext(CONTEXT).branchKey(secret(1));
+      if (member.equals("branchKeyId")) missing.branchKeyId(null);
+      if (member.equals("branchKeyVersion")) missing.branchKeyVersion(null);
+      if (member.equals("encryptionContext")) missing.encryptionContext(null);
+      if (member.equals("branchKey")) missing.branchKey((SecretBytes) null);
+      assertEquals("Missing value for required field `" + member + "`", assertThrows(ValidationException.class, missing::build).getMessage());
+    }
+  }
+
+  @Test
+  void beaconKeyMaterialsBuilder() {
+    SecretBytes key = secret(1);
+    BeaconKeyMaterials built = BeaconKeyMaterials.builder().beaconKeyIdentifier("id").encryptionContext(CONTEXT).beaconKey(key).build();
+    assertEquals(KeyMaterialsAccess.beaconKey("id", CONTEXT, secret(1), Collections.<String, SecretBytes>emptyMap()), built);
+    key.destroy();
+    assertArrayEquals(new byte[] { 1, 1 }, built.beaconKey().get().toByteArray());
+    byte[] array = { 2, 2 };
+    BeaconKeyMaterials fromArray = BeaconKeyMaterials.builder().beaconKeyIdentifier("id").encryptionContext(CONTEXT).beaconKey(array).build();
+    array[0] = 0;
+    assertArrayEquals(new byte[] { 2, 2 }, fromArray.beaconKey().get().toByteArray());
+    assertEquals(
+      "Missing value for required field `beaconKeyIdentifier`",
+      assertThrows(ValidationException.class, () -> BeaconKeyMaterials.builder().encryptionContext(CONTEXT).beaconKey(secret(1)).build()).getMessage()
+    );
+    assertEquals(
+      "Missing value for required field `encryptionContext`",
+      assertThrows(ValidationException.class, () -> BeaconKeyMaterials.builder().beaconKeyIdentifier("id").beaconKey(secret(1)).build()).getMessage()
+    );
+    assertEquals(
+      "Missing value for required field `beaconKey`",
+      assertThrows(ValidationException.class, () -> BeaconKeyMaterials.builder().beaconKeyIdentifier("id").encryptionContext(CONTEXT).beaconKey((byte[]) null).build()).getMessage()
+    );
   }
 
   private static SecretBytes secret(int fill) {

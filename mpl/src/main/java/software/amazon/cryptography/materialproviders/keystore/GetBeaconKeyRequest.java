@@ -4,7 +4,7 @@ package software.amazon.cryptography.materialproviders.keystore;
 
 import software.amazon.cryptography.materialproviders.exceptions.ValidationException;
 
-/** Input to {@link DynamoDbKeyStore#getBeaconKey}. Immutable. */
+/** Input to {@link KeyStore#getBeaconKey}. Immutable. */
 public final class GetBeaconKeyRequest {
 
   private final String branchKeyId;
