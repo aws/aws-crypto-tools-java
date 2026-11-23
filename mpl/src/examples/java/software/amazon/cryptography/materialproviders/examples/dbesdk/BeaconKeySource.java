@@ -26,6 +26,8 @@ import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.cache.GetCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.cache.PutCacheEntryRequest;
 import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.GetBeaconKeyRequest;
+import software.amazon.cryptography.materialproviders.keystore.GetKeyStoreInfoRequest;
 import software.amazon.cryptography.materialproviders.keystore.KeyStore;
 
 /**
@@ -67,7 +69,7 @@ public final class BeaconKeySource {
     this.cacheTtlSeconds = builder.cacheTtlSeconds;
     this.cache = cache;
     this.partitionIdBytes = builder.partitionId != null ? builder.partitionId.getBytes(StandardCharsets.UTF_8) : randomUuidBytes();
-    this.logicalKeyStoreNameBytes = keyStore.getKeyStoreInfo().logicalKeyStoreName().getBytes(StandardCharsets.UTF_8);
+    this.logicalKeyStoreNameBytes = keyStore.getKeyStoreInfo(GetKeyStoreInfoRequest.builder().build()).logicalKeyStoreName().getBytes(StandardCharsets.UTF_8);
     this.epochSeconds = builder.epochSeconds;
   }
 
@@ -110,7 +112,7 @@ public final class BeaconKeySource {
         .orElseThrow(() -> new IllegalStateException("Invalid Material Type."));
       return copies(cached.hmacKeys());
     }
-    BeaconKeyMaterials materials = keyStore.getBeaconKey(b -> b.branchKeyId(beaconKeyId)).beaconKeyMaterials();
+    BeaconKeyMaterials materials = keyStore.getBeaconKey(GetBeaconKeyRequest.builder().branchKeyId(beaconKeyId).build()).beaconKeyMaterials();
     SecretBytes beaconKey = materials.beaconKey().orElseThrow(() -> new IllegalStateException("beacon key unexpectedly empty"));
     Map<String, SecretBytes> keys = new LinkedHashMap<>();
     try {

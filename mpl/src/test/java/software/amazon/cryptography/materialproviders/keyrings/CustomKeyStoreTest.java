@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +25,10 @@ import software.amazon.cryptography.materialproviders.OnEncryptRequest;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
 import software.amazon.cryptography.materialproviders.cache.MultiThreadedCache;
+import software.amazon.cryptography.materialproviders.examples.dbesdk.BeaconKeySource;
 import software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException;
 import software.amazon.cryptography.materialproviders.fakeaws.FakeAws;
+import software.amazon.cryptography.materialproviders.keystore.BeaconKeyMaterials;
 import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
 import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
 import software.amazon.cryptography.materialproviders.keystore.GetActiveBranchKeyRequest;
@@ -79,6 +82,27 @@ class CustomKeyStoreTest {
     assertEquals(0, aws.requests("native").size());
     // The same branch key from DynamoDB decrypts the message: the custom store changes where keys come from, not the format.
     assertTrue(decrypt(keyring(dynamoDb), encrypted.encryptedDataKeys()).contentEquals(encrypted.plaintextDataKey().get()));
+    assertTrue(aws.requests("native").size() > 0);
+  }
+
+  // The DB-ESDK beacon key source reads beacon keys through the interface too.
+  @Test
+  void theBeaconKeySourceDerivesTheSameKeysFromAnInMemoryKeyStore() {
+    BeaconKeyMaterials fetched = dynamoDb.getBeaconKey(b -> b.branchKeyId(branchKeyId)).beaconKeyMaterials();
+    InMemoryKeyStore memory = new InMemoryKeyStore(dynamoDb.getKeyStoreInfo());
+    memory.putBeacon(fetched);
+    Map<String, SecretBytes> expected = beaconSource(dynamoDb).hmacKeys(branchKeyId);
+    aws.clearRequests();
+    Map<String, SecretBytes> derived = beaconSource(memory).hmacKeys(branchKeyId);
+    assertEquals(0, aws.requests("native").size());
+    assertEquals(expected.keySet(), derived.keySet());
+    for (Map.Entry<String, SecretBytes> entry : expected.entrySet()) {
+      assertTrue(entry.getValue().contentEquals(derived.get(entry.getKey())));
+    }
+  }
+
+  private BeaconKeySource beaconSource(KeyStore store) {
+    return BeaconKeySource.singleKeyStore(store, branchKeyId).beaconNames(Collections.singletonList("b")).cacheTtlSeconds(60).build();
   }
 
   @Test
@@ -154,6 +178,7 @@ class CustomKeyStoreTest {
     private final GetKeyStoreInfoResponse info;
     private final Map<String, BranchKeyMaterials> versions = new ConcurrentHashMap<>();
     private final Map<String, String> activeVersions = new ConcurrentHashMap<>();
+    private final Map<String, BeaconKeyMaterials> beaconKeys = new ConcurrentHashMap<>();
 
     InMemoryKeyStore(GetKeyStoreInfoResponse info) {
       this.info = info;
@@ -182,9 +207,23 @@ class CustomKeyStoreTest {
       return GetBranchKeyVersionResponse.builder().branchKeyMaterials(find(request.branchKeyId(), request.branchKeyVersion())).build();
     }
 
+    void putBeacon(BeaconKeyMaterials decrypted) {
+      BeaconKeyMaterials copy = BeaconKeyMaterials
+        .builder()
+        .beaconKeyIdentifier(decrypted.beaconKeyIdentifier())
+        .encryptionContext(decrypted.encryptionContext())
+        .beaconKey(decrypted.beaconKey().get())
+        .build();
+      beaconKeys.put(copy.beaconKeyIdentifier(), copy);
+    }
+
     @Override
     public GetBeaconKeyResponse getBeaconKey(GetBeaconKeyRequest request) {
-      throw new UnsupportedOperationException("no beacon keys");
+      BeaconKeyMaterials materials = beaconKeys.get(request.branchKeyId());
+      if (materials == null) {
+        throw new IllegalArgumentException("No beacon key " + request.branchKeyId());
+      }
+      return GetBeaconKeyResponse.builder().beaconKeyMaterials(materials).build();
     }
 
     @Override

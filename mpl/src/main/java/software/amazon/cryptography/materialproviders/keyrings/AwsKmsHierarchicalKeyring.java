@@ -53,6 +53,9 @@ import software.amazon.cryptography.materialproviders.internal.primitives.Digest
 import software.amazon.cryptography.materialproviders.internal.primitives.KdfCounterMode;
 import software.amazon.cryptography.materialproviders.internal.primitives.Randoms;
 import software.amazon.cryptography.materialproviders.keystore.BranchKeyMaterials;
+import software.amazon.cryptography.materialproviders.keystore.GetActiveBranchKeyRequest;
+import software.amazon.cryptography.materialproviders.keystore.GetBranchKeyVersionRequest;
+import software.amazon.cryptography.materialproviders.keystore.GetKeyStoreInfoRequest;
 import software.amazon.cryptography.materialproviders.keystore.KeyStore;
 
 /**
@@ -170,7 +173,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     //# the hierarchical keyring MUST attempt to obtain the branch key materials
     //# by querying the backing branch keystore specified in
     //# the [retrieve OnEncrypt branch key materials](#query-branch-keystore-onencrypt) section.
-    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(b -> b.branchKeyId(id)).branchKeyMaterials());
+    BranchKeyMaterials branchKey = branchKey(cacheId, () -> keyStore.getActiveBranchKey(GetActiveBranchKeyRequest.builder().branchKeyId(id).build()).branchKeyMaterials());
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.Wrap<Void> wrap = (plaintext, suite, encryptionContext) ->
       new EdkWrapping.Wrapped<>(wrap(branchKey, idBytes, versionBytes, plaintext, encryptionContext), null);
@@ -259,7 +262,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
     byte[] cacheId = cacheId(SCOPE_DECRYPT, idBytes, version);
     BranchKeyMaterials branchKey = branchKey(
       cacheId,
-      () -> keyStore.getBranchKeyVersion(b -> b.branchKeyId(id).branchKeyVersion(version)).branchKeyMaterials()
+      () -> keyStore.getBranchKeyVersion(GetBranchKeyVersionRequest.builder().branchKeyId(id).branchKeyVersion(version).build()).branchKeyMaterials()
     );
     byte[] versionBytes = versionBytes(branchKey);
     EdkWrapping.UnwrapResult<Void> unwrapped = EdkWrapping.unwrap(
@@ -580,7 +583,7 @@ public final class AwsKmsHierarchicalKeyring implements Keyring {
       CryptographicMaterialsCache built = cache(ttlSeconds);
       byte[] partitionIdBytes = partitionIdBytes();
       byte[] logicalKeyStoreNameBytes = utf8(
-        keyStore.getKeyStoreInfo().logicalKeyStoreName(),
+        keyStore.getKeyStoreInfo(GetKeyStoreInfoRequest.builder().build()).logicalKeyStoreName(),
         "Could not UTF-8 Encode Logical Key Store Name: " + ENCODE_FAILURE
       );
       if (branchKeyId != null && branchKeyIdSupplier != null) {

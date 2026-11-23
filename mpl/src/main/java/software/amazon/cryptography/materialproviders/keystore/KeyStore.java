@@ -9,10 +9,10 @@ import java.util.function.Consumer;
  * {@link DynamoDbKeyStore} is the provided implementation.
  * The keyring uses what an implementation returns without checking it, so it must return only key materials it decrypted with AWS KMS
  * under the same encryption context binding as {@code DynamoDbKeyStore}, and it must be thread-safe.
- * Exceptions it throws pass through unchanged; on decrypt the keyring collects them, one per encrypted data key,
+ * Exceptions it throws pass through unchanged, except that on decrypt the keyring collects them with its other failures
  * in a {@link software.amazon.cryptography.materialproviders.exceptions.NoMatchingDataKeyException}.
  *
- * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/branch-key-store.md">branch key store</a>.
+ * <p>Specification: <a href="https://github.com/awslabs/aws-encryption-sdk-specification/blob/HEAD/framework/branch-key-store.md#encryption-context">branch key encryption context</a>.
  */
 public interface KeyStore {
   /** The ACTIVE version of a branch key. */
@@ -47,7 +47,7 @@ public interface KeyStore {
 
   /**
    * The store's configuration. The hierarchical keyring reads {@code logicalKeyStoreName} once, when it is built,
-   * and keys its cache entries by it.
+   * and keys its cache entries by it, so no two stores holding different keys may report the same name.
    */
   GetKeyStoreInfoResponse getKeyStoreInfo(GetKeyStoreInfoRequest request);
 
