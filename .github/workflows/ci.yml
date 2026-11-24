@@ -16,7 +16,7 @@ on:
 permissions:
   contents: read
 
-# bash with pipefail, so a gate piped to tee still fails.
+# bash with pipefail, so a check piped to tee still fails.
 defaults:
   run:
     shell: bash
@@ -292,7 +292,7 @@ jobs:
       language-repository: ${{ github.repository }}
       runner: ubuntu-latest
 
-  # Report only until the module's first release.
+  # Lists the API changes and never fails.
   api-compatibility:
     name: API compatibility (mpl)
     runs-on: ubuntu-latest
