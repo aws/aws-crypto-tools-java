@@ -1,20 +1,20 @@
 # Native Java MPL: API summary and migration path
 
-Status: draft for planning, 2026-11-16 (API round with reviewer feedback: suite enums, builders, create). Unreviewed: the API can still change after team review.
+Status: draft for planning, 2026-11-23 (key store moved to `materialproviders.keystore` as `DynamoDbKeyStore` behind a `KeyStore` interface; caches as objects; ECDH scheme builders; `branchKeyId`). Unreviewed: the API can still change after team review.
 
 - **Current API:** the Dafny-based MPL for Java, 1.11.1, package `software.amazon.cryptography.materialproviders`, the `keystore` package, and `primitives`.
-- **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven; packages `software.amazon.cryptography.materialproviders` and `software.amazon.cryptography.keystore`, artifact `aws-cryptographic-material-providers` 2.0.0; Java 8, no Dafny runtime.
+- **Native API:** this branch (`mpl-native-java-unverified`), module `mpl/`, not yet published to Maven; package `software.amazon.cryptography.materialproviders` (key store in `materialproviders.keystore`), artifact `aws-cryptographic-material-providers` 2.0.0; Java 8, no Dafny runtime.
 - **Conventions:** the API follows the AWS SDK for Java v2 (request and response objects, `builder()`/`toBuilder()`, `name()` accessors with no `get` prefix), except that absent values are `Optional` and secrets are `SecretBytes`.
-- **Details:** the javadoc in `mpl/src/main/java/software/amazon/cryptography/materialproviders` and `.../keystore`, and the examples in `mpl/src/examples` (ESDK and DB-ESDK usage). The R ids in section 4 refer to the behavior-change register, which is shared separately with the design review.
+- **Details:** the javadoc in `mpl/src/main/java/software/amazon/cryptography/materialproviders`, and the examples in `mpl/src/examples` (ESDK and DB-ESDK usage). The R ids in section 4 refer to the behavior-change register, which is shared separately with the design review.
 
 ## 1. What changes and what doesn't
 
 | Changes | Stays the same |
 |---|---|
-| Same packages as today (`software.amazon.cryptography.materialproviders`, `software.amazon.cryptography.keystore`), shipped as `aws-cryptographic-material-providers` 2.0.0; it replaces the Dafny MPL, not runs beside it | Wire format: EDKs, the canonical encryption context, key store items. Existing data decrypts; nothing is re-encrypted. |
+| The same root package as today (`software.amazon.cryptography.materialproviders`; the key store moves to `materialproviders.keystore`), shipped as `aws-cryptographic-material-providers` 2.0.0; it replaces the Dafny MPL, not runs beside it | Wire format: EDKs, the canonical encryption context, key store items. Existing data decrypts; nothing is re-encrypted. |
 | No `MaterialProviders` factory client and no `*Input`/`*Output` wrappers; every component has `builder()` | Pass/fail for every input (four approved exceptions, sec. 4) |
 | Enums for closed sets, immutable values, secrets as `SecretBytes`, `Optional` instead of null | Defaults, KMS and DynamoDB calls, cache behavior |
-| One unchecked exception root with `kind()` and `isRetryable()` | Member names and enum constants (only casing changes: `ALG_AES_256_...`, `branchKeyIdentifier`, `ddbTableName`) |
+| One unchecked exception root with `kind()` and `isRetryable()` | Member names and enum constants (only casing changes: `ALG_AES_256_...`, `branchKeyVersion`, `ddbTableName`; except `algorithmSuite()` and the key store's `branchKeyId`) |
 
 ## 2. API names: current vs native
 
@@ -32,15 +32,15 @@ Status: draft for planning, 2026-11-16 (API round with reviewer feedback: suite 
 | `CreateAwsKmsDiscoveryMultiKeyring` | `AwsKmsDiscoveryMultiKeyring.builder()` (`AutoCloseable`) |
 | `CreateAwsKmsMrkDiscoveryMultiKeyring` | `AwsKmsMrkDiscoveryMultiKeyring.builder()` (`AutoCloseable`) |
 | `CreateAwsKmsRsaKeyring` | `AwsKmsRsaKeyring.builder()` |
-| `CreateAwsKmsEcdhKeyring` | `AwsKmsEcdhKeyring.builder()` + `KmsEcdhKeyAgreementScheme` |
+| `CreateAwsKmsEcdhKeyring` | `AwsKmsEcdhKeyring.builder()` + a `KmsEcdhKeyAgreementScheme` builder, e.g. `kmsPublicKeyDiscovery().recipientKmsIdentifier(arn).build()` |
 | `CreateAwsKmsHierarchicalKeyring` | `AwsKmsHierarchicalKeyring.builder()` |
 | `CreateRawAesKeyring` | `RawAesKeyring.builder()` |
 | `CreateRawRsaKeyring` | `RawRsaKeyring.builder()` |
-| `CreateRawEcdhKeyring` | `RawEcdhKeyring.builder()` + `RawEcdhKeyAgreementScheme` |
+| `CreateRawEcdhKeyring` | `RawEcdhKeyring.builder()` + a `RawEcdhKeyAgreementScheme` builder, e.g. `publicKeyDiscovery().recipientStaticPrivateKey(key).build()` |
 | `CreateMultiKeyring` | `MultiKeyring.builder()` |
 | `CreateDefaultCryptographicMaterialsManager` | `DefaultCryptographicMaterialsManager.create(keyring)` |
 | `CreateRequiredEncryptionContextCMM` | `RequiredEncryptionContextCryptographicMaterialsManager.builder()` |
-| `CreateCryptographicMaterialsCache` | `CryptographicMaterialsCache.create(CacheType)` |
+| `CreateCryptographicMaterialsCache` | a built-in cache's builder, e.g. `DefaultCache.builder().entryCapacity(n).build()` |
 | `CreateDefaultClientSupplier` | `ClientSupplier.defaultSupplier()` |
 | `GetAlgorithmSuiteInfo` | `EsdkAlgorithmSuite.fromBinaryId(...)` or `DbeAlgorithmSuite.fromBinaryId(...)`; each finds only its own format |
 | `ValidateCommitmentPolicyOnEncrypt` / `OnDecrypt` | `CommitmentPolicy.allowsEncrypt(suite)` / `allowsDecrypt(suite)` |
@@ -52,11 +52,12 @@ Status: draft for planning, 2026-11-16 (API round with reviewer feedback: suite 
 
 | Current | Native |
 |---|---|
-| `KeyStore.builder().KeyStoreConfig(KeyStoreConfig...)` | `BranchKeyStore.builder()` (same members; `AutoCloseable`) |
+| `KeyStore.builder().KeyStoreConfig(KeyStoreConfig...)` | `DynamoDbKeyStore.builder()` (same members; `AutoCloseable`, closing optional) |
 | `KMSConfiguration` | `KmsConfiguration.kmsKeyArn(..)`, `kmsMrKeyArn(..)`, `discovery()`, `mrDiscovery(region)` |
 | `CreateKeyStore(CreateKeyStoreInput)` | `createKeyStore()` → `CreateKeyStoreResponse.tableArn()` |
-| `CreateKey(CreateKeyInput)` | `createKey()` or `createKey(b -> b.branchKeyIdentifier(id).encryptionContext(ec))` → `CreateKeyResponse.branchKeyIdentifier()` |
+| `CreateKey(CreateKeyInput)` | `createKey()` or `createKey(b -> b.branchKeyId(id).encryptionContext(ec))` -> `CreateKeyResponse.branchKeyId()` |
 | `VersionKey`, `GetActiveBranchKey`, `GetBranchKeyVersion`, `GetBeaconKey`, `GetKeyStoreInfo` | `versionKey`, `getActiveBranchKey`, `getBranchKeyVersion`, `getBeaconKey`, `getKeyStoreInfo`, each taking `XRequest` (or `Consumer<XRequest.Builder>`) and returning `XResponse` |
+| The keyring uses the `KeyStore` class only through its Dafny implementation | New: a `KeyStore` interface (`getActiveBranchKey`, `getBranchKeyVersion`, `getBeaconKey`, `getKeyStoreInfo`) that `DynamoDbKeyStore` implements. The hierarchical keyring and the DB-ESDK take any `KeyStore`, so you can keep branch keys in other storage; `BranchKeyMaterials.builder()` and `BeaconKeyMaterials.builder()` build what your store returns (R48) |
 
 ### Interfaces customers implement
 
@@ -78,7 +79,7 @@ Status: draft for planning, 2026-11-16 (API round with reviewer feedback: suite 
 | `ByteBuffer` keys and secrets | `byte[]` (copied) and `SecretBytes`; builders that take a `SecretBytes` secret also take a `byte[]`, and the raw AES keyring a JCA `SecretKey` |
 | `EncryptedDataKey.builder()` (`ByteBuffer` members) | `EncryptedDataKey.builder().keyProviderId(..).keyProviderInfo(..).ciphertext(..).build()`; `keyProviderIdUtf8(byte[])` for the id as a message stores it |
 | `GetEncryptionMaterialsInput.algorithmSuiteId`, `DecryptMaterialsInput.algorithmSuiteId` | `algorithmSuite()` on `GetEncryptionMaterialsRequest` (`Optional`) and `DecryptMaterialsRequest` |
-| `CacheType` union (`Default`, `No`, `SingleThreaded`, `MultiThreaded`, `StormTracking`, `Shared`) | `CacheType.defaultCache(n)`, `noCache()`, `singleThreaded(..)`, `multiThreaded(..)`, `stormTracking(..)`, `shared(cache)` |
+| `CacheType` union (`Default`, `No`, `SingleThreaded`, `MultiThreaded`, `StormTracking`, `Shared`) | a cache object passed to `cache(...)`: `DefaultCache.builder()`, `NoCache.create()`, `SingleThreadedCache.builder()`, `MultiThreadedCache.builder()`, `StormTrackingCache.builder()`; `Shared` is the same object passed to each keyring |
 | `ttlSeconds(long)`, storm-tracking `int` times + `TimeUnits` | `java.time.Duration`: `ttl(Duration)`; `gracePeriod`, `graceInterval`, `inFlightTtl`, `sleep`; `TimeUnits` removed |
 
 ### Exceptions
@@ -113,15 +114,15 @@ crypto.encryptData(keyring, data, encryptionContext);   // ESDK call unchanged
 
 ### Async APIs (proposed for a later minor release)
 
-Same pattern as the AWS SDK for Java v2, where `KmsClient` and `KmsAsyncClient` take the same requests and return the same responses, the async one as a `CompletableFuture`, and neither wraps the other. Details, SDK examples, and sources: section 3.2 of the [API doc](https://chorus.aws.dev/doc/hWnwq7qGvcut).
+Same pattern as the AWS SDK for Java v2, where `KmsClient` and `KmsAsyncClient` take the same requests and return the same responses, the async one as a `CompletableFuture`, and neither wraps the other.
 
 | Sync (v1.0) | Async (added later, same request and response types) |
 | --- | --- |
 | `Keyring` | `AsyncKeyring`: `CompletableFuture<OnEncryptResponse> onEncrypt(OnEncryptRequest)` |
 | `CryptographicMaterialsManager` | `AsyncCryptographicMaterialsManager` |
 | `AwsKmsKeyring` (takes `KmsClient`) | `AwsKmsAsyncKeyring` (takes `KmsAsyncClient`) |
-| `BranchKeyStore` (takes `DynamoDbClient`, `KmsClient`) | `AsyncBranchKeyStore` (takes `DynamoDbAsyncClient`, `KmsAsyncClient`) |
-| `AwsKmsHierarchicalKeyring` | An async hierarchical keyring on `AsyncBranchKeyStore` |
+| `KeyStore`, implemented by `DynamoDbKeyStore` (takes `DynamoDbClient`, `KmsClient`) | `AsyncKeyStore`, implemented by `AsyncDynamoDbKeyStore` (takes `DynamoDbAsyncClient`, `KmsAsyncClient`) |
+| `AwsKmsHierarchicalKeyring` | An async hierarchical keyring on `AsyncKeyStore` |
 | `BranchKeyIdSupplier` | `AsyncBranchKeyIdSupplier` |
 | Raw AES, RSA, ECDH keyrings (no I/O) | Not duplicated; an adapter lifts them into async |
 | ESDK 4.0 `EsdkClient` | `EsdkAsyncClient`: `CompletableFuture<EncryptResponse> encrypt(EncryptRequest)` |
@@ -162,14 +163,14 @@ The prototype's results:
 ### DB-ESDK customers
 
 - **Dafny DB-ESDK:** stays on MPL 1.x. No customer change, but an application on it cannot also use ESDK 4.0 (MPL 2.0.0) in the same build.
-- **Native DB-ESDK:** customers build keyrings with the native API in the table config, and use `BranchKeyStore` for beacons.
+- **Native DB-ESDK:** customers build keyrings with the native API in the table config, and give beacons a `KeyStore`, usually `DynamoDbKeyStore`.
   - DB-ESDK team effort: about 4 days for the item path; about 3–4 weeks to remove the Dafny MPL fully.
   - The prototype passed 120/120 library tests and 62/62 real-KMS cross-implementation cases.
 
 ### Direct MPL users, step by step
 
 1. Upgrade `software.amazon.cryptography:aws-cryptographic-material-providers` to 2.0.0, together with any library built on it (ESDK 4.0). The two versions cannot be combined.
-2. Update imports: the packages stay (`software.amazon.cryptography.materialproviders`, `software.amazon.cryptography.keystore`), but `materialproviders.model.*` types move to the `keyrings`, `cmm`, `cache`, and `exceptions` subpackages, and `primitives` is no longer public.
+2. Update imports: the root package stays (`software.amazon.cryptography.materialproviders`), `materialproviders.model.*` types move to the `keyrings`, `cmm`, `cache`, and `exceptions` subpackages, the key store moves from `software.amazon.cryptography.keystore` to `software.amazon.cryptography.materialproviders.keystore` (`KeyStore` becomes `DynamoDbKeyStore`; `KeyStore` now names the interface it implements, which has the reads but not `createKeyStore`, `createKey` or `versionKey`; it is not `java.security.KeyStore`), and `primitives` is no longer public.
 3. Replace `matProv.CreateX(CreateXInput.builder()...build())` with `X.builder()...build()`, using the member names from the tables above.
 4. Turn `IBranchKeyIdSupplier` and `IClientSupplier` classes into lambdas, e.g. `req -> GetBranchKeyIdResponse.builder().branchKeyId(pick(req.encryptionContext())).build()`.
 5. Port custom `IKeyring` and `ICryptographicMaterialsManager` implementations:
@@ -182,21 +183,26 @@ The prototype's results:
    - use `isRetryable()` for retry decisions.
 7. Pass secrets as `SecretBytes` or `byte[]` (copied; zero your own array), not `ByteBuffer`. A raw AES key can also be a JCA `SecretKey`.
 8. Replace `AlgorithmSuiteId` values with `EsdkAlgorithmSuite` or `DbeAlgorithmSuite` constants, and `GetAlgorithmSuiteInfo` with the matching enum's `fromBinaryId`.
+9. Replace each `CacheType` with a cache object. Build one cache per keyring unless you mean to share it: a `CacheType` reused for several keyrings gave each its own cache, but a reused cache object is one shared cache, whose entries keyrings share when their partition ids and logical key store names are equal. A shared `StormTrackingCache` is TTL-checked (R47).
+10. Rename `branchKeyIdentifier` to `branchKeyId` on key store requests, responses and `BranchKeyMaterials`.
+11. Build ECDH key agreement schemes with their builders; the setters keep the old member names.
 
 ## 4. Behavior differences to know before migrating
 
 | Id | Difference | Status |
 |---|---|---|
-| R31 | `DiscoveryFilter.of` rejects an empty account list or partition | Breaking, proposed (pending team review) |
-| R22 | No global BouncyCastle provider registration | Breaking, proposed (pending team review) |
+| R31 | `DiscoveryFilter.of` rejects an empty account list or partition | Breaking, approved |
+| R22 | No global BouncyCastle provider registration | Breaking, approved |
 | R11 | ECDH rejects a public key with x = 0 | Breaking, needs security sign-off |
-| R46 | Hierarchical keyring rejects a zero `ttl` (the spec requires it) | Breaking, proposed (pending team review) |
-| R9, R10 | Discovery filter matching fixed; some decryptions that failed now succeed | Non-breaking |
+| R46 | Hierarchical keyring rejects a zero `ttl` (the spec requires it) | Breaking, approved |
+| R47 | A `StormTrackingCache` shared by several keyrings is TTL-checked; the old `Shared` variant was not | Breaking (narrow), pending |
+| R48 | You can implement `KeyStore` over other storage; the spec has DynamoDB as the only branch key storage | Non-breaking (adds a capability); to raise with the spec owners |
+| R9, R10 | Discovery filter matching fixed; some decryptions that failed now succeed | Non-breaking, approved |
 | R3, R4 | Cache miss is an empty response, not an exception; cache usage counters removed | API shape only |
 
 ## 5. Open before release
 
 1. Whether DynamoDB stays a compile dependency.
-2. Cache selection shape (`CacheType` versus passing a cache object); request/response objects and `Duration` are already adopted.
+2. The spec owners' view of custom key stores (R48); the `KeyStore` interface itself is decided (2026-11-23).
 3. Spec-versus-Dafny questions C1–C3.
 4. Security sign-off for R11.
