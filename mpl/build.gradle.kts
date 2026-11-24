@@ -8,6 +8,7 @@
 
 plugins {
     `java-library`
+    id("crypto-tools.api-surface")
 }
 
 group = "software.amazon.cryptography"

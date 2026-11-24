@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+# Source packages named build, such as software.amazon.cryptography.build.
+!**/src/**/build/
 
 # Maven
 target/

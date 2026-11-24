@@ -2,9 +2,9 @@ name: mpl-native-java
 
 on:
   pull_request:
-    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
+    paths: ["mpl/**", "build-logic/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
   push:
-    paths: ["mpl/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
+    paths: ["mpl/**", "build-logic/**", "spec", ".gitmodules", "gradlew", "gradle/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/mpl-native-java.yml"]
 
 jobs:
   test:
