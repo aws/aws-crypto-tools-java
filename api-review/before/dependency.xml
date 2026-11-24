@@ -1,0 +1,18 @@
+<!-- Before excerpt for section 2.5 of api-review.md: the MPL 1.x dependency, as in a Maven pom. -->
+<dependencies>
+  <!-- @card 25-artifact -->
+  <!-- Brings in the Dafny runtime and its conversion library, BouncyCastle, and the AWS SDK. -->
+  <dependency>
+    <groupId>software.amazon.cryptography</groupId>
+    <artifactId>aws-cryptographic-material-providers</artifactId>
+    <version>1.11.1</version>
+  </dependency>
+  <!-- @end -->
+  <!-- @card 0-artifact -->
+  <dependency>
+    <groupId>software.amazon.cryptography</groupId>
+    <artifactId>aws-cryptographic-material-providers</artifactId>
+    <version>1.11.1</version>
+  </dependency>
+  <!-- @end -->
+</dependencies>
