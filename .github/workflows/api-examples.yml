@@ -23,18 +23,43 @@ jobs:
             17
       - name: Test the discovery code
         run: ./gradlew -p build-logic test
-      # The dashboard links to this run as proof that the snippets in the tests compile and pass,
+      - name: Write surface.json for every library
+        run: ./gradlew apiSurface
+      # combos.py writes a test for each call that the API examples page can make from a
+      # library's examples. It writes no test file for a library with no examples.
+      - name: Check out the combos generator
+        uses: actions/checkout@v4
+        with:
+          repository: aws/aws-crypto-tools-commons
+          ref: lucmcdon/api-examples
+          path: .api-examples-commons
+          sparse-checkout: api-examples
+      - name: Write a test for every call
+        run: |
+          for surface in */build/api-examples/surface.json; do
+            library=${surface%%/*}
+            python3 .api-examples-commons/api-examples/combos.py generate --surface "$surface" \
+              --src "$library/src/test" --template "$library/src/test/api-examples/combos.template" \
+              --out "$library/build/generated/api-example-combos/ApiExampleCombos.java" \
+              --manifest "$library/build/api-examples/combos.json"
+          done
+      # The dashboard links to this run as proof that the examples in the tests compile and pass,
       # so the surfaces are only uploaded after the tests pass.
       - name: Run every library's tests
         run: ./gradlew test
-      - name: Write surface.json for every library
-        run: ./gradlew apiSurface
+      - name: Record how each call ran
+        run: |
+          for manifest in */build/api-examples/combos.json; do
+            python3 .api-examples-commons/api-examples/combos.py record --manifest "$manifest" \
+              --junit "${manifest%%/*}/build/test-results/test"
+          done
       # One directory per library, so the artifact keeps the library names.
       - name: List the libraries
         id: list
         run: |
           for surface in */build/api-examples/surface.json; do
             install -D "$surface" "api-surfaces/${surface%%/*}/surface.json"
+            install -D "${surface%/*}/combos.json" "api-surfaces/${surface%%/*}/combos.json"
           done
           echo "libraries=$(ls api-surfaces | jq -Rnc '[inputs]')" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
@@ -44,6 +69,10 @@ jobs:
 
   api-examples:
     needs: discover
+    permissions:
+      contents: read
+      # The commons workflow keeps one comment on the PR that links to the playground.
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -54,5 +83,7 @@ jobs:
       language: java
       surface-artifact: api-surfaces
       surface-path: ${{ matrix.library }}/surface.json
+      combos-path: ${{ matrix.library }}/combos.json
+      template: ${{ matrix.library }}/src/test/api-examples/combos.template
       src: ${{ matrix.library }}/src/test
       commons-ref: lucmcdon/api-examples
