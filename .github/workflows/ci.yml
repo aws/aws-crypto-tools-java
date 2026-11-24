@@ -1,0 +1,378 @@
+# pr-ci-all-required is the one check that branch protection requires.
+# Coverage, mutation and duvet reach check only the lines that a pull request changes.
+# A push to main checks the whole module.
+# Gradle 8.14 does not run on the runner's default Java 25, so each job sets up Java 17 for it.
+# The build finds its Java 8 and 21 toolchains among the JDKs on the runner image.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Runs the push-to-main checks on any branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# bash with pipefail, so a check piped to tee still fails.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build and test (mpl)
+    runs-on: ubuntu-latest
+    outputs:
+      has-test-server: ${{ steps.test-server.outputs.found }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and test
+        run: ./gradlew -p mpl build
+      # The test task writes the lcov report through build-logic's jacocoLcov task.
+      - name: Collect the lcov report
+        run: |
+          mkdir -p coverage
+          cp mpl/build/reports/jacoco/test/lcov.info coverage/mpl.lcov
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-coverage-mpl
+          path: coverage/
+          if-no-files-found: error
+      # The Java MPL test server does not exist yet.
+      # The test-server job starts running once mpl/test-server/ does.
+      - id: test-server
+        run: |
+          if [ -d mpl/test-server ]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+
+  format-lint:
+    name: Format and lint (mpl)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Spotless (google-java-format)
+        run: ./gradlew -p mpl spotlessCheck
+      # Runs after a Spotless failure too, so one push shows both.
+      - name: Error Prone
+        if: ${{ !cancelled() }}
+        run: ./gradlew -p mpl compileJava compileTestJava
+
+  # Every changed line has to run in a test.
+  patch-coverage:
+    name: Patch coverage (mpl)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: local-coverage-mpl
+          path: coverage
+      - name: Check every changed line ran
+        if: github.event_name == 'pull_request'
+        run: |
+          pip install --quiet diff-cover==9.2.4
+          diff-cover coverage/mpl.lcov --compare-branch "origin/$GITHUB_BASE_REF" \
+            --include 'mpl/**' --fail-under 100 --markdown-report patch-coverage.md
+          cat patch-coverage.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Line coverage of the whole module
+        if: github.event_name != 'pull_request'
+        run: |
+          awk -F'[:,]' '/^DA:/ { n++; if ($3 > 0) hit++ } END { printf "mpl line coverage: %d of %d lines\n", hit, n }' \
+            coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Every branch on a changed line has to be taken by a test.
+  branch-coverage:
+    name: Branch coverage (mpl)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: local-coverage-mpl
+          path: coverage
+      - uses: actions/checkout@v4
+        with:
+          repository: aws/aws-crypto-tools-commons
+          ref: lucmcdon/test-server-infra
+          path: commons
+      - name: Check every branch on a changed line was taken
+        if: github.event_name == 'pull_request'
+        # branch_gate.py fails on a report with no branches.
+        # The report is empty while mpl has no code.
+        run: |
+          if [ ! -s coverage/mpl.lcov ]; then
+            echo "mpl has no code under src/main/java yet." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 commons/test-server-common/tools/branch_gate.py --base "origin/$GITHUB_BASE_REF" \
+            --exclude 'commons/*' coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Branch coverage of the whole module
+        if: github.event_name != 'pull_request'
+        run: |
+          awk -F'[:,]' '/^BRDA:/ { n++; if ($5 != "-" && $5 > 0) hit++ } END { printf "mpl branch coverage: %d of %d branches\n", hit, n }' \
+            coverage/mpl.lcov | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The lines that each test runs, for duvet test reach.
+  per-test-coverage:
+    name: Per-test coverage (mpl)
+    runs-on: ubuntu-latest
+    env:
+      RAW: ${{ github.workspace }}/per-test-raw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: aws/aws-crypto-tools-commons
+          ref: lucmcdon/test-server-infra
+          path: commons
+      - name: Run the tests, one coverage file per test
+        env:
+          PER_TEST_COVERAGE_DIR: ${{ env.RAW }}
+        run: ./gradlew -p mpl test
+      - name: Turn the files into per-test-coverage/java.jsonl
+        run: |
+          version=$(sed -n 's/^jacoco = "\(.*\)"$/\1/p' gradle/libs.versions.toml)
+          curl -sSfLo jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/$version/org.jacoco.cli-$version-nodeps.jar"
+          export TESTSERVER_JACOCO_CLI=$PWD/jacococli.jar
+          mkdir -p "$RAW/java/classes" out
+          if [ -d mpl/build/classes/java/main ]; then cp -r mpl/build/classes/java/main/. "$RAW/java/classes/"; fi
+          jq -n --arg root "$PWD" --arg repository "$GITHUB_REPOSITORY" --arg commit "$GITHUB_SHA" \
+            '{language: "java", tool: "jacoco", repository: $repository, commit: $commit, root: $root, sources: [$root + "/mpl/src/main/java"]}' \
+            > "$RAW/java/meta.json"
+          python3 commons/test-server-common/tools/per_test_coverage.py build "$RAW" out/per-test-coverage
+          cp mpl/build/reports/jacoco/test/lcov.info out/mpl.lcov
+      - name: Check that every test was recorded
+        run: |
+          tests=$(find mpl -path '*/build/test-results/test/*.xml' -exec cat {} + | awk '/<testcase /{n++} END {print n+0}')
+          rows=0
+          if [ -f out/per-test-coverage/java.jsonl ]; then rows=$(wc -l < out/per-test-coverage/java.jsonl); fi
+          echo "mpl: $tests tests ran, $rows have per-test coverage." | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$rows" -ne "$tests" ]; then
+            echo "::error::mpl ran $tests tests but per-test coverage recorded $rows"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: per-test-coverage-mpl
+          path: out/
+          if-no-files-found: error
+
+  # A pull request mutates the classes that it changes and keeps the mutants on its changed lines.
+  # Each of those mutants must make a test fail.
+  # A push to main mutates the whole module and reports.
+  mutation:
+    name: Mutation testing (mpl)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: aws/aws-crypto-tools-commons
+          ref: lucmcdon/test-server-infra
+          path: commons
+      - name: Choose the classes that the pull request changes
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 commons/test-server-common/tools/mutation/results.py changed-lines --repo . \
+            --base "origin/$GITHUB_BASE_REF" --out lines.json --glob 'mpl/src/main/java/*.java'
+          classes=$(python3 commons/test-server-common/tools/mutation/pit.py target-classes lines.json --source-root mpl/src/main/java)
+          { echo "PITEST_CLASSES=$classes"; echo "SCOPE=changed"; echo "LINES=--lines lines.json"; } >> "$GITHUB_ENV"
+          if [ -z "$classes" ]; then echo "This pull request changes no line under mpl/src/main/java." | tee -a "$GITHUB_STEP_SUMMARY"; fi
+      - name: PIT on the changed classes
+        if: github.event_name == 'pull_request' && env.PITEST_CLASSES != ''
+        run: |
+          ./gradlew -p mpl pitest "-PpitestClasses=$PITEST_CLASSES"
+          echo "PIT_SECONDS=$SECONDS" >> "$GITHUB_ENV"
+      - name: PIT on the whole module
+        if: github.event_name != 'pull_request'
+        run: |
+          ./gradlew -p mpl pitest
+          { echo "PIT_SECONDS=$SECONDS"; echo "SCOPE=full"; } >> "$GITHUB_ENV"
+      - name: Write results.json
+        run: |
+          mkdir -p mutation
+          python3 commons/test-server-common/tools/mutation/pit.py convert mpl/build/reports/pitest/mutations.xml \
+            --source-root mpl/src/main/java --out mutation/results.json --repository "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" --language java --library mpl --scope "$SCOPE" $LINES --seconds "${PIT_SECONDS:-0}"
+      - name: Check that every mutant on a changed line was killed
+        if: github.event_name == 'pull_request'
+        run: python3 commons/test-server-common/tools/mutation/results.py check mutation/results.json --fail
+      - name: Report the mutants
+        if: github.event_name != 'pull_request'
+        run: python3 commons/test-server-common/tools/mutation/results.py check mutation/results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-results-mpl
+          path: mutation/results.json
+          if-no-files-found: error
+
+  duvet:
+    name: Duvet report (mpl)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/duvet
+          key: duvet-${{ runner.os }}-0.4
+      - name: Install duvet
+        run: command -v duvet || cargo +stable install duvet --version '^0.4'
+      # duvet fails on an annotation whose section or quote the specification does not have.
+      - name: Duvet report
+        run: mpl/scripts/duvet.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mpl-duvet-report
+          include-hidden-files: true
+          path: mpl/.duvet/reports/report.html
+
+  duvet-test-reach:
+    name: duvet test reach (mpl)
+    needs: per-test-coverage
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: aws/aws-crypto-tools-commons/.github/workflows/duvet-test-reach-reusable.yml@lucmcdon/test-server-infra
+    with:
+      library: mpl
+      language: java
+      source: mpl/src/main/java
+      local-java-tests: mpl/src/test/java
+      artifacts: per-test-coverage-mpl
+      commons-ref: lucmcdon/test-server-infra
+      runner: ubuntu-latest
+
+  test-server:
+    name: MPL TestServer (java)
+    needs: build
+    if: needs.build.outputs.has-test-server == 'true'
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+      id-token: write
+    uses: aws/aws-crypto-tools-commons/.github/workflows/mpl-test-server-reusable.yml@main
+    with:
+      focus: java
+      language-repository: ${{ github.repository }}
+      runner: ubuntu-latest
+
+  # Lists the API changes and never fails.
+  api-compatibility:
+    name: API compatibility (mpl)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compare with the newest release of the same major version (japicmp)
+        run: ./gradlew -p mpl apiCompatibility
+      - name: Write the API changes to the summary
+        run: |
+          if [ -f mpl/build/reports/api-compatibility.txt ]; then
+            { echo '```'; cat mpl/build/reports/api-compatibility.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mpl has no release with its major version yet, so there is no API to compare." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-compatibility-mpl
+          path: mpl/build/reports/api-compatibility.*
+          if-no-files-found: ignore
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - name: Submit the Gradle dependencies to the dependency graph
+        uses: gradle/actions/dependency-submission@v4
+      - name: Review the dependencies this pull request adds
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          retry-on-snapshot-warnings: true
+          # build-logic's kotlin-dsl brings in kotlin-gradle-plugin, which no released version fixes yet.
+          # The bug is in Kotlin's build cache, and this repository uses no shared build cache.
+          allow-ghsas: GHSA-r937-wjx7-w2jp
+
+  # Not required. The other jobs test on Java 8.
+  java-versions:
+    name: Java ${{ matrix.java }} (mpl)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [11, 17, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew -p mpl test -PtestJavaVersion=${{ matrix.java }}
+
+  pr-ci-all-required:
+    name: pr-ci-all-required
+    if: always()
+    needs:
+      - build
+      - format-lint
+      - patch-coverage
+      - branch-coverage
+      - per-test-coverage
+      - mutation
+      - duvet
+      - duvet-test-reach
+      - test-server
+      - api-compatibility
+      - dependency-review
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
