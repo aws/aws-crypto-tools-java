@@ -276,8 +276,6 @@ jobs:
       artifacts: per-test-coverage-mpl
       commons-ref: lucmcdon/test-server-infra
       runner: ubuntu-latest
-    secrets:
-      repo-pat: ${{ secrets.COMMONS_REPO_PAT }}
 
   test-server:
     name: MPL TestServer (java)
@@ -293,8 +291,6 @@ jobs:
       focus: java
       language-repository: ${{ github.repository }}
       runner: ubuntu-latest
-    secrets:
-      repo-pat: ${{ secrets.COMMONS_REPO_PAT }}
 
   # Report only until the module's first release.
   api-compatibility:
