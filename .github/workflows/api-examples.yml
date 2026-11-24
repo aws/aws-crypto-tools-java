@@ -23,6 +23,10 @@ jobs:
             17
       - name: Test the discovery code
         run: ./gradlew -p build-logic test
+      # The dashboard links to this run as proof that the snippets in the tests compile and pass,
+      # so the surfaces are only uploaded after the tests pass.
+      - name: Run every library's tests
+        run: ./gradlew test
       - name: Write surface.json for every library
         run: ./gradlew apiSurface
       # One directory per library, so the artifact keeps the library names.
