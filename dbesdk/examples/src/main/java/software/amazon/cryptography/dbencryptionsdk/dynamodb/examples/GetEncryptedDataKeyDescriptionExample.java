@@ -15,7 +15,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchem
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
@@ -70,7 +70,7 @@ public class GetEncryptedDataKeyDescriptionExample {
         .branchKeyId(branchKeyId)
         // This dictates how often we call back to KMS to authorize use of the branch key
         .ttl(Duration.ofSeconds(600))
-        .cache(CacheType.defaultCache(100))
+        .cache(DefaultCache.builder().entryCapacity(100).build())
         .build();
 
       // 3. Decide how each attribute of the item is protected. BasicPutGetExample explains each

@@ -14,7 +14,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchem
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
@@ -105,7 +105,8 @@ public class HierarchicalKeyringExample {
         .keyStore(keyStore)
         .branchKeyIdSupplier(branchKeyIdSupplier)
         .ttl(Duration.ofSeconds(600)) // This dictates how often we call back to KMS to authorize use of the branch keys
-        .cache(CacheType.defaultCache(100)) // This dictates how many branch keys will be held locally
+        // The cache holds the branch keys this keyring fetches; entryCapacity is how many it keeps
+        .cache(DefaultCache.builder().entryCapacity(100).build())
         .build();
 
       // 4. Decide how each attribute of your items is protected. BasicPutGetExample

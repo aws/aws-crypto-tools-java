@@ -14,8 +14,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchem
 import software.amazon.cryptography.keystore.BranchKeyStore;
 import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
-import software.amazon.cryptography.materialproviders.cache.CacheType;
-import software.amazon.cryptography.materialproviders.cache.CryptographicMaterialsCache;
+import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
 
 /**
@@ -56,7 +55,7 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchica
  * - Same Partition ID
  * - Same Logical Key Store Name of the Key Store for the Hierarchical Keyring
  * - Same Branch Key ID
- * then they WILL share the cache entries in the Shared Cache.
+ * then they WILL share the cache entries in the shared cache.
  * Please make sure that you set all of Partition ID, Logical Key Store Name and Branch Key ID
  * to be the same for two Hierarchical Keyrings if and only if you want them to share cache entries.
  *
@@ -93,22 +92,14 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
     String partitionId,
     String kmsKeyArn
   ) {
-    // 1. Create the CryptographicMaterialsCache (CMC) to share across multiple Hierarchical Keyrings
-    //    using the Material Providers Library
-    //      This CMC takes in:
-    //      - CacheType
-    CryptographicMaterialsCache sharedCryptographicMaterialsCache =
-      CryptographicMaterialsCache.create(CacheType.defaultCache(100));
-
-    // 2. Create a CacheType object for the sharedCryptographicMaterialsCache. Note that the `cache`
-    // parameter in the Hierarchical Keyring Input takes a `CacheType` as input.
-    // This is the `Shared` CacheType that passes an already initialized shared cache.
-    CacheType sharedCache = CacheType.shared(sharedCryptographicMaterialsCache);
+    // 1. Create the cache to share across multiple Hierarchical Keyrings. Passing the same cache
+    //    object to each keyring is what makes them share it; each keyring still sets its own TTL.
+    DefaultCache sharedCache = DefaultCache.builder().entryCapacity(100).build();
 
     // Initial KeyStore Setup: This example requires that you have already
     // created your KeyStore, and have populated it with a new branch key.
 
-    // 3. Configure your KeyStore resource keystore1.
+    // 2. Configure your KeyStore resource keystore1.
     //    This SHOULD be the same configuration that you used
     //    to initially create and populate your KeyStore.
     // Note that keyStoreTableName is the physical Key Store,
@@ -130,17 +121,17 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
         .kmsClient(keyStore1KmsClient)
         .build();
 
-      // 4. Create the Hierarchical Keyring HK1 with Key Store instance K1, partitionId,
-      //    the shared Cache and the BranchKeyId.
-      //    Unlike HierarchicalKeyringExample, where the keyring creates its own cache from a cache
-      //    type, this passes in one already created cache that both keyrings share.
+      // 3. Create the Hierarchical Keyring HK1 with Key Store instance K1, partitionId,
+      //    the shared cache and the BranchKeyId.
+      //    Unlike HierarchicalKeyringExample, where only one keyring uses its cache, this passes the
+      //    same cache object to both keyrings, so they share it.
 
       // This example creates a Hierarchical Keyring for a single BranchKeyId. You can, however, use
       // an ItemBranchKeyIdSupplier as per your use-case. See HierarchicalKeyringExample.java for more
       // information.
 
       // Please make sure that you read the guidance on how to set Partition ID, Logical Key Store Name and
-      // Branch Key ID at the top of this example before creating Hierarchical Keyrings with a Shared Cache.
+      // Branch Key ID at the top of this example before creating Hierarchical Keyrings with a shared cache.
       // partitionId for this example is a random UUID
       Keyring hierarchicalKeyring1 = AwsKmsHierarchicalKeyring
         .builder()
@@ -152,7 +143,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
         .partitionId(partitionId)
         .build();
 
-      // 5. Decide how each attribute of your items is protected. BasicPutGetExample
+      // 4. Decide how each attribute of your items is protected. BasicPutGetExample
       //    explains each action (encryptAndSign, signOnly, signAndIncludeInEncryptionContext,
       //    doNothing), and why the partition and sort keys get none.
       //    Every attribute you write must either have an action or start with the prefix set below;
@@ -184,7 +175,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
         .doNothingPrefix(":")
         .build();
 
-      // 6. Get the DynamoDB Client for Hierarchical Keyring 1.
+      // 5. Get the DynamoDB Client for Hierarchical Keyring 1.
       try (
         DynamoDbClient dynamoDbClient1 = createDynamoDbClient(
           tableName,
@@ -192,7 +183,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
           schema
         )
       ) {
-        // 7. Encrypt Decrypt roundtrip with dynamoDbClient1
+        // 6. Encrypt Decrypt roundtrip with dynamoDbClient1
         putAndGetItemWithClient(tableName, dynamoDbClient1);
 
         // Through the above encrypt and decrypt roundtrip, the cache will be populated and
@@ -201,7 +192,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
         // - Same Logical Key Store Name of the Key Store for the Hierarchical Keyring
         // - Same Branch Key ID
 
-        // 8. Configure your KeyStore resource keystore2.
+        // 7. Configure your KeyStore resource keystore2.
         //       This SHOULD be the same configuration that you used
         //       to initially create and populate your physical KeyStore.
         //    Note that keyStoreTableName is the physical Key Store,
@@ -235,13 +226,13 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
             .kmsClient(keyStore2KmsClient)
             .build();
 
-          // 9. Create the Hierarchical Keyring HK2 with Key Store instance K2, the shared Cache
+          // 8. Create the Hierarchical Keyring HK2 with Key Store instance K2, the shared cache
           //    and the same partitionId and BranchKeyId used in HK1 because we want to share cache entries
           //    (and experience cache HITS).
 
           // Please make sure that you read the guidance on how to set Partition ID, Logical Key
           // Store Name and Branch Key ID at the top of this example before creating Hierarchical
-          // Keyrings with a Shared Cache. partitionId for this example is a random UUID
+          // Keyrings with a shared cache. partitionId for this example is a random UUID
           Keyring hierarchicalKeyring2 = AwsKmsHierarchicalKeyring
             .builder()
             .keyStore(keystore2)
@@ -252,7 +243,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
             .partitionId(partitionId)
             .build();
 
-          // 10. Get the DynamoDB Client for Hierarchical Keyring 2.
+          // 9. Get the DynamoDB Client for Hierarchical Keyring 2.
           try (
             DynamoDbClient dynamoDbClient2 = createDynamoDbClient(
               tableName,
@@ -260,7 +251,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
               schema
             )
           ) {
-            // 11. Encrypt Decrypt roundtrip with dynamoDbClient2
+            // 10. Encrypt Decrypt roundtrip with dynamoDbClient2
             putAndGetItemWithClient(tableName, dynamoDbClient2);
           }
         }
