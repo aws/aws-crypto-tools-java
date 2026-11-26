@@ -6,9 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.ServiceException;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.VerificationFailedException;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.model.InvalidCiphertextException;
-import software.amazon.cryptography.dbencryptionsdk.structuredencryption.model.StructuredEncryptionException;
+import software.amazon.cryptography.materialproviders.exceptions.Service;
 
 /**
  * Helpers that the enhanced client examples use to show what each attribute action protects. Each
@@ -38,7 +39,7 @@ public final class ManipulationUtils {
   ) {
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (StructuredEncryptionException exception) {
+    } catch (VerificationFailedException exception) {
       return;
     }
     throw new ManipulationException(
@@ -50,8 +51,10 @@ public final class ManipulationUtils {
   }
 
   // Assert a manipulated key attribute fails specifically because it is bound into the encryption
-  // context. Every keyring attempt fails, surfacing as the DB-ESDK InvalidCiphertextException.
-  // Anything else is the wrong failure.
+  // context. The key attribute values are part of the encryption context that AWS KMS checks when
+  // it decrypts the data key, so AWS KMS rejects the request with InvalidCiphertextException. The
+  // DB-ESDK reports an AWS KMS error as a ServiceException that keeps AWS KMS's error code, so the
+  // check matches on awsErrorCode(). Any other failure is the wrong failure.
   public static void assertProtectedByEncryptionContext(
     DynamoDbItemEncryptor itemEncryptor,
     Map<String, AttributeValue> manipulated,
@@ -59,8 +62,21 @@ public final class ManipulationUtils {
   ) {
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (InvalidCiphertextException exception) {
-      return;
+    } catch (ServiceException exception) {
+      if (
+        exception.service() == Service.KMS &&
+        "InvalidCiphertextException".equals(exception.awsErrorCode())
+      ) {
+        return;
+      }
+      throw new ManipulationException(
+        String.format(
+          "Attribute Named %s was supposedly manipulated but failed for a reason other than" +
+          " the Encryption Context Check!",
+          attributeName
+        ),
+        exception
+      );
     }
     throw new ManipulationException(
       String.format(
@@ -80,7 +96,7 @@ public final class ManipulationUtils {
   ) {
     try {
       itemEncryptor.decryptItem(manipulated);
-    } catch (StructuredEncryptionException exception) {
+    } catch (VerificationFailedException exception) {
       throw new ManipulationException(
         String.format(
           "Attribute Named %s was supposedly manipulated and is NOT SIGNED " +
