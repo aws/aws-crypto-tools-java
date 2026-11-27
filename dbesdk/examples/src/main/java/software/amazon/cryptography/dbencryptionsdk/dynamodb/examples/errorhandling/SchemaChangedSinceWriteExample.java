@@ -36,7 +36,7 @@ public class SchemaChangedSinceWriteExample {
     String tableName,
     byte[] aesKeyBytes
   ) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -56,7 +56,7 @@ public class SchemaChangedSinceWriteExample {
       .builder()
       .logicalTableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
 
     Map<String, AttributeValue> encryptedItem = itemEncryptor
@@ -74,13 +74,13 @@ public class SchemaChangedSinceWriteExample {
       )
       .encryptedItem();
 
-    signedAttributeNoLongerSigned(tableName, keyring, encryptedItem);
+    signedAttributeNoLongerSigned(tableName, rawAesKeyring, encryptedItem);
   }
 
   // The item was written while attribute2 was SIGN_ONLY. Here the schema makes it DO_NOTHING.
   private static void signedAttributeNoLongerSigned(
     String tableName,
-    Keyring keyring,
+    Keyring rawAesKeyring,
     Map<String, AttributeValue> encryptedItem
   ) {
     ItemEncryptionSchema changedSchema = ItemEncryptionSchema
@@ -94,7 +94,7 @@ public class SchemaChangedSinceWriteExample {
       .builder()
       .logicalTableName(tableName)
       .schema(changedSchema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
     try {
       changedSchemaEncryptor.decryptItem(encryptedItem);

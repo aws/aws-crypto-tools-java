@@ -37,6 +37,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void customBranchKeyIdSupplierErrors(
     String tableName,
@@ -61,7 +62,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
         .builder()
         .partitionKeyName(PARTITION_KEY)
         .sortKeyName(SORT_KEY)
-        .encryptAndSign("attribute1")
+        .encryptAndSign(ENCRYPTED_ATTRIBUTE)
         .build();
 
       exceptionFromYourOwnSupplier(tableName, schema, branchKeyId, keyStore);
@@ -122,7 +123,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
           AttributeValue.fromS("tenant2"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )
@@ -189,7 +190,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
           AttributeValue.fromS("tenant3"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )

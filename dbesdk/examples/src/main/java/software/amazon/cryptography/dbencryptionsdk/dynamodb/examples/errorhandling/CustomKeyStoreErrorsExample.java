@@ -46,6 +46,7 @@ public class CustomKeyStoreErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   // This example relies on no table with this name existing in the account and Region.
   private static final String MISSING_AUDIT_TABLE =
     "audit-table-that-does-not-exist";
@@ -87,7 +88,7 @@ public class CustomKeyStoreErrorsExample {
         .builder()
         .partitionKeyName(PARTITION_KEY)
         .sortKeyName(SORT_KEY)
-        .encryptAndSign("attribute1")
+        .encryptAndSign(ENCRYPTED_ATTRIBUTE)
         .build();
       DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
         .builder()
@@ -199,7 +200,7 @@ public class CustomKeyStoreErrorsExample {
           AttributeValue.fromS("CustomKeyStoreErrorsExample"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )

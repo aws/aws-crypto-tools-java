@@ -41,9 +41,10 @@ public class InterceptorConfigurationErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void interceptorConfigurationErrors(String tableName) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -54,12 +55,12 @@ public class InterceptorConfigurationErrorsExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
 
-    sameLogicalTableNameForTwoTables(tableName, schema, keyring);
-    itemEncryptorForUnconfiguredTable(tableName, schema, keyring);
-    interceptorOnAClientThatIsNotDynamoDb(tableName, schema, keyring);
+    sameLogicalTableNameForTwoTables(tableName, schema, rawAesKeyring);
+    itemEncryptorForUnconfiguredTable(tableName, schema, rawAesKeyring);
+    interceptorOnAClientThatIsNotDynamoDb(tableName, schema, rawAesKeyring);
   }
 
   // The DB-ESDK encrypts every item with its logical table name, so within one interceptor each
@@ -67,21 +68,21 @@ public class InterceptorConfigurationErrorsExample {
   private static void sameLogicalTableNameForTwoTables(
     String tableName,
     ItemEncryptionSchema schema,
-    Keyring keyring
+    Keyring rawAesKeyring
   ) {
     DynamoDbTableEncryptionConfig firstTable = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .logicalTableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
     DynamoDbTableEncryptionConfig secondTable = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName + "-copy")
       .logicalTableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
     try {
       DynamoDbEncryptionInterceptor
@@ -104,13 +105,13 @@ public class InterceptorConfigurationErrorsExample {
   private static void itemEncryptorForUnconfiguredTable(
     String tableName,
     ItemEncryptionSchema schema,
-    Keyring keyring
+    Keyring rawAesKeyring
   ) {
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
     DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(tableConfig).build();
@@ -134,13 +135,13 @@ public class InterceptorConfigurationErrorsExample {
   private static void interceptorOnAClientThatIsNotDynamoDb(
     String tableName,
     ItemEncryptionSchema schema,
-    Keyring keyring
+    Keyring rawAesKeyring
   ) {
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
     DynamoDbEncryptionInterceptor encryptionInterceptor =
       DynamoDbEncryptionInterceptor.builder().tableConfigs(tableConfig).build();

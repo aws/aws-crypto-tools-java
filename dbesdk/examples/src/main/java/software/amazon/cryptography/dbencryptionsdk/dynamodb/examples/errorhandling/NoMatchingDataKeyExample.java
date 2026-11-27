@@ -44,6 +44,7 @@ public class NoMatchingDataKeyExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   // The writer and reader use different key namespaces, so the key provider ID that
   // NoMatchingDataKeyException reports tells them apart.
   private static final String WRITER_NAMESPACE = "writer-key-namespace";
@@ -56,7 +57,7 @@ public class NoMatchingDataKeyExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
 
     Keyring writerKeyring = RawAesKeyring
@@ -77,7 +78,7 @@ public class NoMatchingDataKeyExample {
       AttributeValue.fromS("NoMatchingDataKeyExample"),
       SORT_KEY,
       AttributeValue.fromN("0"),
-      "attribute1",
+      ENCRYPTED_ATTRIBUTE,
       AttributeValue.fromS("encrypt and sign me!")
     );
     Map<String, AttributeValue> encryptedItem = writer

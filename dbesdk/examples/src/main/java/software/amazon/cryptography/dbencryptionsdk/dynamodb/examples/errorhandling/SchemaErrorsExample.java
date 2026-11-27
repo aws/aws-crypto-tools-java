@@ -32,9 +32,10 @@ public class SchemaErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void schemaErrors(String tableName) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -43,7 +44,7 @@ public class SchemaErrorsExample {
       .build();
 
     schemaWithoutPartitionKeyName();
-    encryptedPartitionKey(tableName, keyring);
+    encryptedPartitionKey(tableName, rawAesKeyring);
   }
 
   // Every item has a partition key, so a schema needs its name. The DB-ESDK rejects a required
@@ -53,7 +54,7 @@ public class SchemaErrorsExample {
       ItemEncryptionSchema
         .builder()
         .sortKeyName(SORT_KEY)
-        .encryptAndSign("attribute1")
+        .encryptAndSign(ENCRYPTED_ATTRIBUTE)
         .build();
     } catch (InvalidConfigurationException exception) {
       System.err.println(
@@ -68,19 +69,22 @@ public class SchemaErrorsExample {
 
   // DynamoDB needs the partition key and sort key values in plaintext to store and find the item,
   // so the DB-ESDK signs them but never encrypts them.
-  private static void encryptedPartitionKey(String tableName, Keyring keyring) {
+  private static void encryptedPartitionKey(
+    String tableName,
+    Keyring rawAesKeyring
+  ) {
     try {
       ItemEncryptionSchema schemaThatEncryptsPartitionKey = ItemEncryptionSchema
         .builder()
         .partitionKeyName(PARTITION_KEY)
         .sortKeyName(SORT_KEY)
-        .encryptAndSign(PARTITION_KEY, "attribute1")
+        .encryptAndSign(PARTITION_KEY, ENCRYPTED_ATTRIBUTE)
         .build();
       DynamoDbItemEncryptor
         .builder()
         .logicalTableName(tableName)
         .schema(schemaThatEncryptsPartitionKey)
-        .keyring(keyring)
+        .keyring(rawAesKeyring)
         .build();
     } catch (InvalidConfigurationException exception) {
       System.err.println(

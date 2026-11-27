@@ -2,6 +2,7 @@ package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhand
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Map;
 import javax.crypto.KeyGenerator;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -39,6 +40,7 @@ public class CustomKeyringErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void customKeyringErrors(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
@@ -55,7 +57,7 @@ public class CustomKeyringErrorsExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
@@ -84,7 +86,7 @@ public class CustomKeyringErrorsExample {
    */
   static final class RateLimitedKeyring implements Keyring {
 
-    private static final long ONE_SECOND_IN_NANOS = 1_000_000_000L;
+    private static final long WINDOW_NANOS = Duration.ofSeconds(1).toNanos();
 
     private final Keyring delegate;
     private final int maxCallsPerSecond;
@@ -110,7 +112,7 @@ public class CustomKeyringErrorsExample {
 
     private synchronized void acquire() {
       long now = System.nanoTime();
-      if (now - windowStart >= ONE_SECOND_IN_NANOS) {
+      if (now - windowStart >= WINDOW_NANOS) {
         windowStart = now;
         callsInWindow = 0;
       }
@@ -142,7 +144,7 @@ public class CustomKeyringErrorsExample {
           AttributeValue.fromS("CustomKeyringErrorsExample"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )

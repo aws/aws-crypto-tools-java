@@ -34,6 +34,7 @@ public class KeyNotFoundExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   // This example relies on the key store having no branch key with this ID.
   private static final String MISSING_BRANCH_KEY_ID =
     "branch-key-that-does-not-exist";
@@ -85,7 +86,7 @@ public class KeyNotFoundExample {
         .builder()
         .partitionKeyName(PARTITION_KEY)
         .sortKeyName(SORT_KEY)
-        .encryptAndSign("attribute1")
+        .encryptAndSign(ENCRYPTED_ATTRIBUTE)
         .build();
       DynamoDbTableEncryptionConfig missingBranchKeyTableConfig =
         DynamoDbTableEncryptionConfig
@@ -121,7 +122,7 @@ public class KeyNotFoundExample {
             AttributeValue.fromS("KeyNotFoundExample"),
             SORT_KEY,
             AttributeValue.fromN("0"),
-            "attribute1",
+            ENCRYPTED_ATTRIBUTE,
             AttributeValue.fromS("encrypt and sign me!")
           )
         )

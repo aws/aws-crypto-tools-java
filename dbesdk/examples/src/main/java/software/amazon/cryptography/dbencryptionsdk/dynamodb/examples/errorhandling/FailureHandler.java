@@ -108,11 +108,11 @@ public final class FailureHandler {
     }
     // Each kind of failure has its own exception class, so test the class.
     if (exception instanceof AccessDeniedException accessDenied) {
-      accessDenied(accessDenied);
+      handleAccessDenied(accessDenied);
     } else if (
       exception instanceof ResourceNotFoundException resourceNotFound
     ) {
-      resourceNotFound(resourceNotFound);
+      handleResourceNotFound(resourceNotFound);
     } else if (exception instanceof InvalidItemException) {
       // An InvalidItemException is also a ValidationException, so this test comes first.
       System.err.println(
@@ -150,7 +150,7 @@ public final class FailureHandler {
     } else if (
       exception instanceof NoMatchingDataKeyException noMatchingDataKey
     ) {
-      noMatchingDataKey(noMatchingDataKey);
+      handleNoMatchingDataKey(noMatchingDataKey);
     } else if (exception instanceof InvalidMaterialsException) {
       System.err.println(
         "A keyring or cryptographic materials manager, often a custom one, returned materials " +
@@ -158,7 +158,7 @@ public final class FailureHandler {
         exception.getMessage()
       );
     } else if (exception instanceof ServiceException serviceException) {
-      service(serviceException);
+      handleServiceException(serviceException);
     } else if (exception instanceof NoResponseException) {
       // Retryable no-response failures were handled above. One that is not retryable is usually
       // a call that ran out of its total time (ApiCallTimeoutException).
@@ -187,7 +187,7 @@ public final class FailureHandler {
     }
   }
 
-  private static void accessDenied(AccessDeniedException exception) {
+  private static void handleAccessDenied(AccessDeniedException exception) {
     if (exception.isCredentialsFailure()) {
       System.err.println("The AWS credentials are expired or invalid");
       return;
@@ -210,7 +210,9 @@ public final class FailureHandler {
     }
   }
 
-  private static void resourceNotFound(ResourceNotFoundException exception) {
+  private static void handleResourceNotFound(
+    ResourceNotFoundException exception
+  ) {
     if (exception.resource() instanceof BranchKeyResource branchKey) {
       // With an AWS error code, an AWS call made while reading the branch key failed, for example
       // one made by a key store that you implemented.
@@ -249,7 +251,9 @@ public final class FailureHandler {
     }
   }
 
-  private static void noMatchingDataKey(NoMatchingDataKeyException exception) {
+  private static void handleNoMatchingDataKey(
+    NoMatchingDataKeyException exception
+  ) {
     // For AWS KMS and hierarchical keyrings, keyProviderInfo() names the KMS key or branch key.
     for (EncryptedDataKeyDescription encryptedDataKey : exception.encryptedDataKeys()) {
       System.err.println(
@@ -262,7 +266,7 @@ public final class FailureHandler {
     }
   }
 
-  private static void service(ServiceException exception) {
+  private static void handleServiceException(ServiceException exception) {
     // With no AWS error code, DynamoDB answered, but its answer does not match the request.
     if (
       exception.service() == Service.DYNAMODB &&

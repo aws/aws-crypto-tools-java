@@ -29,9 +29,10 @@ public class KeyringOrCmmErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void keyringOrCmmErrors(String tableName) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -42,10 +43,10 @@ public class KeyringOrCmmErrorsExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
 
-    keyringAndMaterialsManagerBothSet(tableName, schema, keyring);
+    keyringAndMaterialsManagerBothSet(tableName, schema, rawAesKeyring);
     neitherKeyringNorMaterialsManagerSet(tableName, schema);
   }
 
@@ -53,16 +54,16 @@ public class KeyringOrCmmErrorsExample {
   private static void keyringAndMaterialsManagerBothSet(
     String tableName,
     ItemEncryptionSchema schema,
-    Keyring keyring
+    Keyring rawAesKeyring
   ) {
     CryptographicMaterialsManager materialsManager =
-      DefaultCryptographicMaterialsManager.create(keyring);
+      DefaultCryptographicMaterialsManager.create(rawAesKeyring);
     try {
       DynamoDbItemEncryptor
         .builder()
         .logicalTableName(tableName)
         .schema(schema)
-        .keyring(keyring)
+        .keyring(rawAesKeyring)
         .cmm(materialsManager)
         .build();
     } catch (InvalidConfigurationException exception) {

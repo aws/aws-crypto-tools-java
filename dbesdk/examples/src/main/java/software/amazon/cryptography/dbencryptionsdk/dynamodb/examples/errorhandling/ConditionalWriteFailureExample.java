@@ -32,6 +32,7 @@ public class ConditionalWriteFailureExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void conditionalWriteFailure(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
@@ -45,7 +46,7 @@ public class ConditionalWriteFailureExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
@@ -81,7 +82,7 @@ public class ConditionalWriteFailureExample {
           AttributeValue.fromS("ConditionalWriteFailureExample"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )

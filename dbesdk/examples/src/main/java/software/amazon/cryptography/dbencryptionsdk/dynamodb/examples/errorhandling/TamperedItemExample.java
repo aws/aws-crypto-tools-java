@@ -57,7 +57,7 @@ public class TamperedItemExample {
   private static final String HEADER_ATTRIBUTE = "aws_dbe_head";
 
   public static void tamperedItems(String tableName, byte[] aesKeyBytes) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -77,7 +77,7 @@ public class TamperedItemExample {
       .builder()
       .logicalTableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
 
     Map<String, AttributeValue> encryptedItem = itemEncryptor

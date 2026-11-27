@@ -35,6 +35,7 @@ public class TamperedItemReadThroughClientExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
+  private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
   public static void tamperedItemReadThroughClient(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
@@ -48,7 +49,7 @@ public class TamperedItemReadThroughClientExample {
       .builder()
       .partitionKeyName(PARTITION_KEY)
       .sortKeyName(SORT_KEY)
-      .encryptAndSign("attribute1")
+      .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
@@ -90,7 +91,7 @@ public class TamperedItemReadThroughClientExample {
           AttributeValue.fromS("ChangedItem"),
           SORT_KEY,
           AttributeValue.fromN("0"),
-          "attribute1",
+          ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!")
         )
       )
@@ -114,10 +115,10 @@ public class TamperedItemReadThroughClientExample {
       Map<String, AttributeValue> storedItem = new HashMap<>(
         plaintextClient.getItem(read).item()
       );
-      byte[] ciphertext = storedItem.get("attribute1").b().asByteArray();
+      byte[] ciphertext = storedItem.get(ENCRYPTED_ATTRIBUTE).b().asByteArray();
       ciphertext[ciphertext.length - 1] ^= 1;
       storedItem.put(
-        "attribute1",
+        ENCRYPTED_ATTRIBUTE,
         AttributeValue.fromB(SdkBytes.fromByteArray(ciphertext))
       );
       PutItemRequest overwrite = PutItemRequest

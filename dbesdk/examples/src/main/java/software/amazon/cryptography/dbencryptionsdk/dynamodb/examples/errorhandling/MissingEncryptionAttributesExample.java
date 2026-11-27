@@ -47,7 +47,7 @@ public class MissingEncryptionAttributesExample {
     String tableName,
     byte[] aesKeyBytes
   ) {
-    Keyring keyring = RawAesKeyring
+    Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
       .keyNamespace("my-key-namespace")
@@ -67,7 +67,7 @@ public class MissingEncryptionAttributesExample {
       .builder()
       .logicalTableName(tableName)
       .schema(schema)
-      .keyring(keyring)
+      .keyring(rawAesKeyring)
       .build();
 
     decryptItemWithoutEncryptionAttributes(itemEncryptor);
