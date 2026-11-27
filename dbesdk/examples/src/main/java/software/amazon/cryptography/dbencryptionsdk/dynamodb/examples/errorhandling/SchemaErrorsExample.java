@@ -34,7 +34,7 @@ public class SchemaErrorsExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void schemaErrors(String tableName) {
+  public static void buildInvalidSchemas(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -43,13 +43,13 @@ public class SchemaErrorsExample {
       .wrappingAlg(AesWrappingAlg.ALG_AES256_GCM_IV12_TAG16)
       .build();
 
-    schemaWithoutPartitionKeyName();
-    encryptedPartitionKey(tableName, rawAesKeyring);
+    buildSchemaWithoutPartitionKeyName();
+    buildSchemaThatEncryptsPartitionKey(tableName, rawAesKeyring);
   }
 
   // Every item has a partition key, so a schema needs its name. The DB-ESDK rejects a required
   // setting left unset when you call build().
-  private static void schemaWithoutPartitionKeyName() {
+  private static void buildSchemaWithoutPartitionKeyName() {
     try {
       ItemEncryptionSchema
         .builder()
@@ -69,7 +69,7 @@ public class SchemaErrorsExample {
 
   // DynamoDB needs the partition key and sort key values in plaintext to store and find the item,
   // so the DB-ESDK signs them but never encrypts them.
-  private static void encryptedPartitionKey(
+  private static void buildSchemaThatEncryptsPartitionKey(
     String tableName,
     Keyring rawAesKeyring
   ) {
@@ -104,7 +104,7 @@ public class SchemaErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    schemaErrors(args[0]);
+    buildInvalidSchemas(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

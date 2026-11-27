@@ -51,7 +51,7 @@ public class CustomKeyStoreErrorsExample {
   private static final String MISSING_AUDIT_TABLE =
     "audit-table-that-does-not-exist";
 
-  public static void customKeyStoreErrors(
+  public static void writeWithFailingKeyStore(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -110,7 +110,7 @@ public class CustomKeyStoreErrorsExample {
           )
           .build()
       ) {
-        awsExceptionFromYourOwnKeyStore(dynamoDbClient, tableName);
+        putItemWhenKeyStoreAwsCallFails(dynamoDbClient, tableName);
       }
     }
   }
@@ -187,7 +187,7 @@ public class CustomKeyStoreErrorsExample {
   // catches both.
   // Either way, resource() is the branch key that the key store was reading, and awsErrorCode() is
   // DynamoDB's error code.
-  private static void awsExceptionFromYourOwnKeyStore(
+  private static void putItemWhenKeyStoreAwsCallFails(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -232,6 +232,6 @@ public class CustomKeyStoreErrorsExample {
         "logicalKeyStoreName and kmsKeyArn in args"
       );
     }
-    customKeyStoreErrors(args[0], args[1], args[2], args[3], args[4]);
+    writeWithFailingKeyStore(args[0], args[1], args[2], args[3], args[4]);
   }
 }

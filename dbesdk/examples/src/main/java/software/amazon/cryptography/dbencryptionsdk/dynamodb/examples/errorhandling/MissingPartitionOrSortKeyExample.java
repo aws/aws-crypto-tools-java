@@ -37,7 +37,7 @@ public class MissingPartitionOrSortKeyExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void missingPartitionOrSortKey(String tableName) {
+  public static void encryptAndDecryptWithoutSortKey(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -153,7 +153,7 @@ public class MissingPartitionOrSortKeyExample {
         "To run this example, include the table name in args"
       );
     }
-    missingPartitionOrSortKey(args[0]);
+    encryptAndDecryptWithoutSortKey(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

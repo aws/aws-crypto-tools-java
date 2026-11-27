@@ -32,7 +32,7 @@ public class SchemaChangedSinceWriteExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void schemaChangedSinceWrite(
+  public static void decryptWithChangedSchema(
     String tableName,
     byte[] aesKeyBytes
   ) {
@@ -74,11 +74,15 @@ public class SchemaChangedSinceWriteExample {
       )
       .encryptedItem();
 
-    signedAttributeNoLongerSigned(tableName, rawAesKeyring, encryptedItem);
+    decryptWithSchemaThatNoLongerSignsAttribute(
+      tableName,
+      rawAesKeyring,
+      encryptedItem
+    );
   }
 
   // The item was written while attribute2 was SIGN_ONLY. Here the schema makes it DO_NOTHING.
-  private static void signedAttributeNoLongerSigned(
+  private static void decryptWithSchemaThatNoLongerSignsAttribute(
     String tableName,
     Keyring rawAesKeyring,
     Map<String, AttributeValue> encryptedItem
@@ -116,7 +120,7 @@ public class SchemaChangedSinceWriteExample {
         "To run this example, include the logical table name in args"
       );
     }
-    schemaChangedSinceWrite(args[0], generateAesKeyBytes());
+    decryptWithChangedSchema(args[0], generateAesKeyBytes());
   }
 
   private static byte[] generateAesKeyBytes() {

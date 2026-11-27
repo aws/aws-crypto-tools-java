@@ -44,7 +44,7 @@ public class KeyNotFoundExample {
   private static final String MISSING_KMS_KEY_ID =
     "00000000-0000-0000-0000-000000000000";
 
-  public static void keyNotFound(
+  public static void writeWithMissingKeys(
     String tableName,
     String keyStoreTableName,
     String logicalKeyStoreName,
@@ -142,13 +142,13 @@ public class KeyNotFoundExample {
           )
           .build()
       ) {
-        branchKeyThatDoesNotExist(missingBranchKeyClient, write);
-        kmsKeyThatDoesNotExist(missingKmsKeyClient, write);
+        putItemWithMissingBranchKey(missingBranchKeyClient, write);
+        putItemWithMissingKmsKey(missingKmsKeyClient, write);
       }
     }
   }
 
-  private static void branchKeyThatDoesNotExist(
+  private static void putItemWithMissingBranchKey(
     DynamoDbClient dynamoDbClient,
     PutItemRequest write
   ) {
@@ -170,7 +170,7 @@ public class KeyNotFoundExample {
     );
   }
 
-  private static void kmsKeyThatDoesNotExist(
+  private static void putItemWithMissingKmsKey(
     DynamoDbClient dynamoDbClient,
     PutItemRequest write
   ) {
@@ -199,6 +199,6 @@ public class KeyNotFoundExample {
         "logicalKeyStoreName and kmsKeyArn in args"
       );
     }
-    keyNotFound(args[0], args[1], args[2], args[3]);
+    writeWithMissingKeys(args[0], args[1], args[2], args[3]);
   }
 }

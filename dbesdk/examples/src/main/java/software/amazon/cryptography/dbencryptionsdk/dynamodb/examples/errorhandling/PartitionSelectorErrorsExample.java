@@ -48,7 +48,7 @@ public class PartitionSelectorErrorsExample {
   private static final String INSPECTOR_ID_LAST4 = "inspector_id_last4";
   private static final String UNIT = "unit";
 
-  public static void partitionSelectorErrors(
+  public static void writeWithFailingPartitionSelectors(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -193,11 +193,11 @@ public class PartitionSelectorErrorsExample {
           )
           .build()
       ) {
-        partitionSelectorThatThrows(
+        putItemWhenPartitionSelectorThrows(
           clientWithThrowingSelector,
           writeWithoutInspector
         );
-        partitionSelectorOutOfRange(
+        putItemWhenPartitionIsOutOfRange(
           clientWithOutOfRangeSelector,
           writeWithoutInspector
         );
@@ -219,7 +219,7 @@ public class PartitionSelectorErrorsExample {
   // TransactWriteItems Put writes. An exception that the selector throws arrives as the cause of a
   // CustomComponentException, whose resource() is the table whose configuration holds the
   // selector.
-  private static void partitionSelectorThatThrows(
+  private static void putItemWhenPartitionSelectorThrows(
     DynamoDbClient dynamoDbClient,
     PutItemRequest request
   ) {
@@ -245,7 +245,7 @@ public class PartitionSelectorErrorsExample {
     );
   }
 
-  private static void partitionSelectorOutOfRange(
+  private static void putItemWhenPartitionIsOutOfRange(
     DynamoDbClient dynamoDbClient,
     PutItemRequest request
   ) {
@@ -270,6 +270,6 @@ public class PartitionSelectorErrorsExample {
         "branchKeyWrappingKmsKeyArn in args"
       );
     }
-    partitionSelectorErrors(args[0], args[1], args[2], args[3]);
+    writeWithFailingPartitionSelectors(args[0], args[1], args[2], args[3]);
   }
 }

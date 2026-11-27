@@ -42,7 +42,7 @@ public class BeaconSearchErrorsExample {
   private static final String INSPECTOR_ID_LAST4 = "inspector_id_last4";
   private static final String NOTES = "notes";
 
-  public static void beaconSearchErrors(
+  public static void sendUnsupportedBeaconSearches(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -112,15 +112,15 @@ public class BeaconSearchErrorsExample {
           )
           .build()
       ) {
-        searchOnEncryptedAttributeWithoutBeacon(dynamoDbClient, tableName);
-        operationBeaconCannotAnswer(dynamoDbClient, tableName);
-        valueMissingFromExpressionMap(dynamoDbClient, tableName);
+        scanEncryptedAttributeWithoutBeacon(dynamoDbClient, tableName);
+        scanStandardBeaconWithLessThan(dynamoDbClient, tableName);
+        scanWithValueMissingFromExpressionMap(dynamoDbClient, tableName);
       }
     }
   }
 
   // notes is encrypted and has no beacon, so DynamoDB has nothing to compare it with.
-  private static void searchOnEncryptedAttributeWithoutBeacon(
+  private static void scanEncryptedAttributeWithoutBeacon(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -148,7 +148,7 @@ public class BeaconSearchErrorsExample {
 
   // A standard beacon is a hash, so it can tell whether two values are equal, but not which one is
   // smaller.
-  private static void operationBeaconCannotAnswer(
+  private static void scanStandardBeaconWithLessThan(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -173,7 +173,7 @@ public class BeaconSearchErrorsExample {
 
   // The DB-ESDK reads each value from ExpressionAttributeValues to compute its beacon. Here :last4
   // is missing.
-  private static void valueMissingFromExpressionMap(
+  private static void scanWithValueMissingFromExpressionMap(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -202,6 +202,6 @@ public class BeaconSearchErrorsExample {
         "branchKeyWrappingKmsKeyArn in args"
       );
     }
-    beaconSearchErrors(args[0], args[1], args[2], args[3]);
+    sendUnsupportedBeaconSearches(args[0], args[1], args[2], args[3]);
   }
 }

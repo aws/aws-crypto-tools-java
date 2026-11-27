@@ -34,7 +34,7 @@ public class ConditionalWriteFailureExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void conditionalWriteFailure(String tableName) {
+  public static void putItemThatFailsCondition(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -65,11 +65,11 @@ public class ConditionalWriteFailureExample {
         )
         .build()
     ) {
-      failedConditionInDynamoDb(dynamoDbClient, tableName);
+      putExistingItemIfAbsent(dynamoDbClient, tableName);
     }
   }
 
-  private static void failedConditionInDynamoDb(
+  private static void putExistingItemIfAbsent(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -111,7 +111,7 @@ public class ConditionalWriteFailureExample {
         "To run this example, include the table name in args"
       );
     }
-    conditionalWriteFailure(args[0]);
+    putItemThatFailsCondition(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

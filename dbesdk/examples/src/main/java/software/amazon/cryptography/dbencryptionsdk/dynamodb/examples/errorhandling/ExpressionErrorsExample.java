@@ -49,7 +49,7 @@ public class ExpressionErrorsExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void expressionErrors(String tableName) {
+  public static void sendUnsupportedExpressions(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -81,12 +81,12 @@ public class ExpressionErrorsExample {
         )
         .build()
     ) {
-      conditionOnEncryptedAttribute(dynamoDbClient, tableName);
-      updateOfSignedAttribute(dynamoDbClient, tableName);
+      putItemWithConditionOnEncryptedAttribute(dynamoDbClient, tableName);
+      updateSignedAttribute(dynamoDbClient, tableName);
     }
   }
 
-  private static void conditionOnEncryptedAttribute(
+  private static void putItemWithConditionOnEncryptedAttribute(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -124,7 +124,7 @@ public class ExpressionErrorsExample {
     );
   }
 
-  private static void updateOfSignedAttribute(
+  private static void updateSignedAttribute(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -164,7 +164,7 @@ public class ExpressionErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    expressionErrors(args[0]);
+    sendUnsupportedExpressions(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

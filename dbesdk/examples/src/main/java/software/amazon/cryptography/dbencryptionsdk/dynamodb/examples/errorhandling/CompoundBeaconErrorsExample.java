@@ -59,7 +59,7 @@ public class CompoundBeaconErrorsExample {
   // have an attribute with this name.
   private static final String STATUS_COMPOUND_BEACON = "statusCompound";
 
-  public static void compoundBeaconErrors(
+  public static void sendInvalidCompoundBeaconValues(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -182,16 +182,16 @@ public class CompoundBeaconErrorsExample {
           )
           .build()
       ) {
-        compoundValueWithoutPartPrefix(dynamoDbClient, tableName);
-        partValueContainingSeparator(dynamoDbClient, tableName);
-        suppliedBeaconValueThatDiffersFromComputed(dynamoDbClient, tableName);
+        scanCompoundValueWithoutPartPrefix(dynamoDbClient, tableName);
+        putItemWithSeparatorInPartValue(dynamoDbClient, tableName);
+        putItemWithWrongCompoundBeaconValue(dynamoDbClient, tableName);
       }
     }
   }
 
   // Each part of a compound beacon value starts with its prefix. Here the first part, "4321", has
   // no "L-" prefix.
-  private static void compoundValueWithoutPartPrefix(
+  private static void scanCompoundValueWithoutPartPrefix(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -219,7 +219,7 @@ public class CompoundBeaconErrorsExample {
 
   // The separator joins the parts of a compound beacon value, so the DB-ESDK could not tell a part
   // value that contains it from two parts. Here unit is "12.5".
-  private static void partValueContainingSeparator(
+  private static void putItemWithSeparatorInPartValue(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -257,7 +257,7 @@ public class CompoundBeaconErrorsExample {
   // items that you write.
   // Here the item sets statusCompound to "S-failed", but its status is "passed", so the DB-ESDK
   // computes "S-passed" and rejects the item.
-  private static void suppliedBeaconValueThatDiffersFromComputed(
+  private static void putItemWithWrongCompoundBeaconValue(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -298,6 +298,6 @@ public class CompoundBeaconErrorsExample {
         "branchKeyWrappingKmsKeyArn in args"
       );
     }
-    compoundBeaconErrors(args[0], args[1], args[2], args[3]);
+    sendInvalidCompoundBeaconValues(args[0], args[1], args[2], args[3]);
   }
 }

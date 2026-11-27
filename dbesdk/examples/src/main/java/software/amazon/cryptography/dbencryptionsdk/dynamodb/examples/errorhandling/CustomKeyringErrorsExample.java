@@ -42,7 +42,7 @@ public class CustomKeyringErrorsExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void customKeyringErrors(String tableName) {
+  public static void writeWithThrottlingKeyring(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -76,7 +76,7 @@ public class CustomKeyringErrorsExample {
         )
         .build()
     ) {
-      libraryExceptionFromYourOwnKeyring(dynamoDbClient, tableName);
+      putItemWhenKeyringThrottles(dynamoDbClient, tableName);
     }
   }
 
@@ -131,7 +131,7 @@ public class CustomKeyringErrorsExample {
   // Your keyring can throw a materialproviders exception, such as ThrottlingException, to report a
   // failure of that kind. The DB-ESDK reports it with the same kind, so this one is retryable, and
   // resource() names your keyring.
-  private static void libraryExceptionFromYourOwnKeyring(
+  private static void putItemWhenKeyringThrottles(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -177,7 +177,7 @@ public class CustomKeyringErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    customKeyringErrors(args[0]);
+    writeWithThrottlingKeyring(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

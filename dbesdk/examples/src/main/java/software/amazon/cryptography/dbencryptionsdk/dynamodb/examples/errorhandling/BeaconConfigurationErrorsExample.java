@@ -41,7 +41,7 @@ public class BeaconConfigurationErrorsExample {
   private static final String SORT_KEY = "inspection_date";
   private static final String INSPECTOR_ID_LAST4 = "inspector_id_last4";
 
-  public static void beaconConfigurationErrors(
+  public static void buildInvalidBeaconConfigurations(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -68,13 +68,13 @@ public class BeaconConfigurationErrorsExample {
         .ttl(Duration.ofMinutes(10))
         .build();
 
-      beaconOnAttributeThatIsNotEncrypted(
+      buildBeaconOnAttributeThatIsNotEncrypted(
         tableName,
         branchKeyId,
         keyStore,
         hierarchicalKeyring
       );
-      beaconKeyCacheTimeToLiveTooShort(
+      buildBeaconKeyCacheWithTimeToLiveTooShort(
         tableName,
         branchKeyId,
         keyStore,
@@ -85,7 +85,7 @@ public class BeaconConfigurationErrorsExample {
 
   // A beacon is needed, and allowed, only on an encrypted attribute. Here inspector_id_last4 is
   // signed but not encrypted, so its plaintext value is stored and can be searched directly.
-  private static void beaconOnAttributeThatIsNotEncrypted(
+  private static void buildBeaconOnAttributeThatIsNotEncrypted(
     String tableName,
     String branchKeyId,
     BranchKeyStore keyStore,
@@ -134,7 +134,7 @@ public class BeaconConfigurationErrorsExample {
 
   // The beacon key cache must keep each beacon key for at least one second. Here the time to live
   // is zero.
-  private static void beaconKeyCacheTimeToLiveTooShort(
+  private static void buildBeaconKeyCacheWithTimeToLiveTooShort(
     String tableName,
     String branchKeyId,
     BranchKeyStore keyStore,
@@ -189,6 +189,6 @@ public class BeaconConfigurationErrorsExample {
         "branchKeyWrappingKmsKeyArn in args"
       );
     }
-    beaconConfigurationErrors(args[0], args[1], args[2], args[3]);
+    buildInvalidBeaconConfigurations(args[0], args[1], args[2], args[3]);
   }
 }

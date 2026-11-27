@@ -31,7 +31,7 @@ public class KeyringOrCmmErrorsExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void keyringOrCmmErrors(String tableName) {
+  public static void buildInvalidKeyringOrCmmConfigurations(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -46,12 +46,12 @@ public class KeyringOrCmmErrorsExample {
       .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
 
-    keyringAndMaterialsManagerBothSet(tableName, schema, rawAesKeyring);
-    neitherKeyringNorMaterialsManagerSet(tableName, schema);
+    buildWithKeyringAndCmm(tableName, schema, rawAesKeyring);
+    buildWithoutKeyringOrCmm(tableName, schema);
   }
 
   // A configuration takes either a keyring or a cryptographic materials manager (CMM), not both.
-  private static void keyringAndMaterialsManagerBothSet(
+  private static void buildWithKeyringAndCmm(
     String tableName,
     ItemEncryptionSchema schema,
     Keyring rawAesKeyring
@@ -77,7 +77,7 @@ public class KeyringOrCmmErrorsExample {
     );
   }
 
-  private static void neitherKeyringNorMaterialsManagerSet(
+  private static void buildWithoutKeyringOrCmm(
     String tableName,
     ItemEncryptionSchema schema
   ) {
@@ -102,7 +102,7 @@ public class KeyringOrCmmErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    keyringOrCmmErrors(args[0]);
+    buildInvalidKeyringOrCmmConfigurations(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

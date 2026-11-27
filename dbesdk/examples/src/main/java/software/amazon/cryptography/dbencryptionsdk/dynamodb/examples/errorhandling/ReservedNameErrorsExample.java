@@ -45,7 +45,7 @@ public class ReservedNameErrorsExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void reservedNameErrors(String tableName) {
+  public static void useReservedNames(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -61,8 +61,8 @@ public class ReservedNameErrorsExample {
       .signOnly(SIGNED_ATTRIBUTE)
       .build();
 
-    reservedAttributeNameInSchema(tableName, rawAesKeyring);
-    reservedPrefixInLogicalTableName(schema, rawAesKeyring);
+    buildSchemaWithReservedAttributeName(tableName, rawAesKeyring);
+    encryptWithReservedLogicalTableName(schema, rawAesKeyring);
 
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
@@ -81,13 +81,13 @@ public class ReservedNameErrorsExample {
         )
         .build()
     ) {
-      reservedAttributeNameInItem(dynamoDbClient, tableName);
+      putItemWithReservedAttributeName(dynamoDbClient, tableName);
     }
   }
 
   // Attribute names that start with "aws_dbe_" are reserved for the attributes that the DB-ESDK
   // adds to each item.
-  private static void reservedAttributeNameInSchema(
+  private static void buildSchemaWithReservedAttributeName(
     String tableName,
     Keyring keyring
   ) {
@@ -121,7 +121,7 @@ public class ReservedNameErrorsExample {
   // of them may start with it.
   // The DB-ESDK checks this when it encrypts an item, not when you build the configuration, so the
   // item encryptor below builds and the first encryption fails.
-  private static void reservedPrefixInLogicalTableName(
+  private static void encryptWithReservedLogicalTableName(
     ItemEncryptionSchema schema,
     Keyring keyring
   ) {
@@ -158,7 +158,7 @@ public class ReservedNameErrorsExample {
 
   // The DB-ESDK adds aws_dbe_head and aws_dbe_foot to each item, so an item that you write cannot
   // have an attribute whose name starts with "aws_dbe_".
-  private static void reservedAttributeNameInItem(
+  private static void putItemWithReservedAttributeName(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -200,7 +200,7 @@ public class ReservedNameErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    reservedNameErrors(args[0]);
+    useReservedNames(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

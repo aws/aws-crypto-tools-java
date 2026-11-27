@@ -43,7 +43,7 @@ public class InterceptorConfigurationErrorsExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void interceptorConfigurationErrors(String tableName) {
+  public static void buildInvalidInterceptorConfigurations(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -58,14 +58,22 @@ public class InterceptorConfigurationErrorsExample {
       .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .build();
 
-    sameLogicalTableNameForTwoTables(tableName, schema, rawAesKeyring);
-    itemEncryptorForUnconfiguredTable(tableName, schema, rawAesKeyring);
-    interceptorOnAClientThatIsNotDynamoDb(tableName, schema, rawAesKeyring);
+    buildInterceptorWithDuplicateLogicalTableName(
+      tableName,
+      schema,
+      rawAesKeyring
+    );
+    getItemEncryptorForUnconfiguredTable(tableName, schema, rawAesKeyring);
+    sendRequestThroughKmsClientWithInterceptor(
+      tableName,
+      schema,
+      rawAesKeyring
+    );
   }
 
   // The DB-ESDK encrypts every item with its logical table name, so within one interceptor each
   // logical table name must belong to one table.
-  private static void sameLogicalTableNameForTwoTables(
+  private static void buildInterceptorWithDuplicateLogicalTableName(
     String tableName,
     ItemEncryptionSchema schema,
     Keyring rawAesKeyring
@@ -102,7 +110,7 @@ public class InterceptorConfigurationErrorsExample {
   }
 
   // The interceptor has an item encryptor only for the tables that you configured.
-  private static void itemEncryptorForUnconfiguredTable(
+  private static void getItemEncryptorForUnconfiguredTable(
     String tableName,
     ItemEncryptionSchema schema,
     Keyring rawAesKeyring
@@ -132,7 +140,7 @@ public class InterceptorConfigurationErrorsExample {
   // service's client before sending it.
   // The client below has a Region and anonymous credentials so that it builds without AWS access.
   // The request never reaches AWS KMS.
-  private static void interceptorOnAClientThatIsNotDynamoDb(
+  private static void sendRequestThroughKmsClientWithInterceptor(
     String tableName,
     ItemEncryptionSchema schema,
     Keyring rawAesKeyring
@@ -176,7 +184,7 @@ public class InterceptorConfigurationErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    interceptorConfigurationErrors(args[0]);
+    buildInvalidInterceptorConfigurations(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

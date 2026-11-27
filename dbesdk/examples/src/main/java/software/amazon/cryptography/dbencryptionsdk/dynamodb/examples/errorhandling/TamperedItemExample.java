@@ -56,7 +56,10 @@ public class TamperedItemExample {
   private static final String SIGNED_ATTRIBUTE = "attribute2";
   private static final String HEADER_ATTRIBUTE = "aws_dbe_head";
 
-  public static void tamperedItems(String tableName, byte[] aesKeyBytes) {
+  public static void decryptTamperedItems(
+    String tableName,
+    byte[] aesKeyBytes
+  ) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -95,9 +98,9 @@ public class TamperedItemExample {
       )
       .encryptedItem();
 
-    changedSignedAttribute(itemEncryptor, encryptedItem);
-    changedEncryptedAttribute(itemEncryptor, encryptedItem);
-    changedKeyAttribute(itemEncryptor, encryptedItem);
+    decryptItemWithChangedSignedAttribute(itemEncryptor, encryptedItem);
+    decryptItemWithChangedEncryptedAttribute(itemEncryptor, encryptedItem);
+    decryptItemWithChangedPartitionKey(itemEncryptor, encryptedItem);
 
     // The same item with aws_dbe_head cut to half its length.
     byte[] header = encryptedItem.get(HEADER_ATTRIBUTE).b().asByteArray();
@@ -110,12 +113,12 @@ public class TamperedItemExample {
         SdkBytes.fromByteArray(Arrays.copyOf(header, header.length / 2))
       )
     );
-    truncatedHeader(itemEncryptor, truncatedHeaderItem);
-    describeTruncatedHeader(truncatedHeaderItem);
+    decryptItemWithTruncatedHeader(itemEncryptor, truncatedHeaderItem);
+    describeItemWithTruncatedHeader(truncatedHeaderItem);
   }
 
   // A SIGN_ONLY attribute is stored as plaintext, but the item's signature covers it.
-  private static void changedSignedAttribute(
+  private static void decryptItemWithChangedSignedAttribute(
     DynamoDbItemEncryptor itemEncryptor,
     Map<String, AttributeValue> encryptedItem
   ) {
@@ -136,7 +139,7 @@ public class TamperedItemExample {
   }
 
   // An ENCRYPT_AND_SIGN attribute is stored encrypted and is covered by the signature.
-  private static void changedEncryptedAttribute(
+  private static void decryptItemWithChangedEncryptedAttribute(
     DynamoDbItemEncryptor itemEncryptor,
     Map<String, AttributeValue> encryptedItem
   ) {
@@ -168,7 +171,7 @@ public class TamperedItemExample {
   // copied to a different key no longer decrypts.
   // With an AWS KMS keyring, AWS KMS makes this check, and the DB-ESDK throws a ServiceException
   // whose awsErrorCode() is InvalidCiphertextException instead.
-  private static void changedKeyAttribute(
+  private static void decryptItemWithChangedPartitionKey(
     DynamoDbItemEncryptor itemEncryptor,
     Map<String, AttributeValue> encryptedItem
   ) {
@@ -188,7 +191,7 @@ public class TamperedItemExample {
     );
   }
 
-  private static void truncatedHeader(
+  private static void decryptItemWithTruncatedHeader(
     DynamoDbItemEncryptor itemEncryptor,
     Map<String, AttributeValue> truncatedHeaderItem
   ) {
@@ -207,7 +210,7 @@ public class TamperedItemExample {
   }
 
   // Describing an item's data keys reads aws_dbe_head too.
-  private static void describeTruncatedHeader(
+  private static void describeItemWithTruncatedHeader(
     Map<String, AttributeValue> truncatedHeaderItem
   ) {
     try {
@@ -230,7 +233,7 @@ public class TamperedItemExample {
         "To run this example, include the logical table name in args"
       );
     }
-    tamperedItems(args[0], generateAesKeyBytes());
+    decryptTamperedItems(args[0], generateAesKeyBytes());
   }
 
   private static byte[] generateAesKeyBytes() {

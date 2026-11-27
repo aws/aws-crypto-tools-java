@@ -52,7 +52,7 @@ public class NoMatchingDataKeyExample {
   private static final String READER_NAMESPACE = "reader-key-namespace";
   private static final String READER_KEY_NAME = "reader-key";
 
-  public static void noMatchingDataKey(String tableName) {
+  public static void decryptWithKeyringsThatCannotDecrypt(String tableName) {
     ItemEncryptionSchema schema = ItemEncryptionSchema
       .builder()
       .partitionKeyName(PARTITION_KEY)
@@ -205,7 +205,7 @@ public class NoMatchingDataKeyExample {
         "To run this example, include the logical table name in args"
       );
     }
-    noMatchingDataKey(args[0]);
+    decryptWithKeyringsThatCannotDecrypt(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

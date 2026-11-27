@@ -47,7 +47,7 @@ public class ItemContentErrorsExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void itemContentErrors(String tableName) {
+  public static void putInvalidItems(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -79,14 +79,14 @@ public class ItemContentErrorsExample {
         )
         .build()
     ) {
-      attributeWithNoAction(dynamoDbClient, tableName);
-      valueNestedTooDeep(dynamoDbClient, tableName);
-      numberThatIsNotANumber(dynamoDbClient, tableName);
+      putItemWithAttributeThatHasNoAction(dynamoDbClient, tableName);
+      putItemNestedTooDeep(dynamoDbClient, tableName);
+      putItemWithInvalidNumber(dynamoDbClient, tableName);
     }
   }
 
   // The schema lists every attribute that this table may have. "attribute3" is not in it.
-  private static void attributeWithNoAction(
+  private static void putItemWithAttributeThatHasNoAction(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -123,7 +123,7 @@ public class ItemContentErrorsExample {
     );
   }
 
-  private static void valueNestedTooDeep(
+  private static void putItemNestedTooDeep(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -163,7 +163,7 @@ public class ItemContentErrorsExample {
 
   // DynamoDB numbers are sent as strings, and the AWS SDK does not check them. The DB-ESDK must
   // read a number to sign or encrypt it, so it rejects one that is not a valid number.
-  private static void numberThatIsNotANumber(
+  private static void putItemWithInvalidNumber(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -203,7 +203,7 @@ public class ItemContentErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    itemContentErrors(args[0]);
+    putInvalidItems(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

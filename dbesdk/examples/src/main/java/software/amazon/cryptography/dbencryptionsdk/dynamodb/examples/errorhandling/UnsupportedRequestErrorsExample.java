@@ -51,7 +51,7 @@ public class UnsupportedRequestErrorsExample {
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void unsupportedRequestErrors(String tableName) {
+  public static void sendUnsupportedRequests(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -83,13 +83,13 @@ public class UnsupportedRequestErrorsExample {
         )
         .build()
     ) {
-      partiqlStatement(dynamoDbClient, tableName);
-      legacyParameter(dynamoDbClient, tableName);
-      transactionEntryWithNoOperation(dynamoDbClient);
+      executePartiqlStatement(dynamoDbClient, tableName);
+      putItemWithLegacyExpected(dynamoDbClient, tableName);
+      transactWriteEntryWithNoOperation(dynamoDbClient);
     }
   }
 
-  private static void partiqlStatement(
+  private static void executePartiqlStatement(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -111,7 +111,7 @@ public class UnsupportedRequestErrorsExample {
     );
   }
 
-  private static void legacyParameter(
+  private static void putItemWithLegacyExpected(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -153,7 +153,7 @@ public class UnsupportedRequestErrorsExample {
 
   // Each entry in a transaction must say what it does to an item. The DB-ESDK checks this for the
   // whole request, before it looks at any table name.
-  private static void transactionEntryWithNoOperation(
+  private static void transactWriteEntryWithNoOperation(
     DynamoDbClient dynamoDbClient
   ) {
     TransactWriteItemsRequest request = TransactWriteItemsRequest
@@ -180,7 +180,7 @@ public class UnsupportedRequestErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    unsupportedRequestErrors(args[0]);
+    sendUnsupportedRequests(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

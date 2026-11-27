@@ -37,7 +37,7 @@ public class TamperedItemReadThroughClientExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void tamperedItemReadThroughClient(String tableName) {
+  public static void readTamperedItemThroughClient(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -69,15 +69,11 @@ public class TamperedItemReadThroughClientExample {
         .build();
       DynamoDbClient plaintextClient = DynamoDbClient.create()
     ) {
-      changedItemReadThroughTheClient(
-        dynamoDbClient,
-        plaintextClient,
-        tableName
-      );
+      getItemChangedAfterWrite(dynamoDbClient, plaintextClient, tableName);
     }
   }
 
-  private static void changedItemReadThroughTheClient(
+  private static void getItemChangedAfterWrite(
     DynamoDbClient dynamoDbClient,
     DynamoDbClient plaintextClient,
     String tableName
@@ -146,7 +142,7 @@ public class TamperedItemReadThroughClientExample {
         "To run this example, include the table name in args"
       );
     }
-    tamperedItemReadThroughClient(args[0]);
+    readTamperedItemThroughClient(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

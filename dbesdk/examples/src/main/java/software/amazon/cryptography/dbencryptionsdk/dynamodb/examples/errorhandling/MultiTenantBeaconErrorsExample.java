@@ -48,7 +48,7 @@ public class MultiTenantBeaconErrorsExample {
   private static final String INSPECTOR_ID_LAST4 = "inspector_id_last4";
   private static final String TENANT_ID = "tenant_id";
 
-  public static void multiTenantBeaconErrors(
+  public static void sendInvalidMultiTenantRequests(
     String tableName,
     String keyStoreTableName,
     String branchKeyWrappingKmsKeyArn
@@ -122,15 +122,15 @@ public class MultiTenantBeaconErrorsExample {
           )
           .build()
       ) {
-        multiTenantSearchWithoutTenant(dynamoDbClient, tableName);
-        multiTenantWriteWithoutHierarchicalKeyring(dynamoDbClient, tableName);
+        scanWithoutTenant(dynamoDbClient, tableName);
+        putItemWithoutHierarchicalKeyring(dynamoDbClient, tableName);
       }
     }
   }
 
   // The filter has no tenant_id condition, so the DB-ESDK cannot tell which tenant's beacon key to
   // use.
-  private static void multiTenantSearchWithoutTenant(
+  private static void scanWithoutTenant(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -156,7 +156,7 @@ public class MultiTenantBeaconErrorsExample {
     );
   }
 
-  private static void multiTenantWriteWithoutHierarchicalKeyring(
+  private static void putItemWithoutHierarchicalKeyring(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -197,7 +197,7 @@ public class MultiTenantBeaconErrorsExample {
         "branchKeyWrappingKmsKeyArn in args"
       );
     }
-    multiTenantBeaconErrors(args[0], args[1], args[2]);
+    sendInvalidMultiTenantRequests(args[0], args[1], args[2]);
   }
 
   private static byte[] generateAesKeyBytes() {

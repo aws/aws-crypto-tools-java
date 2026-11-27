@@ -39,7 +39,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
 
-  public static void customBranchKeyIdSupplierErrors(
+  public static void writeWithFailingBranchKeyIdSuppliers(
     String tableName,
     String branchKeyId,
     String keyStoreTableName,
@@ -65,8 +65,8 @@ public class CustomBranchKeyIdSupplierErrorsExample {
         .encryptAndSign(ENCRYPTED_ATTRIBUTE)
         .build();
 
-      exceptionFromYourOwnSupplier(tableName, schema, branchKeyId, keyStore);
-      failedConditionInYourOwnSupplier(
+      putItemWhenSupplierThrows(tableName, schema, branchKeyId, keyStore);
+      putItemWhenSupplierConditionFails(
         tableName,
         schema,
         branchKeyId,
@@ -87,7 +87,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
 
   // An exception that your branch key ID supplier throws arrives as the cause of a
   // CustomComponentException, so test the cause for your own type.
-  private static void exceptionFromYourOwnSupplier(
+  private static void putItemWhenSupplierThrows(
     String tableName,
     ItemEncryptionSchema schema,
     String branchKeyId,
@@ -160,7 +160,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
   // is not retryable.
   // Here the supplier claims each tenant for this application with a write that fails if another
   // application holds the claim, and another application already does.
-  private static void failedConditionInYourOwnSupplier(
+  private static void putItemWhenSupplierConditionFails(
     String tableName,
     ItemEncryptionSchema schema,
     String branchKeyId,
@@ -275,7 +275,7 @@ public class CustomBranchKeyIdSupplierErrorsExample {
         "logicalKeyStoreName and kmsKeyArn in args"
       );
     }
-    customBranchKeyIdSupplierErrors(
+    writeWithFailingBranchKeyIdSuppliers(
       args[0],
       args[1],
       args[2],

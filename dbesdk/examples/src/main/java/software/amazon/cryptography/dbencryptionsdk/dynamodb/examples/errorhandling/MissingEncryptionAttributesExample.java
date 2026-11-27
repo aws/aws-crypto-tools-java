@@ -43,7 +43,7 @@ public class MissingEncryptionAttributesExample {
   private static final String SIGNED_ATTRIBUTE = "attribute2";
   private static final String HEADER_ATTRIBUTE = "aws_dbe_head";
 
-  public static void missingEncryptionAttributes(
+  public static void readItemsWithoutEncryptionAttributes(
     String tableName,
     byte[] aesKeyBytes
   ) {
@@ -155,7 +155,7 @@ public class MissingEncryptionAttributesExample {
         "To run this example, include the logical table name in args"
       );
     }
-    missingEncryptionAttributes(args[0], generateAesKeyBytes());
+    readItemsWithoutEncryptionAttributes(args[0], generateAesKeyBytes());
   }
 
   private static byte[] generateAesKeyBytes() {
