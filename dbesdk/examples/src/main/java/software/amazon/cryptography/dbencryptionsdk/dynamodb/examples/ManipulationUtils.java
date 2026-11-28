@@ -63,6 +63,9 @@ public final class ManipulationUtils {
     try {
       itemEncryptor.decryptItem(manipulated);
     } catch (ServiceException exception) {
+      // TODO(native MPL error handling): native MPL throws NoMatchingDataKeyException with the AWS
+      // KMS failure in failures(), and has no Service enum. This assumes the DB-ESDK reports a
+      // ServiceException with service() KMS; update once the DB-ESDK's rule and the MPL decide.
       if (
         exception.service() == Service.KMS &&
         "InvalidCiphertextException".equals(exception.awsErrorCode())

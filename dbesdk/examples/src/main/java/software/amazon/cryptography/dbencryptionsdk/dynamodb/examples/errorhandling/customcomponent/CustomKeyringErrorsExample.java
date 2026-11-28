@@ -117,12 +117,9 @@ public class CustomKeyringErrorsExample {
         callsInWindow = 0;
       }
       if (callsInWindow >= maxCallsPerSecond) {
-        throw software.amazon.cryptography.materialproviders.exceptions.ThrottlingException
-          .builder()
-          .message(
-            "More than " + maxCallsPerSecond + " data key calls this second"
-          )
-          .build();
+        throw new software.amazon.cryptography.materialproviders.exceptions.ThrottlingException(
+          "More than " + maxCallsPerSecond + " data key calls this second"
+        );
       }
       callsInWindow++;
     }
@@ -154,6 +151,9 @@ public class CustomKeyringErrorsExample {
     } catch (ThrottlingException exception) {
       // isRetryable() is true and retryKind() is THROTTLING, as for an AWS throttling error, so
       // the same retry logic covers both. resource() says which keyring throttled the call.
+      // TODO(native MPL error handling): assumes the MPL defines KeyringResource to name the
+      // keyring that failed; native MPL has no resource types. Update this check once the MPL
+      // decides how a failure names its resource.
       if (exception.resource() instanceof KeyringResource throttledKeyring) {
         System.err.println(
           "The keyring " +

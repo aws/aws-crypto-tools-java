@@ -177,6 +177,9 @@ public class TamperedItemExample {
   ) {
     Map<String, AttributeValue> changedItem = new HashMap<>(encryptedItem);
     changedItem.put(PARTITION_KEY, AttributeValue.fromS("AnotherPartition"));
+    // TODO(native MPL error handling): native MPL throws NoMatchingDataKeyException here, with the
+    // failed AES-GCM unwrap in failures(). This assumes the DB-ESDK reports it as
+    // VerificationFailedException; update once the DB-ESDK's rule for choosing the kind is decided.
     try {
       itemEncryptor.decryptItem(changedItem);
     } catch (VerificationFailedException exception) {

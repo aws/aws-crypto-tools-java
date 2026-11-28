@@ -208,6 +208,9 @@ public class CustomKeyStoreErrorsExample {
     try {
       dynamoDbClient.putItem(write);
     } catch (ResourceNotFoundException | AccessDeniedException exception) {
+      // TODO(native MPL error handling): assumes the MPL defines BranchKeyResource and that the
+      // DB-ESDK copies the AWS error code; native MPL has no resource types and keeps the AWS SDK
+      // exception only as the cause. Update this check once the MPL decides.
       if (exception.resource() instanceof BranchKeyResource branchKey) {
         System.err.println(
           "The key store failed with " +

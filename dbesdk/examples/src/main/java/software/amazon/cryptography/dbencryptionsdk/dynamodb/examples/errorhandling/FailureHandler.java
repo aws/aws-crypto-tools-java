@@ -128,6 +128,9 @@ public final class FailureHandler {
         "Fix the configuration or the request: " + exception.getMessage()
       );
     } else if (exception instanceof VerificationFailedException) {
+      // TODO(native MPL error handling): when every keyring attempt fails, native MPL throws
+      // NoMatchingDataKeyException with each failure in failures(). This branch assumes the DB-ESDK
+      // reports a wrong key as VerificationFailedException; update it once that rule is decided.
       System.err.println(
         "The item failed verification: it was changed, or the keyring has the wrong key under " +
         "the item's key name. Do not trust its contents: " +
@@ -196,6 +199,9 @@ public final class FailureHandler {
       System.err.println("The AWS credentials are expired or invalid");
       return;
     }
+    // TODO(native MPL error handling): assumes MPL resource types (KmsKeyResource,
+    // KeyStoreTableResource) and a DB-ESDK service(); native MPL has neither and keeps the AWS SDK
+    // exception only as the cause. Update these checks once the MPL decides.
     if (exception.resource() instanceof KmsKeyResource kmsKey) {
       System.err.println(
         "Grant this application access to the KMS key " + kmsKey.arn()
@@ -217,6 +223,9 @@ public final class FailureHandler {
   private static void handleResourceNotFound(
     ResourceNotFoundException exception
   ) {
+    // TODO(native MPL error handling): assumes MPL resource types (BranchKeyResource,
+    // KmsKeyResource, KeyStoreTableResource) and a DB-ESDK awsErrorCode(); native MPL has neither
+    // and keeps the AWS SDK exception only as the cause. Update these checks once the MPL decides.
     if (exception.resource() instanceof BranchKeyResource branchKey) {
       // With an AWS error code, an AWS call made while reading the branch key failed, for example
       // one made by a key store that you implemented.
@@ -271,6 +280,9 @@ public final class FailureHandler {
   }
 
   private static void handleServiceException(ServiceException exception) {
+    // TODO(native MPL error handling): assumes an MPL Service enum and that the DB-ESDK copies
+    // the service and AWS error code; native MPL has neither and keeps the AWS SDK exception only
+    // as the cause, found with findCause(). Update these checks once the MPL decides.
     // With no AWS error code, DynamoDB answered, but its answer does not match the request.
     if (
       exception.service() == Service.DYNAMODB &&

@@ -254,6 +254,9 @@ public class CustomBranchKeyIdSupplierErrorsExample {
       }
     } catch (ServiceException exception) {
       // The supplier's own DynamoDB call failed, so awsErrorCode() is DynamoDB's code for it.
+      // TODO(native MPL error handling): assumes the DB-ESDK copies the AWS error code from the
+      // MPL failure; native MPL keeps the AWS SDK exception only as the cause. Update this check
+      // once the MPL decides how AWS errors are exposed.
       if ("ConditionalCheckFailedException".equals(exception.awsErrorCode())) {
         System.err.println(
           "Another application already claimed this tenant. Do not retry; resolve the claim " +

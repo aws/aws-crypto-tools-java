@@ -155,6 +155,9 @@ public class KeyNotFoundExample {
     try {
       dynamoDbClient.putItem(write);
     } catch (ResourceNotFoundException exception) {
+      // TODO(native MPL error handling): assumes the MPL defines BranchKeyResource and
+      // KmsKeyResource to name the missing key; native MPL has no resource types. Update both
+      // checks in this class once the MPL decides how a failure names its resource.
       if (exception.resource() instanceof BranchKeyResource branchKey) {
         System.err.println(
           "The key store has no branch key " +

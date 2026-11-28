@@ -155,6 +155,9 @@ public class NoMatchingDataKeyExample {
   //   key fails.
   // Neither failure is retryable, and a key that fails to decrypt is more actionable than a
   // missing data key, so the DB-ESDK throws a VerificationFailedException.
+  // TODO(native MPL error handling): native MPL throws NoMatchingDataKeyException with each attempt
+  // in failures(). This assumes the DB-ESDK reports VerificationFailedException and keeps the MPL
+  // exception two causes down; update once the DB-ESDK's rule is decided.
   private static void readWithMultiKeyringWhoseKeysAllFail(
     DynamoDbItemEncryptor reader,
     Map<String, AttributeValue> encryptedItem
