@@ -1,4 +1,4 @@
-package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling;
+package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling.customcomponent;
 
 import java.time.Duration;
 import java.time.Instant;

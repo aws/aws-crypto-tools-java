@@ -1,4 +1,4 @@
-package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling;
+package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling.searchableencryption;
 
 import java.time.Duration;
 import java.util.Map;

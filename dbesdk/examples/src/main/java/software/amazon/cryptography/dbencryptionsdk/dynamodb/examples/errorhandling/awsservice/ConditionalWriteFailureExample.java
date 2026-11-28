@@ -1,4 +1,4 @@
-package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling;
+package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling.awsservice;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;

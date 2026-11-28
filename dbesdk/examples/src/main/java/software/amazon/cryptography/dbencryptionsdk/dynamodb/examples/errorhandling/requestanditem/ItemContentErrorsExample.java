@@ -1,4 +1,4 @@
-package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling;
+package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling.requestanditem;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -10,42 +10,44 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.InvalidConfigurationException;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.InvalidItemException;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.ValidationException;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 
 /**
- * Shows the names that the DB-ESDK reserves, and the exception that it throws when you use one.
+ * Shows the items that the DB-ESDK refuses to write because it cannot encrypt or sign them.
+ *
+ * <p>The DB-ESDK checks each item before sending it, and throws {@link InvalidItemException} for an
+ * item:
  *
  * <ul>
- *   <li>Attribute names that start with "aws_dbe_" belong to the attributes that the DB-ESDK adds
- *       to each item. The DB-ESDK rejects a schema that names one when you build it, and an item
- *       that has one when you write it.
- *   <li>Names that start with "aws-crypto-" belong to the AWS encryption libraries. The logical
- *       table name, partition key name and sort key name may not start with it. The DB-ESDK checks
- *       this when it encrypts an item, not when you build the configuration.
+ *   <li>with an attribute that the schema gives no action;
+ *   <li>with values nested more than 32 levels deep;
+ *   <li>without an attribute that the schema marks {@code signAndIncludeInEncryptionContext};
+ *   <li>with a number attribute that is not a valid number.
  * </ul>
  *
- * <p>A reserved name in a configuration throws {@link InvalidConfigurationException}, and a
- * reserved name in an item throws {@link InvalidItemException}. Both are {@link
- * ValidationException}s. Do not retry: rename the attribute or table.
+ * <p>Change the item; a retry gets the same result. {@code MissingPartitionOrSortKeyExample} shows
+ * an item without its partition key or sort key.
  *
- * <p>Running this example needs AWS credentials and a Region for the DynamoDB client in the last
- * case. Its request is rejected before it is sent, so the table does not have to exist.
+ * <p>{@link InvalidItemException} is a {@link ValidationException}, so a {@code catch} of {@link
+ * ValidationException} catches it too. Catch {@link InvalidItemException} to skip one bad item and
+ * go on with the others.
+ *
+ * <p>Running this example needs AWS credentials and a Region for the DynamoDB client. Every request
+ * below is rejected before it is sent, so the table does not have to exist.
  */
-public class ReservedNameErrorsExample {
+public class ItemContentErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void useReservedNames(String tableName) {
+  public static void putInvalidItems(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -60,10 +62,6 @@ public class ReservedNameErrorsExample {
       .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .signOnly(SIGNED_ATTRIBUTE)
       .build();
-
-    buildSchemaWithReservedAttributeName(tableName, rawAesKeyring);
-    encryptWithReservedLogicalTableName(schema, rawAesKeyring);
-
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
@@ -81,84 +79,14 @@ public class ReservedNameErrorsExample {
         )
         .build()
     ) {
-      putItemWithReservedAttributeName(dynamoDbClient, tableName);
+      putItemWithAttributeThatHasNoAction(dynamoDbClient, tableName);
+      putItemNestedTooDeep(dynamoDbClient, tableName);
+      putItemWithInvalidNumber(dynamoDbClient, tableName);
     }
   }
 
-  // Attribute names that start with "aws_dbe_" are reserved for the attributes that the DB-ESDK
-  // adds to each item.
-  private static void buildSchemaWithReservedAttributeName(
-    String tableName,
-    Keyring keyring
-  ) {
-    ItemEncryptionSchema schemaWithReservedName = ItemEncryptionSchema
-      .builder()
-      .partitionKeyName(PARTITION_KEY)
-      .sortKeyName(SORT_KEY)
-      .encryptAndSign("aws_dbe_secret")
-      .build();
-    try {
-      DynamoDbItemEncryptor
-        .builder()
-        .logicalTableName(tableName)
-        .schema(schemaWithReservedName)
-        .keyring(keyring)
-        .build();
-    } catch (InvalidConfigurationException exception) {
-      System.err.println(
-        "Rename the attribute; names starting with aws_dbe_ are reserved: " +
-        exception.getMessage()
-      );
-      return;
-    }
-    throw new IllegalStateException(
-      "A schema with a reserved attribute name was accepted"
-    );
-  }
-
-  // Names that start with "aws-crypto-" are reserved for the AWS encryption libraries. The DB-ESDK
-  // encrypts every item with the logical table name, partition key name and sort key name, so none
-  // of them may start with it.
-  // The DB-ESDK checks this when it encrypts an item, not when you build the configuration, so the
-  // item encryptor below builds and the first encryption fails.
-  private static void encryptWithReservedLogicalTableName(
-    ItemEncryptionSchema schema,
-    Keyring keyring
-  ) {
-    DynamoDbItemEncryptor itemEncryptor = DynamoDbItemEncryptor
-      .builder()
-      .logicalTableName("aws-crypto-orders")
-      .schema(schema)
-      .keyring(keyring)
-      .build();
-    try {
-      itemEncryptor.encryptItem(
-        Map.of(
-          PARTITION_KEY,
-          AttributeValue.fromS("ReservedNameErrorsExample"),
-          SORT_KEY,
-          AttributeValue.fromN("0"),
-          ENCRYPTED_ATTRIBUTE,
-          AttributeValue.fromS("encrypt and sign me!"),
-          SIGNED_ATTRIBUTE,
-          AttributeValue.fromS("sign me!")
-        )
-      );
-    } catch (InvalidConfigurationException exception) {
-      System.err.println(
-        "Choose a logical table name and key names that do not start with aws-crypto-: " +
-        exception.getMessage()
-      );
-      return;
-    }
-    throw new IllegalStateException(
-      "An item was encrypted under a logical table name starting with aws-crypto-"
-    );
-  }
-
-  // The DB-ESDK adds aws_dbe_head and aws_dbe_foot to each item, so an item that you write cannot
-  // have an attribute whose name starts with "aws_dbe_".
-  private static void putItemWithReservedAttributeName(
+  // The schema lists every attribute that this table may have. "attribute3" is not in it.
+  private static void putItemWithAttributeThatHasNoAction(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -168,15 +96,15 @@ public class ReservedNameErrorsExample {
       .item(
         Map.of(
           PARTITION_KEY,
-          AttributeValue.fromS("ReservedNameErrorsExample"),
+          AttributeValue.fromS("ItemContentErrorsExample"),
           SORT_KEY,
           AttributeValue.fromN("0"),
           ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!"),
           SIGNED_ATTRIBUTE,
           AttributeValue.fromS("sign me!"),
-          "aws_dbe_note",
-          AttributeValue.fromS("a name the DB-ESDK reserves")
+          "attribute3",
+          AttributeValue.fromS("no action configured for me")
         )
       )
       .build();
@@ -184,13 +112,88 @@ public class ReservedNameErrorsExample {
       dynamoDbClient.putItem(request);
     } catch (InvalidItemException exception) {
       System.err.println(
-        "Rename the attribute; names starting with aws_dbe_ are reserved: " +
+        "Give every attribute an action in the schema, or a name that starts with a " +
+        "do-nothing prefix: " +
         exception.getMessage()
       );
       return;
     }
     throw new IllegalStateException(
-      "An item with an attribute named aws_dbe_note was written"
+      "An item with an attribute that has no action was written"
+    );
+  }
+
+  private static void putItemNestedTooDeep(
+    DynamoDbClient dynamoDbClient,
+    String tableName
+  ) {
+    AttributeValue nestedValue = AttributeValue.fromS("deep");
+    for (int levels = 0; levels < 40; levels++) {
+      nestedValue = AttributeValue.fromM(Map.of("nested", nestedValue));
+    }
+    PutItemRequest request = PutItemRequest
+      .builder()
+      .tableName(tableName)
+      .item(
+        Map.of(
+          PARTITION_KEY,
+          AttributeValue.fromS("ItemContentErrorsExample"),
+          SORT_KEY,
+          AttributeValue.fromN("0"),
+          ENCRYPTED_ATTRIBUTE,
+          nestedValue,
+          SIGNED_ATTRIBUTE,
+          AttributeValue.fromS("sign me!")
+        )
+      )
+      .build();
+    try {
+      dynamoDbClient.putItem(request);
+    } catch (InvalidItemException exception) {
+      System.err.println(
+        "Nest maps and lists no more than 32 levels deep: " +
+        exception.getMessage()
+      );
+      return;
+    }
+    throw new IllegalStateException(
+      "An item nested 40 levels deep was written"
+    );
+  }
+
+  // DynamoDB numbers are sent as strings, and the AWS SDK does not check them. The DB-ESDK must
+  // read a number to sign or encrypt it, so it rejects one that is not a valid number.
+  private static void putItemWithInvalidNumber(
+    DynamoDbClient dynamoDbClient,
+    String tableName
+  ) {
+    PutItemRequest request = PutItemRequest
+      .builder()
+      .tableName(tableName)
+      .item(
+        Map.of(
+          PARTITION_KEY,
+          AttributeValue.fromS("ItemContentErrorsExample"),
+          SORT_KEY,
+          AttributeValue.fromN("0"),
+          ENCRYPTED_ATTRIBUTE,
+          AttributeValue.fromN("1.2.3"),
+          SIGNED_ATTRIBUTE,
+          AttributeValue.fromS("sign me!")
+        )
+      )
+      .build();
+    try {
+      dynamoDbClient.putItem(request);
+    } catch (InvalidItemException exception) {
+      System.err.println(
+        "Write number attributes as valid decimal numbers: " +
+        exception.getMessage()
+      );
+      return;
+    }
+    throw new IllegalStateException(
+      "An item with an invalid number was written"
     );
   }
 
@@ -200,7 +203,7 @@ public class ReservedNameErrorsExample {
         "To run this example, include the table name in args"
       );
     }
-    useReservedNames(args[0]);
+    putInvalidItems(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {

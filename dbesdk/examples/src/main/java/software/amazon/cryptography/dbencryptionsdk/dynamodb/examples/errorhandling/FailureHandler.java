@@ -88,14 +88,18 @@ import software.amazon.cryptography.materialproviders.exceptions.Service;
  *
  * <p>One kind of failure is not a DB-ESDK exception and reaches you unchanged: DynamoDB's answer
  * to your own request, such as a failed condition, which is the AWS SDK's {@code
- * DynamoDbException}. {@code ConditionalWriteFailureExample} shows it.
+ * DynamoDbException}. {@code awsservice.ConditionalWriteFailureExample} shows it.
+ *
+ * <p>The examples for each kind of failure are in the subpackages of this package, one per
+ * category: {@code configuration}, {@code requestanditem}, {@code storeditem}, {@code
+ * searchableencryption}, {@code customcomponent} and {@code awsservice}.
  */
 public final class FailureHandler {
 
   private FailureHandler() {}
 
   /** What to do about a failed DB-ESDK operation, deciding from coarse to fine. */
-  static void handle(DynamoDbEncryptionException exception) {
+  public static void handle(DynamoDbEncryptionException exception) {
     // One check covers throttling, timeouts and server errors, whatever their kind.
     if (exception.isRetryable()) {
       System.err.println(

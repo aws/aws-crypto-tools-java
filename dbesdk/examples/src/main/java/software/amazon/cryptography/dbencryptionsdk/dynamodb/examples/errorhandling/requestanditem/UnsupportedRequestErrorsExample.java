@@ -1,43 +1,57 @@
-package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling;
+package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.errorhandling.requestanditem;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.HashMap;
 import java.util.Map;
 import javax.crypto.KeyGenerator;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ExecuteStatementRequest;
+import software.amazon.awssdk.services.dynamodb.model.ExpectedAttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
+import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.InvalidItemException;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.UnsupportedRequestException;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.ValidationException;
-import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
 import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
 
 /**
- * Shows that the DB-ESDK needs an item's partition key and sort key both to encrypt and to decrypt
- * it.
+ * Shows the DynamoDB requests that the DB-ESDK refuses to send for an encrypted table because it
+ * cannot rewrite them.
  *
- * <p>The DB-ESDK encrypts each item with its key values. Writing an item without them, and
- * decrypting an item that has lost them, both throw {@link InvalidItemException}, a {@link
- * ValidationException}. Pass the whole item.
+ * <p>The DB-ESDK can protect only the requests that it can rewrite. It rejects the rest before
+ * sending them and throws {@link UnsupportedRequestException}, a {@link ValidationException}.
+ * Change the request; a retry gets the same result.
  *
- * <p>Running this example needs AWS credentials and a Region for the DynamoDB client. The write
+ * <p>The rejected requests include:
+ *
+ * <ul>
+ *   <li>PartiQL ({@code ExecuteStatement}, {@code BatchExecuteStatement}, {@code
+ *       ExecuteTransaction}) on an encrypted table.
+ *   <li>The legacy request parameters {@code Expected}, {@code AttributeUpdates}, {@code
+ *       AttributesToGet}, {@code KeyConditions}, {@code QueryFilter}, {@code ScanFilter} and
+ *       {@code ConditionalOperator}. Use expressions instead.
+ *   <li>A {@code TransactWriteItems} entry that sets none of {@code Put}, {@code Update}, {@code
+ *       Delete} and {@code ConditionCheck}.
+ * </ul>
+ *
+ * <p>Running this example needs AWS credentials and a Region for the DynamoDB client. Every request
  * below is rejected before it is sent, so the table does not have to exist.
  */
-public class MissingPartitionOrSortKeyExample {
+public class UnsupportedRequestErrorsExample {
 
   private static final String PARTITION_KEY = "partition_key";
   private static final String SORT_KEY = "sort_key";
   private static final String ENCRYPTED_ATTRIBUTE = "attribute1";
   private static final String SIGNED_ATTRIBUTE = "attribute2";
 
-  public static void encryptAndDecryptWithoutSortKey(String tableName) {
+  public static void sendUnsupportedRequests(String tableName) {
     Keyring rawAesKeyring = RawAesKeyring
       .builder()
       .keyName("my-aes-key-name")
@@ -52,28 +66,6 @@ public class MissingPartitionOrSortKeyExample {
       .encryptAndSign(ENCRYPTED_ATTRIBUTE)
       .signOnly(SIGNED_ATTRIBUTE)
       .build();
-
-    DynamoDbItemEncryptor itemEncryptor = DynamoDbItemEncryptor
-      .builder()
-      .logicalTableName(tableName)
-      .schema(schema)
-      .keyring(rawAesKeyring)
-      .build();
-    Map<String, AttributeValue> plaintextItem = Map.of(
-      PARTITION_KEY,
-      AttributeValue.fromS("MissingPartitionOrSortKeyExample"),
-      SORT_KEY,
-      AttributeValue.fromN("0"),
-      ENCRYPTED_ATTRIBUTE,
-      AttributeValue.fromS("encrypt and sign me!"),
-      SIGNED_ATTRIBUTE,
-      AttributeValue.fromS("sign me!")
-    );
-    Map<String, AttributeValue> encryptedItem = itemEncryptor
-      .encryptItem(plaintextItem)
-      .encryptedItem();
-    decryptItemWithoutSortKey(itemEncryptor, encryptedItem);
-
     DynamoDbTableEncryptionConfig tableConfig = DynamoDbTableEncryptionConfig
       .builder()
       .tableName(tableName)
@@ -91,11 +83,35 @@ public class MissingPartitionOrSortKeyExample {
         )
         .build()
     ) {
-      writeItemWithoutSortKey(dynamoDbClient, tableName);
+      executePartiqlStatement(dynamoDbClient, tableName);
+      putItemWithLegacyExpected(dynamoDbClient, tableName);
+      transactWriteEntryWithNoOperation(dynamoDbClient);
     }
   }
 
-  private static void writeItemWithoutSortKey(
+  private static void executePartiqlStatement(
+    DynamoDbClient dynamoDbClient,
+    String tableName
+  ) {
+    ExecuteStatementRequest request = ExecuteStatementRequest
+      .builder()
+      .statement("SELECT * FROM \"" + tableName + "\"")
+      .build();
+    try {
+      dynamoDbClient.executeStatement(request);
+    } catch (UnsupportedRequestException exception) {
+      System.err.println(
+        "Use GetItem, Query or Scan on an encrypted table, not PartiQL: " +
+        exception.getMessage()
+      );
+      return;
+    }
+    throw new IllegalStateException(
+      "A PartiQL statement on an encrypted table was sent"
+    );
+  }
+
+  private static void putItemWithLegacyExpected(
     DynamoDbClient dynamoDbClient,
     String tableName
   ) {
@@ -105,45 +121,56 @@ public class MissingPartitionOrSortKeyExample {
       .item(
         Map.of(
           PARTITION_KEY,
-          AttributeValue.fromS("MissingPartitionOrSortKeyExample"),
+          AttributeValue.fromS("UnsupportedRequestErrorsExample"),
+          SORT_KEY,
+          AttributeValue.fromN("0"),
           ENCRYPTED_ATTRIBUTE,
           AttributeValue.fromS("encrypt and sign me!"),
           SIGNED_ATTRIBUTE,
           AttributeValue.fromS("sign me!")
         )
       )
+      .expected(
+        Map.of(
+          PARTITION_KEY,
+          ExpectedAttributeValue.builder().exists(false).build()
+        )
+      )
       .build();
     try {
       dynamoDbClient.putItem(request);
-    } catch (InvalidItemException exception) {
+    } catch (UnsupportedRequestException exception) {
       System.err.println(
-        "Include the partition key and sort key in every item: " +
-        exception.getMessage()
-      );
-      return;
-    }
-    throw new IllegalStateException("An item without its sort key was written");
-  }
-
-  // This happens when you pass part of an item, for example one read with a projection expression
-  // that leaves out the sort key.
-  private static void decryptItemWithoutSortKey(
-    DynamoDbItemEncryptor itemEncryptor,
-    Map<String, AttributeValue> encryptedItem
-  ) {
-    Map<String, AttributeValue> partialItem = new HashMap<>(encryptedItem);
-    partialItem.remove(SORT_KEY);
-    try {
-      itemEncryptor.decryptItem(partialItem);
-    } catch (InvalidItemException exception) {
-      System.err.println(
-        "Pass the whole stored item, with its partition key and sort key: " +
+        "Replace Expected with a condition expression: " +
         exception.getMessage()
       );
       return;
     }
     throw new IllegalStateException(
-      "Decrypting an item without its sort key succeeded"
+      "A PutItem request with the legacy Expected parameter was sent"
+    );
+  }
+
+  // Each entry in a transaction must say what it does to an item. The DB-ESDK checks this for the
+  // whole request, before it looks at any table name.
+  private static void transactWriteEntryWithNoOperation(
+    DynamoDbClient dynamoDbClient
+  ) {
+    TransactWriteItemsRequest request = TransactWriteItemsRequest
+      .builder()
+      .transactItems(TransactWriteItem.builder().build())
+      .build();
+    try {
+      dynamoDbClient.transactWriteItems(request);
+    } catch (UnsupportedRequestException exception) {
+      System.err.println(
+        "Set Put, Update, Delete or ConditionCheck on every transaction entry: " +
+        exception.getMessage()
+      );
+      return;
+    }
+    throw new IllegalStateException(
+      "A transaction entry with no operation was sent"
     );
   }
 
@@ -153,7 +180,7 @@ public class MissingPartitionOrSortKeyExample {
         "To run this example, include the table name in args"
       );
     }
-    encryptAndDecryptWithoutSortKey(args[0]);
+    sendUnsupportedRequests(args[0]);
   }
 
   private static byte[] generateAesKeyBytes() {
