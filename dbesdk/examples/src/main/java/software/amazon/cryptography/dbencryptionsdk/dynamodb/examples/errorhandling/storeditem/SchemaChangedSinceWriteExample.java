@@ -17,10 +17,12 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  * Shows what the DB-ESDK throws when you read an item with a schema that no longer signs an
  * attribute that the item was signed with.
  *
- * <p>The item's signature covers every attribute that the DB-ESDK signed when it wrote the item. If
- * the schema that you read with does not sign one of them, the signature does not verify, and the
- * DB-ESDK throws {@link VerificationFailedException}. Change an attribute's action only as the
- * DB-ESDK developer guide describes in its guidance on updating your data model.
+ * <p>When the DB-ESDK writes an item, it stores in the item's "aws_dbe_head" attribute the list of
+ * attributes that it signed and how it protected each one. When it reads the item, it compares that
+ * list with the schema that you read with. If the schema no longer signs one of the listed
+ * attributes, the read fails with {@link VerificationFailedException} before any key is used or any
+ * signature is checked. Change an attribute's action only as the DB-ESDK developer guide describes
+ * in its guidance on updating your data model.
  *
  * <p>This example needs no AWS access. It uses a Raw AES keyring with a key generated in the
  * example. In practice, get the key from a key management system.
