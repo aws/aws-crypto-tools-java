@@ -26,9 +26,10 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  *   <li>Attribute names that start with "aws_dbe_" belong to the attributes that the DB-ESDK adds
  *       to each item. The DB-ESDK rejects a schema that names one when you build it, and an item
  *       that has one when you write it.
- *   <li>Names that start with "aws-crypto-" belong to the AWS encryption libraries. The logical
- *       table name, partition key name and sort key name may not start with it. The DB-ESDK checks
- *       this when it encrypts an item, not when you build the configuration.
+ *   <li>Names that start with "aws-crypto-" belong to the AWS encryption libraries. The DB-ESDK
+ *       rejects a schema attribute name that starts with it, including the partition key and sort
+ *       key names, when you build the configuration. It checks the logical table name later, when
+ *       it encrypts an item.
  * </ul>
  *
  * <p>A reserved name in a configuration throws {@link InvalidConfigurationException}, and a
@@ -117,10 +118,10 @@ public class ReservedNameErrorsExample {
   }
 
   // Names that start with "aws-crypto-" are reserved for the AWS encryption libraries. The DB-ESDK
-  // encrypts every item with the logical table name, partition key name and sort key name, so none
-  // of them may start with it.
-  // The DB-ESDK checks this when it encrypts an item, not when you build the configuration, so the
-  // item encryptor below builds and the first encryption fails.
+  // puts the logical table name in each item's encryption context, where no value may start with
+  // it. It checks the logical table name only when it encrypts an item, so the item encryptor below
+  // builds and the first encryption fails. A partition key or sort key name that starts with
+  // "aws-crypto-" is rejected earlier, when you build the configuration.
   private static void encryptWithReservedLogicalTableName(
     ItemEncryptionSchema schema,
     Keyring keyring
@@ -146,7 +147,7 @@ public class ReservedNameErrorsExample {
       );
     } catch (InvalidConfigurationException exception) {
       System.err.println(
-        "Choose a logical table name and key names that do not start with aws-crypto-: " +
+        "Choose a logical table name that does not start with aws-crypto-: " +
         exception.getMessage()
       );
       return;
