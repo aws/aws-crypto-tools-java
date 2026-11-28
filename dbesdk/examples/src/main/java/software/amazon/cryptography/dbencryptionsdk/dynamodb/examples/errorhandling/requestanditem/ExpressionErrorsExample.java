@@ -33,8 +33,8 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  *
  * <p>The DB-ESDK also checks an {@code UpdateItem} response. If the response would return signed
  * attributes without the rest of the item, the DB-ESDK cannot verify them and throws {@link
- * UnsupportedRequestException}. Ask for {@code ReturnValue.ALL_NEW} or {@code ALL_OLD} when you
- * need signed attributes back.
+ * UnsupportedRequestException}. DynamoDB has already applied that update, so do not retry it. Ask
+ * for {@code ReturnValue.ALL_NEW} or {@code ALL_OLD} when you need signed attributes back.
  *
  * <p>{@link UnsupportedRequestException} is a {@link ValidationException}, so a {@code catch} of
  * {@link ValidationException} catches it too.

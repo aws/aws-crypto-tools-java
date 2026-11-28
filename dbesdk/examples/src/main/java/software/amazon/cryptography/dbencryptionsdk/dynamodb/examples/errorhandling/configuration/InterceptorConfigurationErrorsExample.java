@@ -24,10 +24,11 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  *
  * <ul>
  *   <li>two tables that share a logical table name;
- *   <li>the interceptor added to a client for a service other than DynamoDB;
- *   <li>a table configuration that sets both a legacy encryptor for migration and a plaintext
- *       read or write policy. Set only one of them.
+ *   <li>the interceptor added to a client for a service other than DynamoDB.
  * </ul>
+ *
+ * <p>A table configuration that sets both a legacy encryptor for migration and a plaintext read or
+ * write policy is rejected the same way. Set only one of them.
  *
  * <p>Asking for the item encryptor of a table that you never configured throws plain {@link
  * ValidationException}, because the argument is wrong, not the configuration.

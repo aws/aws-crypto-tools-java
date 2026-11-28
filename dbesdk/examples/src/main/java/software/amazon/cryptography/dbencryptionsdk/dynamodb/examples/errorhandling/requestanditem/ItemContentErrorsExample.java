@@ -26,12 +26,12 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  * <ul>
  *   <li>with an attribute that the schema gives no action;
  *   <li>with values nested more than 32 levels deep;
- *   <li>without an attribute that the schema marks {@code signAndIncludeInEncryptionContext};
  *   <li>with a number attribute that is not a valid number.
  * </ul>
  *
- * <p>Change the item; a retry gets the same result. {@code MissingPartitionOrSortKeyExample} shows
- * an item without its partition key or sort key.
+ * <p>It also rejects an item without an attribute that the schema marks {@code
+ * signAndIncludeInEncryptionContext}. Change the item; a retry gets the same result. {@code
+ * MissingPartitionOrSortKeyExample} shows an item without its partition key or sort key.
  *
  * <p>{@link InvalidItemException} is a {@link ValidationException}, so a {@code catch} of {@link
  * ValidationException} catches it too. Catch {@link InvalidItemException} to skip one bad item and

@@ -29,13 +29,15 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchica
  * Shows the compound beacon values that the DB-ESDK rejects, on a search and on a write.
  *
  * <p>A compound beacon joins several parts into one searchable value. Each part starts with its
- * prefix, and the beacon's separator character joins the parts. Before anything is sent, the
- * DB-ESDK rejects:
+ * prefix, and the beacon's separator character joins the parts. Before it sends the DynamoDB
+ * request, the DB-ESDK rejects:
  *
  * <ul>
  *   <li>a search value that starts with no configured part prefix, with {@link
  *       ValidationException};
- *   <li>an item whose part value contains the separator, with {@link InvalidItemException};
+ *   <li>an item whose part value contains the separator, with {@link InvalidItemException}. For a
+ *       beacon with an encrypted part, this check runs after the item is encrypted, so the key
+ *       store and AWS KMS have already been called;
  *   <li>an item whose own value for a compound beacon built only from signed parts differs from
  *       the value that the DB-ESDK computes, with {@link InvalidItemException}.
  * </ul>

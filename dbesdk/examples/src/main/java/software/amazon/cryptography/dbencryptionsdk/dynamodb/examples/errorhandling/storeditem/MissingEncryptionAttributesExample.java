@@ -26,7 +26,8 @@ import software.amazon.cryptography.materialproviders.keyrings.RawAesKeyring;
  *
  * <p>An item that has the attributes in the wrong form is corrupt, not unencrypted, and throws
  * {@link MalformedHeaderOrFooterException} instead: for example an "aws_dbe_head" that is not a
- * binary value, or an item with only one of the two attributes (see {@code TamperedItemExample}).
+ * binary value, or an item with only one of the two attributes. {@code TamperedItemExample} shows a
+ * truncated "aws_dbe_head".
  *
  * <p>An item with neither attribute is expected while you move a table from unencrypted to
  * encrypted items: allow plaintext reads in the item encryptor's configuration until every item is

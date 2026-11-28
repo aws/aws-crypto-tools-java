@@ -11,6 +11,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.ExampleUtils;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.AesWrappingAlg;
@@ -79,7 +80,9 @@ public class ConditionalWriteFailureExample {
       .item(
         Map.of(
           PARTITION_KEY,
-          AttributeValue.fromS("ConditionalWriteFailureExample"),
+          AttributeValue.fromS(
+            ExampleUtils.uniquePartitionKey("ConditionalWriteFailureExample")
+          ),
           SORT_KEY,
           AttributeValue.fromN("0"),
           ENCRYPTED_ATTRIBUTE,

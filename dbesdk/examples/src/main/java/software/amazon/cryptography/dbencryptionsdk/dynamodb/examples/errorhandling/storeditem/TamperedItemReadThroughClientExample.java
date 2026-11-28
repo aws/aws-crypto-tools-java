@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
+import software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.ExampleUtils;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.exceptions.VerificationFailedException;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
@@ -78,13 +79,16 @@ public class TamperedItemReadThroughClientExample {
     DynamoDbClient plaintextClient,
     String tableName
   ) {
+    // A partition key unique to this run, so a concurrent run cannot write this item between the
+    // change below and the read.
+    String partitionValue = ExampleUtils.uniquePartitionKey("ChangedItem");
     PutItemRequest write = PutItemRequest
       .builder()
       .tableName(tableName)
       .item(
         Map.of(
           PARTITION_KEY,
-          AttributeValue.fromS("ChangedItem"),
+          AttributeValue.fromS(partitionValue),
           SORT_KEY,
           AttributeValue.fromN("0"),
           ENCRYPTED_ATTRIBUTE,
@@ -94,7 +98,7 @@ public class TamperedItemReadThroughClientExample {
       .build();
     Map<String, AttributeValue> key = Map.of(
       PARTITION_KEY,
-      AttributeValue.fromS("ChangedItem"),
+      AttributeValue.fromS(partitionValue),
       SORT_KEY,
       AttributeValue.fromN("0")
     );

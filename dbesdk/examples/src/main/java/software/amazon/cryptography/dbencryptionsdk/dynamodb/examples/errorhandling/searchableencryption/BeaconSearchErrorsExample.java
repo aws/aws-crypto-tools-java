@@ -28,8 +28,9 @@ import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchica
  * <p>The DB-ESDK can rewrite only some searches, so it rejects the rest before anything is sent,
  * with {@link ValidationException}: a search on an encrypted attribute that has no beacon, an
  * operation that a beacon cannot answer (for example {@code <} on a standard beacon), and a name or
- * value missing from the expression maps. A Scan that sets the partition attribute is rejected the
- * same way. Change the request; a retry gets the same result.
+ * value missing from the expression maps. A Scan that sets a value for ":aws_dbe_partition", the
+ * beacon partition number, is rejected the same way. Change the request; a retry gets the same
+ * result.
  *
  * <p>Running this example needs AWS credentials, a key store, and a branch key in it to use as the
  * beacon key. Every request below is rejected before it is sent, so the table does not have to

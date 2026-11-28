@@ -268,12 +268,13 @@ public final class FailureHandler {
     NoMatchingDataKeyException exception
   ) {
     // For AWS KMS and hierarchical keyrings, keyProviderInfo() names the KMS key or branch key.
+    // For raw keyrings it is null.
     for (EncryptedDataKeyDescription encryptedDataKey : exception.encryptedDataKeys()) {
+      String keyProviderInfo = encryptedDataKey.keyProviderInfo();
       System.err.println(
         "The item was encrypted for key provider " +
         encryptedDataKey.keyProviderId() +
-        " " +
-        encryptedDataKey.keyProviderInfo() +
+        (keyProviderInfo == null ? "" : " " + keyProviderInfo) +
         "; read it with a keyring for that key"
       );
     }
