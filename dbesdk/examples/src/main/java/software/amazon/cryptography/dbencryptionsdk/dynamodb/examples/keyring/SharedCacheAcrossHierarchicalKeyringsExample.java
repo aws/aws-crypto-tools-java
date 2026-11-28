@@ -11,11 +11,11 @@ import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionInterceptor;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * This example demonstrates how to use a shared cache across multiple Hierarchical Keyrings. With
@@ -112,7 +112,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
       DynamoDbClient keyStore1DynamoDbClient = DynamoDbClient.create();
       KmsClient keyStore1KmsClient = KmsClient.create()
     ) {
-      BranchKeyStore keystore1 = BranchKeyStore
+      DynamoDbKeyStore keystore1 = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(logicalKeyStoreName)
@@ -217,7 +217,7 @@ public class SharedCacheAcrossHierarchicalKeyringsExample {
           DynamoDbClient keyStore2DynamoDbClient = DynamoDbClient.create();
           KmsClient keyStore2KmsClient = KmsClient.create()
         ) {
-          BranchKeyStore keystore2 = BranchKeyStore
+          DynamoDbKeyStore keystore2 = DynamoDbKeyStore
             .builder()
             .ddbTableName(keyStoreTableName)
             .logicalKeyStoreName(logicalKeyStoreName)

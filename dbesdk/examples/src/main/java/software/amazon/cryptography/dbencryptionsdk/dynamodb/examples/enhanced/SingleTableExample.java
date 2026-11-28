@@ -13,7 +13,7 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryp
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.enhancedclient.EnhancedClientSchemas;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.ExampleUtils;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
@@ -95,7 +95,7 @@ public class SingleTableExample {
       // For more information on supported algorithm suites, see:
       //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
       .algorithmSuite(
-        AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
+        DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
       )
       .build();
 

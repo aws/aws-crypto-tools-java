@@ -37,8 +37,8 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.ExampleUti
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.SecretBytes;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
+import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyAgreementScheme;
 import software.amazon.cryptography.materialproviders.keyrings.RawEcdhKeyring;
-import software.amazon.cryptography.materialproviders.keyrings.RawEcdhStaticConfigurations;
 
 /**
  * These examples set up DynamoDB Encryption for the AWS SDK client using the raw ECDH Keyring. This
@@ -155,10 +155,11 @@ public class RawEcdhKeyringExample {
       .builder()
       .curveSpec(curveSpec)
       .keyAgreementScheme(
-        RawEcdhStaticConfigurations.rawPrivateKeyToStaticPublicKey(
-          SecretBytes.copyOf(senderPrivateKeyPem),
-          recipientPublicKeyDer
-        )
+        RawEcdhKeyAgreementScheme
+          .rawPrivateKeyToStaticPublicKey()
+          .senderStaticPrivateKey(SecretBytes.copyOf(senderPrivateKeyPem))
+          .recipientPublicKey(recipientPublicKeyDer)
+          .build()
       )
       .build();
 
@@ -240,9 +241,10 @@ public class RawEcdhKeyringExample {
       .builder()
       .curveSpec(ecdhCurveSpec)
       .keyAgreementScheme(
-        RawEcdhStaticConfigurations.ephemeralPrivateKeyToStaticPublicKey(
-          recipientPublicKeyDer
-        )
+        RawEcdhKeyAgreementScheme
+          .ephemeralPrivateKeyToStaticPublicKey()
+          .recipientPublicKey(recipientPublicKeyDer)
+          .build()
       )
       .build();
 
@@ -289,9 +291,10 @@ public class RawEcdhKeyringExample {
       .builder()
       .curveSpec(ecdhCurveSpec)
       .keyAgreementScheme(
-        RawEcdhStaticConfigurations.publicKeyDiscovery(
-          SecretBytes.copyOf(recipientPrivateKeyPem)
-        )
+        RawEcdhKeyAgreementScheme
+          .publicKeyDiscovery()
+          .recipientStaticPrivateKey(SecretBytes.copyOf(recipientPrivateKeyPem))
+          .build()
       )
       .build();
 

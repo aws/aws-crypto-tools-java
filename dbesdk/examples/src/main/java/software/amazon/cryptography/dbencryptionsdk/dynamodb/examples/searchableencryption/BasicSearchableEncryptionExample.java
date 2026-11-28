@@ -16,10 +16,10 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryp
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * This example demonstrates how to set up a beacon on an encrypted attribute, put an item with the
@@ -166,7 +166,7 @@ public class BasicSearchableEncryptionExample {
       DynamoDbClient keyStoreDynamoDbClient = DynamoDbClient.create();
       KmsClient keyStoreKmsClient = KmsClient.create()
     ) {
-      BranchKeyStore keyStore = BranchKeyStore
+      DynamoDbKeyStore keyStore = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(keyStoreTableName)

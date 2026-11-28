@@ -14,10 +14,10 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.SignedPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.StandardBeacon;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * This class is used in an example to demonstrate complex queries you can perform using beacons.
@@ -45,7 +45,7 @@ public final class ComplexExampleClientSetup {
     //    These are the same constructions as in the Basic examples, which describe this in more detail.
     //    The keystore uses the caller's DynamoDB and AWS KMS clients. The returned client uses the
     //    keystore, so the caller must keep those clients open until it has closed the returned client.
-    BranchKeyStore keyStore = BranchKeyStore
+    DynamoDbKeyStore keyStore = DynamoDbKeyStore
       .builder()
       .ddbTableName(keyStoreTableName)
       .logicalKeyStoreName(keyStoreTableName)

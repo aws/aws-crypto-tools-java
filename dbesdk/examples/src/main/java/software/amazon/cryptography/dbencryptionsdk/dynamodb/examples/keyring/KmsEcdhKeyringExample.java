@@ -30,11 +30,11 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionI
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.ExampleUtils;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsEcdhKeyring;
 import software.amazon.cryptography.materialproviders.keyrings.EcdhCurveSpec;
-import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhStaticConfigurations;
+import software.amazon.cryptography.materialproviders.keyrings.KmsEcdhKeyAgreementScheme;
 
 /**
  * These examples set up DynamoDB Encryption for the AWS SDK client using the AWS KMS ECDH Keyring.
@@ -111,7 +111,7 @@ public class KmsEcdhKeyringExample {
     // The DynamoDB encryption client uses this keyring to encrypt and decrypt items.
     // This keyring takes in:
     //  - kmsClient
-    //  - kmsKeyId: Must be an ARN representing a KMS ECC key meant for KeyAgreement
+    //  - senderKmsIdentifier: Must be an ARN representing a KMS ECC key meant for KeyAgreement
     //  - curveSpec: The curve name where the public keys lie
     //  - senderPublicKey: A byte[] of the DER-encoded public
     //               key for the key passed into kmsKeyId
@@ -125,13 +125,14 @@ public class KmsEcdhKeyringExample {
         .kmsClient(kmsClient)
         .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
         .keyAgreementScheme(
-          KmsEcdhStaticConfigurations.kmsPrivateKeyToStaticPublicKey(
-            eccKeyArn,
+          KmsEcdhKeyAgreementScheme
+            .kmsPrivateKeyToStaticPublicKey()
+            .senderKmsIdentifier(eccKeyArn)
             // Must be a DER-encoded X.509 public key
-            senderPublicKeyDer,
+            .senderPublicKey(senderPublicKeyDer)
             // Must be a DER-encoded X.509 public key
-            recipientPublicKeyDer
-          )
+            .recipientPublicKey(recipientPublicKeyDer)
+            .build()
         )
         .build();
 
@@ -177,7 +178,10 @@ public class KmsEcdhKeyringExample {
         .kmsClient(kmsClient)
         .curveSpec(EcdhCurveSpec.ECC_NIST_P256)
         .keyAgreementScheme(
-          KmsEcdhStaticConfigurations.kmsPublicKeyDiscovery(eccRecipientKeyArn)
+          KmsEcdhKeyAgreementScheme
+            .kmsPublicKeyDiscovery()
+            .recipientKmsIdentifier(eccRecipientKeyArn)
+            .build()
         )
         .build();
 
@@ -233,7 +237,7 @@ public class KmsEcdhKeyringExample {
       // ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384 is the only DB-ESDK
       // algorithm suite without it.
       .algorithmSuite(
-        AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
+        DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
       )
       .build();
 
@@ -327,7 +331,7 @@ public class KmsEcdhKeyringExample {
       // ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384 is the only DB-ESDK
       // algorithm suite without it.
       .algorithmSuite(
-        AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
+        DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_SYMSIG_HMAC_SHA384
       )
       .build();
 

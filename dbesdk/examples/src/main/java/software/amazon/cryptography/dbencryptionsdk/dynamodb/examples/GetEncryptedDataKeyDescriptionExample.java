@@ -12,11 +12,11 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbEncryptionI
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.DynamoDbTableEncryptionConfig;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.EncryptedDataKeyDescription;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.cache.DefaultCache;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * This example writes an item encrypted with the Hierarchical Keyring, reads the stored item back
@@ -54,7 +54,7 @@ public class GetEncryptedDataKeyDescriptionExample {
       DynamoDbClient keyStoreDynamoDbClient = DynamoDbClient.create();
       KmsClient keyStoreKmsClient = KmsClient.create()
     ) {
-      BranchKeyStore keyStore = BranchKeyStore
+      DynamoDbKeyStore keyStore = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(logicalKeyStoreName)

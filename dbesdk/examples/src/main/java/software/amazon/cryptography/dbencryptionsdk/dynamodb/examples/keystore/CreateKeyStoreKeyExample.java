@@ -2,8 +2,8 @@ package software.amazon.cryptography.dbencryptionsdk.dynamodb.examples.keystore;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.kms.KmsClient;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * The Hierarchical Keyring Example and Searchable Encryption Examples rely on the existence of a
@@ -35,7 +35,7 @@ public class CreateKeyStoreKeyExample {
       DynamoDbClient keyStoreDynamoDbClient = DynamoDbClient.create();
       KmsClient keyStoreKmsClient = KmsClient.create()
     ) {
-      BranchKeyStore keyStore = BranchKeyStore
+      DynamoDbKeyStore keyStore = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(logicalKeyStoreName)
@@ -46,7 +46,7 @@ public class CreateKeyStoreKeyExample {
 
       // 2. Create a new branch key and beacon key in our KeyStore. Both the branch key and the beacon
       // key will share an Id. This creation is eventually consistent.
-      return keyStore.createKey().branchKeyIdentifier();
+      return keyStore.createKey().branchKeyId();
     }
   }
 

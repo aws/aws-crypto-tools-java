@@ -4,7 +4,7 @@ import java.util.Map;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.ItemEncryptionSchema;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.itemencryptor.DynamoDbItemEncryptor;
-import software.amazon.cryptography.materialproviders.AlgorithmSuite;
+import software.amazon.cryptography.materialproviders.DbeAlgorithmSuite;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsMrkMultiKeyring;
 
@@ -85,7 +85,7 @@ public class ItemEncryptDecryptExample {
       // For more information on supported algorithm suites, see:
       //   https://docs.aws.amazon.com/database-encryption-sdk/latest/devguide/supported-algorithms.html
       .algorithmSuite(
-        AlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
+        DbeAlgorithmSuite.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384
       )
       .build();
 

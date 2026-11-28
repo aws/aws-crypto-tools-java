@@ -18,10 +18,10 @@ import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualField;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualPart;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.VirtualTransform;
 import software.amazon.cryptography.dbencryptionsdk.dynamodb.transforms.DynamoDbEncryptionTransforms;
-import software.amazon.cryptography.keystore.BranchKeyStore;
-import software.amazon.cryptography.keystore.KmsConfiguration;
 import software.amazon.cryptography.materialproviders.Keyring;
 import software.amazon.cryptography.materialproviders.keyrings.AwsKmsHierarchicalKeyring;
+import software.amazon.cryptography.materialproviders.keystore.DynamoDbKeyStore;
+import software.amazon.cryptography.materialproviders.keystore.KmsConfiguration;
 
 /**
  * This example demonstrates how to set up a virtual field from two DynamoDB attributes, create a standard
@@ -206,7 +206,7 @@ public class VirtualBeaconSearchableEncryptionExample {
       DynamoDbClient keyStoreDynamoDbClient = DynamoDbClient.create();
       KmsClient keyStoreKmsClient = KmsClient.create()
     ) {
-      BranchKeyStore keyStore = BranchKeyStore
+      DynamoDbKeyStore keyStore = DynamoDbKeyStore
         .builder()
         .ddbTableName(keyStoreTableName)
         .logicalKeyStoreName(keyStoreTableName)
